@@ -4,28 +4,32 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useBooking } from '@/lib/contexts/BookingContext';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
-import Button from '@/components/ui/Button';
-import BookingSummary from '@/components/booking/BookingSummary';
 
 export default function PaymentPage() {
   const router = useRouter();
   const { bookingData, updateBooking } = useBooking();
   const { t } = useLanguage();
 
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'promptpay'>('card');
   const [formData, setFormData] = useState({
     firstName: bookingData.firstName || '',
     lastName: bookingData.lastName || '',
     email: bookingData.email || '',
     phone: bookingData.phone || '',
-    paymentMethod: bookingData.paymentMethod || 'card',
     cardNumber: '',
     expiryDate: '',
     cvv: '',
-    promptpayNumber: '',
-    agreeTerms: false,
+    cardName: '',
+    saveCard: true
   });
 
   const [processing, setProcessing] = useState(false);
+
+  // Redirect if no vehicle selected
+  if (!bookingData.vehicle) {
+    // In a real app we might redirect, but for dev flow let's stay or mock
+    // router.push('/vehicles');
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -35,360 +39,271 @@ export default function PaymentPage() {
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!formData.agreeTerms) {
-      alert('Please agree to the terms and conditions');
-      return;
-    }
-
+  const handleSubmit = async () => {
     setProcessing(true);
 
-    // Update booking data
-    updateBooking({
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      email: formData.email,
-      phone: formData.phone,
-      paymentMethod: formData.paymentMethod as 'card' | 'promptpay',
-      addInsurance: bookingData.addInsurance,
-      addLuggage: bookingData.addLuggage,
-    });
-
-    // Simulate payment processing
+    // Simulate API call
     setTimeout(() => {
+      updateBooking({
+        paymentMethod: paymentMethod,
+        // In a real app we'd save the form data too
+      });
       setProcessing(false);
       router.push('/confirmation');
     }, 2000);
   };
 
-  if (!bookingData.vehicle) {
-    router.push('/vehicles');
-    return null;
-  }
-
   return (
-    <div className="bg-gray-50 min-h-screen py-12">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            {t.payment.title}
-          </h1>
-          <p className="text-xl text-gray-600">{t.payment.subtitle}</p>
-        </div>
+    <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-10 py-8 md:py-12 min-h-screen">
+      <div className="flex flex-col gap-2 mb-8">
+        <h1 className="text-3xl md:text-4xl font-black leading-tight tracking-tight text-[#111418] dark:text-white">Secure Checkout</h1>
+        <p className="text-[#617589] dark:text-gray-400 text-base">Complete your booking by selecting a payment method below.</p>
+      </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Payment Form */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Personal Information */}
-              <div className="bg-white rounded-xl shadow-lg p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  {t.payment.personalInfo}
-                </h2>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        {/* Left Column: Payment Methods */}
+        <div className="lg:col-span-2 flex flex-col gap-6">
+          {/* Payment Method Selector (Tabs) */}
+          <div className="bg-white dark:bg-[#111a22] rounded-xl border border-[#dbe0e6] dark:border-gray-800 shadow-sm overflow-hidden">
+            <div className="flex border-b border-[#dbe0e6] dark:border-gray-800">
+              <button
+                onClick={() => setPaymentMethod('card')}
+                className={`flex-1 flex items-center justify-center gap-2 py-4 px-4 border-b-[3px] transition-colors group ${paymentMethod === 'card' ? 'bg-white dark:bg-[#111a22] border-brand-primary text-brand-primary' : 'bg-[#f9fafb] dark:bg-[#16212b] border-transparent text-[#617589] dark:text-gray-400 hover:text-[#111418] dark:hover:text-gray-200'}`}
+              >
+                <span className="material-symbols-outlined filled" style={{ fontVariationSettings: "'FILL' 1" }}>credit_card</span>
+                <span className="text-sm font-bold">Credit / Debit Card</span>
+              </button>
+              <button
+                onClick={() => setPaymentMethod('promptpay')}
+                className={`flex-1 flex items-center justify-center gap-2 py-4 px-4 border-b-[3px] transition-colors group ${paymentMethod === 'promptpay' ? 'bg-white dark:bg-[#111a22] border-brand-primary text-brand-primary' : 'bg-[#f9fafb] dark:bg-[#16212b] border-transparent text-[#617589] dark:text-gray-400 hover:text-[#111418] dark:hover:text-gray-200'}`}
+              >
+                <span className="material-symbols-outlined">qr_code_scanner</span>
+                <span className="text-sm font-bold">PromptPay QR</span>
+              </button>
+            </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      {t.payment.firstName} *
-                    </label>
-                    <input
-                      type="text"
-                      name="firstName"
-                      value={formData.firstName}
-                      onChange={handleChange}
-                      required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      {t.payment.lastName} *
-                    </label>
-                    <input
-                      type="text"
-                      name="lastName"
-                      value={formData.lastName}
-                      onChange={handleChange}
-                      required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      {t.payment.email} *
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      {t.payment.phone} *
-                    </label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      required
-                      placeholder="08X-XXX-XXXX"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
+            {/* Credit Card Form */}
+            {paymentMethod === 'card' && (
+              <div className="p-6 md:p-8 flex flex-col gap-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-lg font-bold text-[#111418] dark:text-white">Card Details</h3>
+                  <div className="flex gap-2 opacity-70">
+                    <div className="h-6 w-10 bg-[#1a1f71] rounded flex items-center justify-center text-[8px] text-white font-bold italic tracking-wider">VISA</div>
+                    <div className="h-6 w-10 bg-[#eb001b] rounded flex items-center justify-center text-[8px] text-white font-bold italic tracking-wider">MC</div>
                   </div>
                 </div>
-              </div>
 
-              {/* Add-ons */}
-              <div className="bg-white rounded-xl shadow-lg p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Add-ons</h2>
-
-                {/* Driver Included Notice */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                  <p className="text-sm text-blue-800">
-                    <svg className="w-5 h-5 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                    </svg>
-                    <strong>{t.booking.driverIncluded}</strong>
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  <label className="flex items-start p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 cursor-pointer transition">
-                    <input
-                      type="checkbox"
-                      checked={bookingData.addInsurance}
-                      onChange={(e) => updateBooking({ addInsurance: e.target.checked })}
-                      className="w-5 h-5 text-blue-600 focus:ring-blue-500 rounded mt-1"
-                    />
-                    <div className="ml-3 flex-1">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-semibold text-gray-900">
-                            {t.booking.insurance}
-                          </p>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Comprehensive travel insurance for your peace of mind
-                          </p>
-                        </div>
-                        <p className="font-semibold text-blue-600">฿500</p>
+                <div className="flex flex-col gap-4">
+                  {/* Card Number */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-semibold text-[#111418] dark:text-gray-200">Card Number</label>
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                        <span className="material-symbols-outlined text-[20px]">credit_card</span>
                       </div>
-                    </div>
-                  </label>
-
-                  <label className="flex items-start p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 cursor-pointer transition">
-                    <input
-                      type="checkbox"
-                      checked={bookingData.addLuggage}
-                      onChange={(e) => updateBooking({ addLuggage: e.target.checked })}
-                      className="w-5 h-5 text-blue-600 focus:ring-blue-500 rounded mt-1"
-                    />
-                    <div className="ml-3 flex-1">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-semibold text-gray-900">
-                            {t.booking.extraLuggage}
-                          </p>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Additional luggage storage space for extra bags
-                          </p>
-                        </div>
-                        <p className="font-semibold text-blue-600">฿300</p>
-                      </div>
-                    </div>
-                  </label>
-                </div>
-              </div>
-
-              {/* Payment Method */}
-              <div className="bg-white rounded-xl shadow-lg p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  {t.payment.paymentMethod}
-                </h2>
-
-                {/* Payment Method Selection */}
-                <div className="flex gap-4 mb-6">
-                  <label className="flex-1 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="card"
-                      checked={formData.paymentMethod === 'card'}
-                      onChange={handleChange}
-                      className="sr-only"
-                    />
-                    <div
-                      className={`p-4 border-2 rounded-lg text-center transition ${
-                        formData.paymentMethod === 'card'
-                          ? 'border-blue-600 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <svg
-                        className="w-8 h-8 mx-auto mb-2"
-                        fill="none"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                      </svg>
-                      <span className="font-semibold">{t.payment.creditCard}</span>
-                    </div>
-                  </label>
-
-                  <label className="flex-1 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="promptpay"
-                      checked={formData.paymentMethod === 'promptpay'}
-                      onChange={handleChange}
-                      className="sr-only"
-                    />
-                    <div
-                      className={`p-4 border-2 rounded-lg text-center transition ${
-                        formData.paymentMethod === 'promptpay'
-                          ? 'border-blue-600 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <svg
-                        className="w-8 h-8 mx-auto mb-2"
-                        fill="none"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                      </svg>
-                      <span className="font-semibold">{t.payment.promptpay}</span>
-                    </div>
-                  </label>
-                </div>
-
-                {/* Card Payment Fields */}
-                {formData.paymentMethod === 'card' && (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        {t.payment.cardNumber} *
-                      </label>
                       <input
                         type="text"
                         name="cardNumber"
                         value={formData.cardNumber}
                         onChange={handleChange}
-                        required
-                        placeholder="1234 5678 9012 3456"
-                        maxLength={19}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full rounded-lg border border-[#dbe0e6] dark:border-gray-700 bg-white dark:bg-[#16212b] pl-10 pr-4 py-3 text-sm placeholder:text-gray-400 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary outline-none transition-all dark:text-white"
+                        placeholder="0000 0000 0000 0000"
                       />
                     </div>
+                  </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          {t.payment.expiryDate} *
-                        </label>
+                  {/* Expiry & CVC */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-sm font-semibold text-[#111418] dark:text-gray-200">Expiry Date</label>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                          <span className="material-symbols-outlined text-[20px]">calendar_month</span>
+                        </div>
                         <input
                           type="text"
                           name="expiryDate"
                           value={formData.expiryDate}
                           onChange={handleChange}
-                          required
-                          placeholder="MM/YY"
-                          maxLength={5}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full rounded-lg border border-[#dbe0e6] dark:border-gray-700 bg-white dark:bg-[#16212b] pl-10 pr-4 py-3 text-sm placeholder:text-gray-400 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary outline-none transition-all dark:text-white"
+                          placeholder="MM / YY"
                         />
                       </div>
-
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          {t.payment.cvv} *
-                        </label>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-sm font-semibold text-[#111418] dark:text-gray-200 flex items-center gap-1">
+                        CVC / CVV
+                        <span className="material-symbols-outlined text-gray-400 text-[16px] cursor-help" title="3 digits on back of card">help</span>
+                      </label>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                          <span className="material-symbols-outlined text-[20px]">lock</span>
+                        </div>
                         <input
                           type="text"
                           name="cvv"
                           value={formData.cvv}
                           onChange={handleChange}
-                          required
+                          className="w-full rounded-lg border border-[#dbe0e6] dark:border-gray-700 bg-white dark:bg-[#16212b] pl-10 pr-4 py-3 text-sm placeholder:text-gray-400 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary outline-none transition-all dark:text-white"
                           placeholder="123"
-                          maxLength={3}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                       </div>
                     </div>
                   </div>
-                )}
 
-                {/* PromptPay Fields */}
-                {formData.paymentMethod === 'promptpay' && (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      {t.payment.promptpayNumber} *
-                    </label>
-                    <input
-                      type="tel"
-                      name="promptpayNumber"
-                      value={formData.promptpayNumber}
-                      onChange={handleChange}
-                      required
-                      placeholder="08X-XXX-XXXX"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
+                  {/* Cardholder Name */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-semibold text-[#111418] dark:text-gray-200">Cardholder Name</label>
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                        <span className="material-symbols-outlined text-[20px]">person</span>
+                      </div>
+                      <input
+                        type="text"
+                        name="cardName"
+                        value={formData.cardName}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border border-[#dbe0e6] dark:border-gray-700 bg-white dark:bg-[#16212b] pl-10 pr-4 py-3 text-sm placeholder:text-gray-400 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary outline-none transition-all dark:text-white"
+                        placeholder="Full name as displayed on card"
+                      />
+                    </div>
                   </div>
-                )}
 
-                {/* Terms and Conditions */}
-                <div className="mt-6">
-                  <label className="flex items-start cursor-pointer">
+                  {/* Save Card Checkbox */}
+                  <div className="flex items-center gap-3 mt-2">
                     <input
                       type="checkbox"
-                      name="agreeTerms"
-                      checked={formData.agreeTerms}
+                      id="save-card"
+                      name="saveCard"
+                      checked={formData.saveCard}
                       onChange={handleChange}
-                      required
-                      className="w-5 h-5 text-blue-600 focus:ring-blue-500 rounded mt-1"
+                      className="h-5 w-5 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
                     />
-                    <span className="ml-3 text-gray-700">{t.payment.terms}</span>
-                  </label>
+                    <label className="text-sm font-medium text-[#111418] dark:text-gray-300" htmlFor="save-card">Save card securely for future bookings</label>
+                  </div>
                 </div>
+              </div>
+            )}
 
-                {/* Submit Button */}
-                <div className="mt-8">
-                  <Button
-                    type="submit"
-                    disabled={processing}
-                    className="w-full"
-                    size="lg"
-                  >
-                    {processing ? t.payment.processing : t.payment.completeBooking}
-                  </Button>
-                </div>
+            {/* PromptPay Content (Placeholder) */}
+            {paymentMethod === 'promptpay' && (
+              <div className="p-6 md:p-8 flex flex-col items-center justify-center gap-6 min-h-[300px]">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg" alt="Mock QR" className="w-48 h-48 opacity-20" />
+                <p className="text-gray-500">PromptPay QR Integration Coming Soon</p>
+              </div>
+            )}
+
+            <hr className="border-[#f0f2f4] dark:border-gray-800 my-2" />
+
+            {/* Action Button */}
+            <div className="p-6 md:p-8 pt-0 flex flex-col gap-4">
+              <button
+                onClick={handleSubmit}
+                disabled={processing}
+                className="w-full bg-brand-primary hover:bg-blue-700 text-white font-bold text-lg py-4 rounded-xl shadow-lg shadow-blue-500/30 transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
+              >
+                {processing ? (
+                  <span>Processing...</span>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined group-hover:scale-110 transition-transform">lock_person</span>
+                    Confirm Payment
+                  </>
+                )}
+              </button>
+              <div className="flex items-center justify-center gap-2 text-[#617589] dark:text-gray-500 text-xs text-center">
+                <span className="material-symbols-outlined text-[14px]">lock</span>
+                Your payment information is encrypted and secure.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Order Summary */}
+        <div className="lg:col-span-1 sticky top-24">
+          <div className="flex flex-col bg-white dark:bg-[#111a22] rounded-xl border border-[#dbe0e6] dark:border-gray-800 shadow-sm overflow-hidden">
+            {/* Map Preview Header */}
+            <div className="h-32 w-full bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
+              <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/images/map-preview.jpg')" }}></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 to-indigo-100/20 dark:from-gray-800/20 dark:to-gray-900/20"></div>
+              <div className="absolute bottom-3 left-4 bg-white/90 dark:bg-black/70 backdrop-blur-sm px-2 py-1 rounded text-xs font-bold shadow-sm">
+                Route Preview
               </div>
             </div>
 
-            {/* Booking Summary */}
-            <div className="lg:col-span-1">
-              <BookingSummary />
+            <div className="p-6 flex flex-col gap-6">
+              <h2 className="text-xl font-bold text-[#111418] dark:text-white">Booking Summary</h2>
+
+              {/* Route */}
+              <div className="flex gap-4">
+                <div className="mt-1 flex flex-col items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-brand-primary"></div>
+                  <div className="w-0.5 h-8 bg-gray-200 dark:bg-gray-700"></div>
+                  <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                </div>
+                <div className="flex flex-col gap-4 flex-1">
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Pick-up</p>
+                    <p className="text-sm font-bold text-[#111418] dark:text-white">Suvarnabhumi Airport (BKK)</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Oct 12, 08:00 AM</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Drop-off</p>
+                    <p className="text-sm font-bold text-[#111418] dark:text-white">InterContinental Hua Hin</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Vehicle Info */}
+              {bookingData.vehicle && (
+                <div className="flex gap-3 items-start p-3 rounded-lg bg-background-light dark:bg-[#16212b] border border-[#dbe0e6] dark:border-gray-800">
+                  <div className="bg-white dark:bg-gray-800 p-2 rounded text-[#111418] dark:text-white shadow-sm">
+                    <span className="material-symbols-outlined">directions_car</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-[#111418] dark:text-white">{bookingData.vehicle.name}</span>
+                    <span className="text-xs text-[#617589] dark:text-gray-400">With Professional Driver</span>
+                    <div className="flex items-center gap-1 mt-1 text-[10px] text-green-600 bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 rounded w-fit font-bold">
+                      <span className="material-symbols-outlined text-[10px]">check</span> Free Cancellation
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="h-px bg-[#f0f2f4] dark:bg-gray-700 w-full"></div>
+
+              {/* Price Breakdown */}
+              <div className="flex flex-col gap-2 text-sm text-[#617589] dark:text-gray-400">
+                <div className="flex justify-between">
+                  <span>Base Fare</span>
+                  <span className="text-[#111418] dark:text-gray-200">฿{bookingData.vehicle?.price || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Driver Fee & Fuel</span>
+                  <span className="text-[#111418] dark:text-gray-200 text-xs bg-gray-100 dark:bg-gray-700 px-1 rounded">Included</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>VAT (7%)</span>
+                  <span className="text-[#111418] dark:text-gray-200">฿{Math.round((bookingData.vehicle?.price || 0) * 0.07)}</span>
+                </div>
+              </div>
+
+              <div className="h-px bg-[#f0f2f4] dark:bg-gray-700 w-full"></div>
+
+              {/* Total */}
+              <div className="flex justify-between items-end">
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-[#617589] dark:text-gray-400">Total Amount</span>
+                  <span className="text-xs text-green-600 dark:text-green-400 font-medium">No hidden fees</span>
+                </div>
+                <span className="text-2xl font-black text-[#111418] dark:text-white tracking-tight">
+                  ฿{Math.round((bookingData.vehicle?.price || 0) * 1.07)}
+                </span>
+              </div>
             </div>
           </div>
-        </form>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }

@@ -4,25 +4,18 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useBooking } from '@/lib/contexts/BookingContext';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
-import { locations } from '@/lib/data/locations';
-import Button from '@/components/ui/Button';
 
 export default function ConfirmationPage() {
   const router = useRouter();
-  const { bookingData, calculateTotal, resetBooking } = useBooking();
-  const { t, language } = useLanguage();
+  const { bookingData, resetBooking } = useBooking();
+  const { t } = useLanguage();
   const [bookingNumber, setBookingNumber] = useState('');
 
   useEffect(() => {
-    if (!bookingData.vehicle || !bookingData.email) {
-      router.push('/');
-      return;
-    }
-
-    // Generate booking number
-    const number = 'TK' + Date.now().toString().slice(-8);
+    // Generate booking number only once on client
+    const number = '#TRIP-' + Math.floor(Math.random() * 100000);
     setBookingNumber(number);
-  }, [bookingData, router]);
+  }, []);
 
   const handlePrint = () => {
     window.print();
@@ -34,279 +27,192 @@ export default function ConfirmationPage() {
   };
 
   if (!bookingData.vehicle) {
-    return null;
+    // router.push('/');
+    // return null;
   }
 
-  const pickupLocation = locations.find((loc) => loc.id === bookingData.pickupLocation);
-  const dropoffLocation = locations.find((loc) => loc.id === bookingData.dropoffLocation);
-  const total = calculateTotal();
-
-  // Calculate pricing breakdown
-  let vehicleCost = bookingData.vehicle.price;
-  if (bookingData.tripType === 'roundTrip') {
-    vehicleCost = vehicleCost * 1.8;
-  }
-  const insuranceCost = bookingData.addInsurance ? 500 : 0;
-  const luggageCost = bookingData.addLuggage ? 300 : 0;
-  const tax = (vehicleCost + insuranceCost + luggageCost) * 0.07;
+  // Calculate pricing
+  const baseFare = bookingData.vehicle?.price || 3000;
+  const vat = Math.round(baseFare * 0.07);
+  const total = baseFare + vat;
 
   return (
-    <div className="bg-gray-50 min-h-screen py-12">
-      <div className="container mx-auto px-4">
-        <div className="max-w-4xl mx-auto">
-          {/* Success Message */}
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-6">
-              <svg
-                className="w-10 h-10 text-green-600"
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              {t.confirmation.title}
-            </h1>
-            <p className="text-xl text-gray-600">{t.confirmation.subtitle}</p>
-          </div>
-
-          {/* Booking Details Card */}
-          <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
-            {/* Booking Number */}
-            <div className="text-center pb-6 mb-6 border-b">
-              <p className="text-sm text-gray-600 mb-2">{t.confirmation.bookingNumber}</p>
-              <p className="text-3xl font-bold text-blue-600">{bookingNumber}</p>
-            </div>
-
-            {/* Customer Info */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+    <main className="flex-grow w-full max-w-7xl mx-auto px-4 md:px-10 py-8 md:py-12">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+        {/* Left Column: Success Message & Next Steps */}
+        <div className="lg:col-span-7 flex flex-col gap-8">
+          {/* Success Hero */}
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-4">
+              <div className="size-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
+                <span className="material-symbols-outlined text-green-600 dark:text-green-400 text-4xl">check_circle</span>
+              </div>
               <div>
-                <h3 className="font-semibold text-gray-900 mb-4">Customer Information</h3>
-                <div className="space-y-2 text-sm">
-                  <p className="text-gray-600">
-                    <span className="font-medium">Name:</span> {bookingData.firstName}{' '}
-                    {bookingData.lastName}
-                  </p>
-                  <p className="text-gray-600">
-                    <span className="font-medium">Email:</span> {bookingData.email}
-                  </p>
-                  <p className="text-gray-600">
-                    <span className="font-medium">Phone:</span> {bookingData.phone}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-4">
-                  {t.booking.vehicleDetails}
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <p className="text-gray-600">
-                    <span className="font-medium">Vehicle:</span> {bookingData.vehicle.name}
-                  </p>
-                  <p className="text-gray-600 capitalize">
-                    <span className="font-medium">Type:</span> {bookingData.vehicle.type}
-                  </p>
-                  <p className="text-gray-600">
-                    <span className="font-medium">Transmission:</span>{' '}
-                    {bookingData.vehicle.transmission}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Trip Details */}
-            <div className="mb-8">
-              <h3 className="font-semibold text-gray-900 mb-4">{t.booking.tripDetails}</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="flex items-start space-x-3">
-                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <svg
-                      className="w-5 h-5 text-green-600"
-                      fill="none"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{t.booking.pickup}</p>
-                    <p className="text-sm text-gray-600">{pickupLocation?.name[language]}</p>
-                    <p className="text-sm text-gray-600">
-                      {bookingData.pickupDate} at {bookingData.pickupTime}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-3">
-                  <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <svg
-                      className="w-5 h-5 text-red-600"
-                      fill="none"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{t.booking.dropoff}</p>
-                    <p className="text-sm text-gray-600">{dropoffLocation?.name[language]}</p>
-                    <p className="text-sm text-gray-600">
-                      {bookingData.tripType === 'oneWay' ? t.booking.oneWay : t.booking.roundTrip}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Price Summary */}
-            <div className="bg-gray-50 rounded-lg p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">{t.booking.priceBreakdown}</h3>
-              <div className="space-y-2 text-sm mb-4">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">
-                    {t.booking.vehicleHire} ({bookingData.tripType === 'oneWay' ? t.booking.oneWay : t.booking.roundTrip})
-                  </span>
-                  <span>฿{vehicleCost.toLocaleString()}</span>
-                </div>
-                {bookingData.addInsurance && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">{t.booking.insurance}</span>
-                    <span>฿{insuranceCost.toLocaleString()}</span>
-                  </div>
-                )}
-                {bookingData.addLuggage && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">{t.booking.extraLuggage}</span>
-                    <span>฿{luggageCost.toLocaleString()}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-gray-600">{t.booking.tax}</span>
-                  <span>฿{tax.toFixed(0).toLocaleString()}</span>
-                </div>
-              </div>
-              <div className="pt-4 border-t border-gray-300">
-                <div className="flex justify-between items-center">
-                  <span className="text-lg font-bold text-gray-900">{t.booking.total}</span>
-                  <span className="text-2xl font-bold text-blue-600">
-                    ฿{total.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-              <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-xs text-blue-800">
-                  <svg className="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
-                  {t.booking.driverIncluded}
-                </p>
+                <h1 className="text-3xl md:text-4xl font-black text-[#111418] dark:text-white tracking-tight">Booking Confirmed!</h1>
+                <p className="text-[#617589] dark:text-gray-400 mt-1 text-lg">Thank you, {bookingData.firstName || 'Alex'}. We've sent the details to {bookingData.email || 'alex@example.com'}.</p>
               </div>
             </div>
           </div>
 
-          {/* Confirmation Email Notice */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
-            <div className="flex items-start space-x-3">
-              <svg
-                className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1"
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              <div>
-                <p className="font-medium text-blue-900 mb-1">
-                  {t.confirmation.confirmation}{' '}
-                  <span className="font-bold">{bookingData.email}</span>
-                </p>
-                <p className="text-sm text-blue-800">
-                  Please check your email for booking details and important information.
-                </p>
-              </div>
+          {/* Booking Reference Card */}
+          <div className="bg-white dark:bg-[#111a22] rounded-xl p-6 border border-[#dbe0e6] dark:border-gray-700 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <p className="text-[#617589] dark:text-gray-400 text-sm font-medium uppercase tracking-wider mb-1">Booking Reference</p>
+              <p className="text-brand-primary text-3xl font-bold tracking-tight select-all">{bookingNumber}</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { navigator.clipboard.writeText(bookingNumber) }}
+                className="text-brand-primary hover:bg-brand-primary/10 dark:hover:bg-brand-primary/20 px-3 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2">
+                <span className="material-symbols-outlined text-lg">content_copy</span> Copy
+              </button>
             </div>
           </div>
 
-          {/* What's Next Section */}
-          <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              {t.confirmation.whatNext}
-            </h2>
-            <div className="space-y-4">
-              <div className="flex items-start space-x-4">
-                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">
-                  1
+          {/* Timeline: Next Steps */}
+          <div className="bg-white dark:bg-[#111a22] rounded-xl p-6 border border-[#dbe0e6] dark:border-gray-700 shadow-sm">
+            <h3 className="text-lg font-bold text-[#111418] dark:text-white mb-6">What happens next?</h3>
+            <div className="grid grid-cols-[40px_1fr] gap-x-2">
+              {/* Step 1 */}
+              <div className="flex flex-col items-center gap-1">
+                <div className="size-8 rounded-full bg-brand-primary/10 dark:bg-brand-primary/20 flex items-center justify-center text-brand-primary">
+                  <span className="material-symbols-outlined text-xl">assignment_ind</span>
                 </div>
-                <div>
-                  <p className="font-medium text-gray-900">{t.confirmation.step1}</p>
+                <div className="w-[2px] bg-[#dbe0e6] dark:bg-gray-700 h-full min-h-[40px] grow"></div>
+              </div>
+              <div className="pb-8 pt-1">
+                <p className="text-[#111418] dark:text-white font-bold">Driver assigned</p>
+                <p className="text-[#617589] dark:text-gray-400 text-sm">We will assign a top-rated driver 24 hours before your trip.</p>
+              </div>
+              {/* Step 2 */}
+              <div className="flex flex-col items-center gap-1">
+                <div className="size-8 rounded-full bg-[#f0f2f4] dark:bg-gray-700 flex items-center justify-center text-[#617589] dark:text-gray-400">
+                  <span className="material-symbols-outlined text-xl">perm_phone_msg</span>
+                </div>
+                <div className="w-[2px] bg-[#dbe0e6] dark:bg-gray-700 h-full min-h-[40px] grow"></div>
+              </div>
+              <div className="pb-8 pt-1">
+                <p className="text-[#111418] dark:text-white font-medium opacity-60">Driver contacts you</p>
+                <p className="text-[#617589] dark:text-gray-400 text-sm">Your driver will contact you via WhatsApp or SMS upon arrival.</p>
+              </div>
+              {/* Step 3 */}
+              <div className="flex flex-col items-center gap-1">
+                <div className="size-8 rounded-full bg-[#f0f2f4] dark:bg-gray-700 flex items-center justify-center text-[#617589] dark:text-gray-400">
+                  <span className="material-symbols-outlined text-xl">directions_car</span>
                 </div>
               </div>
-              <div className="flex items-start space-x-4">
-                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">
-                  2
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">{t.confirmation.step2}</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-4">
-                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">
-                  3
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">{t.confirmation.step3}</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-4">
-                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">
-                  4
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">{t.confirmation.step4}</p>
-                </div>
+              <div className="pt-1">
+                <p className="text-[#111418] dark:text-white font-medium opacity-60">Pickup at location</p>
+                <p className="text-[#617589] dark:text-gray-400 text-sm">Enjoy your comfortable ride.</p>
               </div>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Button onClick={handlePrint} variant="outline" className="flex-1">
-              <svg
-                className="w-5 h-5 mr-2 inline"
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-              </svg>
-              {t.confirmation.printVoucher}
-            </Button>
-            <Button onClick={handleBackToHome} className="flex-1">
-              {t.confirmation.backToHome}
-            </Button>
+          <div className="flex flex-wrap gap-4 pt-4">
+            <button
+              onClick={handleBackToHome}
+              className="flex-1 sm:flex-none min-w-[160px] cursor-pointer items-center justify-center rounded-lg h-12 px-6 bg-brand-primary hover:bg-blue-600 text-white font-bold transition-colors shadow-lg shadow-blue-500/20">
+              Go to Dashboard
+            </button>
+            <button
+              onClick={handlePrint}
+              className="flex-1 sm:flex-none min-w-[160px] cursor-pointer items-center justify-center rounded-lg h-12 px-6 bg-white dark:bg-gray-800 border border-[#dbe0e6] dark:border-gray-600 text-[#111418] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 font-bold transition-colors">
+              <span className="material-symbols-outlined mr-2 text-xl">download</span>
+              Download Invoice
+            </button>
+          </div>
+        </div>
+
+        {/* Right Column: Trip Summary / Receipt */}
+        <div className="lg:col-span-5">
+          <div className="bg-white dark:bg-[#111a22] rounded-xl shadow-lg border border-[#dbe0e6] dark:border-gray-700 overflow-hidden sticky top-24">
+            <div className="p-6 border-b border-[#f0f2f4] dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
+              <h3 className="text-lg font-bold text-[#111418] dark:text-white">Trip Summary</h3>
+              <span className="px-2 py-1 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 text-xs font-bold rounded uppercase">Paid</span>
+            </div>
+
+            {/* Car Details */}
+            {bookingData.vehicle && (
+              <div className="p-6 border-b border-[#f0f2f4] dark:border-gray-800">
+                <div className="flex gap-4 items-center mb-4">
+                  <div className="w-24 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0 relative">
+                    <img src={bookingData.vehicle.image} alt={bookingData.vehicle.name} className="w-full h-full object-cover" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-[#111418] dark:text-white text-lg">{bookingData.vehicle.name}</p>
+                    <p className="text-sm text-[#617589] dark:text-gray-400">{bookingData.vehicle.type} or similar</p>
+                  </div>
+                </div>
+                <div className="flex gap-3 text-xs font-medium text-[#617589] dark:text-gray-400">
+                  <div className="flex items-center gap-1 bg-[#f6f7f8] dark:bg-gray-800 px-2 py-1 rounded">
+                    <span className="material-symbols-outlined text-sm">person</span> {bookingData.vehicle.passengers} Passengers
+                  </div>
+                  <div className="flex items-center gap-1 bg-[#f6f7f8] dark:bg-gray-800 px-2 py-1 rounded">
+                    <span className="material-symbols-outlined text-sm">luggage</span> {bookingData.vehicle.luggage} Bags
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Route Details */}
+            <div className="p-6 border-b border-[#f0f2f4] dark:border-gray-800 bg-white dark:bg-[#111a22]">
+              <div className="relative pl-6 space-y-8">
+                {/* Line Connector */}
+                <div className="absolute left-[7px] top-2 bottom-8 w-[2px] bg-gradient-to-b from-brand-primary to-brand-primary/30"></div>
+                {/* Pickup */}
+                <div className="relative">
+                  <div className="absolute -left-[25px] top-1 size-4 rounded-full border-4 border-white dark:border-[#111a22] bg-brand-primary shadow-sm"></div>
+                  <p className="text-xs font-bold text-[#617589] dark:text-gray-400 mb-1">PICK-UP • Oct 24, 10:00 AM</p>
+                  <p className="text-[#111418] dark:text-white font-bold leading-tight">Suvarnabhumi Airport (BKK)</p>
+                  <p className="text-sm text-[#617589] dark:text-gray-400 truncate">Arrival Hall, Gate 3</p>
+                </div>
+                {/* Dropoff */}
+                <div className="relative">
+                  <div className="absolute -left-[25px] top-1 size-4 rounded-full border-4 border-white dark:border-[#111a22] bg-brand-primary/40"></div>
+                  <p className="text-xs font-bold text-[#617589] dark:text-gray-400 mb-1">DROP-OFF • Oct 24, 02:30 PM</p>
+                  <p className="text-[#111418] dark:text-white font-bold leading-tight">Hua Hin Marriott Resort</p>
+                  <p className="text-sm text-[#617589] dark:text-gray-400 truncate">107/1 Phetkasem Rd, Hua Hin</p>
+                </div>
+              </div>
+              <div className="mt-6">
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-brand-primary/30 bg-brand-primary/5 text-brand-primary text-xs font-bold">
+                  <span className="material-symbols-outlined text-sm">sync_alt</span> One-way Trip
+                </span>
+              </div>
+            </div>
+
+            {/* Payment Summary */}
+            <div className="p-6 bg-gray-50 dark:bg-gray-800/30">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[#617589] dark:text-gray-400 text-sm">Base Fare</span>
+                <span className="text-[#111418] dark:text-white font-medium">฿{baseFare.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-[#617589] dark:text-gray-400 text-sm">VAT (7%)</span>
+                <span className="text-[#111418] dark:text-white font-medium">฿{vat.toLocaleString()}</span>
+              </div>
+              <div className="border-t border-dashed border-gray-300 dark:border-gray-600 my-4"></div>
+              <div className="flex justify-between items-end">
+                <div>
+                  <p className="text-xs text-[#617589] dark:text-gray-400 font-bold uppercase mb-1">Total Paid</p>
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[#617589] dark:text-gray-400">credit_card</span>
+                    <span className="text-sm text-[#111418] dark:text-white">Visa **** 4242</span>
+                  </div>
+                </div>
+                <p className="text-2xl font-black text-brand-primary">฿{total.toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Helper Links */}
+          <div className="mt-6 flex justify-center gap-6 text-sm text-[#617589] dark:text-gray-500">
+            <a className="hover:text-brand-primary transition-colors" href="#">Need help?</a>
+            <a className="hover:text-brand-primary transition-colors" href="#">Terms of Service</a>
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
