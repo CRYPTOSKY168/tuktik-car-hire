@@ -9,7 +9,7 @@ import Button from '@/components/ui/Button';
 
 export default function ConfirmationPage() {
   const router = useRouter();
-  const { bookingData, calculateTotal, calculateDays, resetBooking } = useBooking();
+  const { bookingData, calculateTotal, resetBooking } = useBooking();
   const { t, language } = useLanguage();
   const [bookingNumber, setBookingNumber] = useState('');
 
@@ -39,8 +39,16 @@ export default function ConfirmationPage() {
 
   const pickupLocation = locations.find((loc) => loc.id === bookingData.pickupLocation);
   const dropoffLocation = locations.find((loc) => loc.id === bookingData.dropoffLocation);
-  const days = calculateDays();
   const total = calculateTotal();
+
+  // Calculate pricing breakdown
+  let vehicleCost = bookingData.vehicle.price;
+  if (bookingData.tripType === 'roundTrip') {
+    vehicleCost = vehicleCost * 1.8;
+  }
+  const insuranceCost = bookingData.addInsurance ? 500 : 0;
+  const luggageCost = bookingData.addLuggage ? 300 : 0;
+  const tax = (vehicleCost + insuranceCost + luggageCost) * 0.07;
 
   return (
     <div className="bg-gray-50 min-h-screen py-12">
@@ -157,7 +165,7 @@ export default function ConfirmationPage() {
                     <p className="font-medium text-gray-900">{t.booking.dropoff}</p>
                     <p className="text-sm text-gray-600">{dropoffLocation?.name[language]}</p>
                     <p className="text-sm text-gray-600">
-                      {bookingData.returnDate} at {bookingData.returnTime}
+                      {bookingData.tripType === 'oneWay' ? t.booking.oneWay : t.booking.roundTrip}
                     </p>
                   </div>
                 </div>
@@ -170,33 +178,25 @@ export default function ConfirmationPage() {
               <div className="space-y-2 text-sm mb-4">
                 <div className="flex justify-between">
                   <span className="text-gray-600">
-                    {t.booking.vehicleRental} ({days} {days === 1 ? t.booking.day : t.booking.days})
+                    {t.booking.vehicleHire} ({bookingData.tripType === 'oneWay' ? t.booking.oneWay : t.booking.roundTrip})
                   </span>
-                  <span>฿{(bookingData.vehicle.price * days).toLocaleString()}</span>
+                  <span>฿{vehicleCost.toLocaleString()}</span>
                 </div>
                 {bookingData.addInsurance && (
                   <div className="flex justify-between">
                     <span className="text-gray-600">{t.booking.insurance}</span>
-                    <span>฿{(200 * days).toLocaleString()}</span>
+                    <span>฿{insuranceCost.toLocaleString()}</span>
                   </div>
                 )}
-                {bookingData.addDriver && (
+                {bookingData.addLuggage && (
                   <div className="flex justify-between">
-                    <span className="text-gray-600">{t.booking.additionalDriver}</span>
-                    <span>฿{(500 * days).toLocaleString()}</span>
+                    <span className="text-gray-600">{t.booking.extraLuggage}</span>
+                    <span>฿{luggageCost.toLocaleString()}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
                   <span className="text-gray-600">{t.booking.tax}</span>
-                  <span>
-                    ฿
-                    {(
-                      (bookingData.vehicle.price * days +
-                        (bookingData.addInsurance ? 200 * days : 0) +
-                        (bookingData.addDriver ? 500 * days : 0)) *
-                      0.07
-                    ).toLocaleString()}
-                  </span>
+                  <span>฿{tax.toFixed(0).toLocaleString()}</span>
                 </div>
               </div>
               <div className="pt-4 border-t border-gray-300">
@@ -206,6 +206,14 @@ export default function ConfirmationPage() {
                     ฿{total.toLocaleString()}
                   </span>
                 </div>
+              </div>
+              <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-xs text-blue-800">
+                  <svg className="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  {t.booking.driverIncluded}
+                </p>
               </div>
             </div>
           </div>
