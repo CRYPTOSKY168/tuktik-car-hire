@@ -18,7 +18,7 @@ export default function Footer() {
               <h2 className="text-lg font-bold">ThaiDriver</h2>
             </div>
             <p className="text-gray-500 text-sm leading-relaxed">
-              Professional long-distance chauffeur services across Thailand. Safe, reliable, and comfortable.
+              {t.footer.description}
             </p>
           </div>
 
@@ -27,8 +27,8 @@ export default function Footer() {
             <h3 className="font-bold text-[#111418] dark:text-white mb-4">{t.footer.company}</h3>
             <ul className="flex flex-col gap-2 text-sm text-gray-500 dark:text-gray-400">
               <li><a href="#" className="hover:text-brand-primary transition-colors">{t.footer.aboutUs}</a></li>
-              <li><a href="#" className="hover:text-brand-primary transition-colors">Our Fleet</a></li>
-              <li><a href="#" className="hover:text-brand-primary transition-colors">Services</a></li>
+              <li><a href="#" className="hover:text-brand-primary transition-colors">{t.footer.ourFleet}</a></li>
+              <li><a href="#" className="hover:text-brand-primary transition-colors">{t.nav.services}</a></li>
               <li><a href="#" className="hover:text-brand-primary transition-colors">{t.footer.blog}</a></li>
             </ul>
           </div>
@@ -65,7 +65,7 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-[#f0f2f4] dark:border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-gray-400">© 2024 ThaiDriver Service Co., Ltd. All rights reserved.</p>
+          <p className="text-xs text-gray-400">{t.footer.copyright}</p>
           <div className="flex gap-4">
             <a href="#" className="text-gray-400 hover:text-brand-primary"><span className="material-symbols-outlined text-[20px]">public</span></a>
           </div>

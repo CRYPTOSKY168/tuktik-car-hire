@@ -37,17 +37,17 @@ export default function Home() {
           <div className="flex flex-wrap gap-4 md:gap-8 justify-center">
             <div className="flex min-w-[150px] flex-1 flex-col items-center gap-1 p-4">
               <p className="text-brand-primary text-3xl md:text-4xl font-black leading-tight">500+</p>
-              <p className="text-[#617589] dark:text-gray-400 text-sm font-medium leading-normal text-center">Destinations Covered</p>
+              <p className="text-[#617589] dark:text-gray-400 text-sm font-medium leading-normal text-center">{t.home.stats.destinations}</p>
             </div>
             <div className="w-px bg-gray-200 dark:bg-gray-800 hidden md:block"></div>
             <div className="flex min-w-[150px] flex-1 flex-col items-center gap-1 p-4">
               <p className="text-brand-primary text-3xl md:text-4xl font-black leading-tight">50+</p>
-              <p className="text-[#617589] dark:text-gray-400 text-sm font-medium leading-normal text-center">Luxury Vehicles</p>
+              <p className="text-[#617589] dark:text-gray-400 text-sm font-medium leading-normal text-center">{t.home.stats.vehicles}</p>
             </div>
             <div className="w-px bg-gray-200 dark:bg-gray-800 hidden md:block"></div>
             <div className="flex min-w-[150px] flex-1 flex-col items-center gap-1 p-4">
               <p className="text-brand-primary text-3xl md:text-4xl font-black leading-tight">10k+</p>
-              <p className="text-[#617589] dark:text-gray-400 text-sm font-medium leading-normal text-center">Happy Travelers</p>
+              <p className="text-[#617589] dark:text-gray-400 text-sm font-medium leading-normal text-center">{t.home.stats.travelers}</p>
             </div>
           </div>
         </div>
@@ -58,10 +58,10 @@ export default function Home() {
         <div className="max-w-[960px] mx-auto flex flex-col gap-10">
           <div className="flex flex-col gap-4 text-center md:text-left">
             <h2 className="text-[#111418] dark:text-white text-3xl md:text-4xl font-bold leading-tight tracking-tight">
-              Why Choose ThaiDriver?
+              {t.home.features.title}
             </h2>
             <p className="text-[#617589] dark:text-gray-400 text-base font-normal leading-normal max-w-[720px]">
-              Experience the best in long-distance travel with our premium chauffeur service across Thailand.
+              {t.home.features.subtitle}
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -71,9 +71,9 @@ export default function Home() {
                 <span className="material-symbols-outlined text-[28px]">airline_seat_recline_extra</span>
               </div>
               <div className="flex flex-col gap-2">
-                <h3 className="text-[#111418] dark:text-white text-lg font-bold">Door-to-Door Service</h3>
+                <h3 className="text-[#111418] dark:text-white text-lg font-bold">{t.home.features.feature1Title}</h3>
                 <p className="text-[#617589] dark:text-gray-400 text-sm leading-relaxed">
-                  We pick you up from your hotel, airport, or residence and drop you off exactly where you need to be.
+                  {t.home.features.feature1Desc}
                 </p>
               </div>
             </div>
@@ -83,9 +83,9 @@ export default function Home() {
                 <span className="material-symbols-outlined text-[28px]">translate</span>
               </div>
               <div className="flex flex-col gap-2">
-                <h3 className="text-[#111418] dark:text-white text-lg font-bold">English Speaking Drivers</h3>
+                <h3 className="text-[#111418] dark:text-white text-lg font-bold">{t.home.features.feature2Title}</h3>
                 <p className="text-[#617589] dark:text-gray-400 text-sm leading-relaxed">
-                  Communication is easy. Our drivers are professional, polite, and fluent in basic English.
+                  {t.home.features.feature2Desc}
                 </p>
               </div>
             </div>
@@ -95,9 +95,9 @@ export default function Home() {
                 <span className="material-symbols-outlined text-[28px]">price_check</span>
               </div>
               <div className="flex flex-col gap-2">
-                <h3 className="text-[#111418] dark:text-white text-lg font-bold">Fixed Rates</h3>
+                <h3 className="text-[#111418] dark:text-white text-lg font-bold">{t.home.features.feature3Title}</h3>
                 <p className="text-[#617589] dark:text-gray-400 text-sm leading-relaxed">
-                  All-inclusive pricing including fuel, tolls, and parking. No hidden fees or surprises at the end of your trip.
+                  {t.home.features.feature3Desc}
                 </p>
               </div>
             </div>
@@ -110,11 +110,11 @@ export default function Home() {
         <div className="max-w-[1200px] mx-auto flex flex-col gap-8">
           <div className="flex justify-between items-end pb-4 border-b border-gray-100 dark:border-gray-800">
             <div className="flex flex-col gap-2">
-              <h2 className="text-[#111418] dark:text-white text-3xl font-bold tracking-tight">Our Premium Fleet</h2>
-              <p className="text-[#617589] dark:text-gray-400">Choose the perfect vehicle for your journey.</p>
+              <h2 className="text-[#111418] dark:text-white text-3xl font-bold tracking-tight">{t.home.fleet.title}</h2>
+              <p className="text-[#617589] dark:text-gray-400">{t.home.fleet.subtitle}</p>
             </div>
             <Link href="/vehicles" className="hidden md:flex items-center text-brand-primary font-bold text-sm hover:underline gap-1">
-              View All Vehicles <span className="material-symbols-outlined text-sm">arrow_forward</span>
+              {t.home.fleet.viewAll} <span className="material-symbols-outlined text-sm">arrow_forward</span>
             </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -122,19 +122,19 @@ export default function Home() {
             <div className="group flex flex-col rounded-xl overflow-hidden border border-[#dbe0e6] dark:border-gray-700 bg-white dark:bg-[#1a202c] shadow-sm hover:shadow-lg transition-all">
               <div className="relative h-48 bg-gray-100 dark:bg-gray-800 overflow-hidden">
                 <img src="/images/camry.jpg" alt="Toyota Camry" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                <div className="absolute top-3 left-3 bg-white/90 dark:bg-black/80 backdrop-blur px-2 py-1 rounded text-xs font-bold uppercase tracking-wider">Economy</div>
+                <div className="absolute top-3 left-3 bg-white/90 dark:bg-black/80 backdrop-blur px-2 py-1 rounded text-xs font-bold uppercase tracking-wider">{t.home.fleet.economy}</div>
               </div>
               <div className="p-5 flex flex-col flex-1 gap-4">
                 <div>
-                  <h3 className="text-xl font-bold text-[#111418] dark:text-white">Toyota Camry</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Perfect for couples or small families.</p>
+                  <h3 className="text-xl font-bold text-[#111418] dark:text-white">{t.home.fleet.camry.name}</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{t.home.fleet.camry.desc}</p>
                 </div>
                 <div className="flex gap-4 text-sm text-gray-600 dark:text-gray-300">
                   <div className="flex items-center gap-1"><span className="material-symbols-outlined text-[18px]">person</span> 3</div>
                   <div className="flex items-center gap-1"><span className="material-symbols-outlined text-[18px]">luggage</span> 2</div>
                 </div>
                 <div className="mt-auto pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                  <div className="text-xs text-gray-500">Starting from</div>
+                  <div className="text-xs text-gray-500">{t.home.fleet.startingFrom}</div>
                   <span className="text-lg font-bold text-brand-primary">฿2,500</span>
                 </div>
               </div>
@@ -143,19 +143,19 @@ export default function Home() {
             <div className="group flex flex-col rounded-xl overflow-hidden border border-[#dbe0e6] dark:border-gray-700 bg-white dark:bg-[#1a202c] shadow-sm hover:shadow-lg transition-all">
               <div className="relative h-48 bg-gray-100 dark:bg-gray-800 overflow-hidden">
                 <img src="/images/fortuner.jpg" alt="Toyota Fortuner" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                <div className="absolute top-3 left-3 bg-white/90 dark:bg-black/80 backdrop-blur px-2 py-1 rounded text-xs font-bold uppercase tracking-wider">Business</div>
+                <div className="absolute top-3 left-3 bg-white/90 dark:bg-black/80 backdrop-blur px-2 py-1 rounded text-xs font-bold uppercase tracking-wider">{t.home.fleet.business}</div>
               </div>
               <div className="p-5 flex flex-col flex-1 gap-4">
                 <div>
-                  <h3 className="text-xl font-bold text-[#111418] dark:text-white">Toyota Fortuner</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Ideal for extra legroom and luggage.</p>
+                  <h3 className="text-xl font-bold text-[#111418] dark:text-white">{t.home.fleet.fortuner.name}</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{t.home.fleet.fortuner.desc}</p>
                 </div>
                 <div className="flex gap-4 text-sm text-gray-600 dark:text-gray-300">
                   <div className="flex items-center gap-1"><span className="material-symbols-outlined text-[18px]">person</span> 4</div>
                   <div className="flex items-center gap-1"><span className="material-symbols-outlined text-[18px]">luggage</span> 4</div>
                 </div>
                 <div className="mt-auto pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                  <div className="text-xs text-gray-500">Starting from</div>
+                  <div className="text-xs text-gray-500">{t.home.fleet.startingFrom}</div>
                   <span className="text-lg font-bold text-brand-primary">฿3,000</span>
                 </div>
               </div>
@@ -164,19 +164,19 @@ export default function Home() {
             <div className="group flex flex-col rounded-xl overflow-hidden border border-[#dbe0e6] dark:border-gray-700 bg-white dark:bg-[#1a202c] shadow-sm hover:shadow-lg transition-all">
               <div className="relative h-48 bg-gray-100 dark:bg-gray-800 overflow-hidden">
                 <img src="/images/van.jpg" alt="Toyota Commuter VIP" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                <div className="absolute top-3 left-3 bg-brand-primary/90 text-white backdrop-blur px-2 py-1 rounded text-xs font-bold uppercase tracking-wider">VIP Van</div>
+                <div className="absolute top-3 left-3 bg-brand-primary/90 text-white backdrop-blur px-2 py-1 rounded text-xs font-bold uppercase tracking-wider">{t.home.fleet.vip}</div>
               </div>
               <div className="p-5 flex flex-col flex-1 gap-4">
                 <div>
-                  <h3 className="text-xl font-bold text-[#111418] dark:text-white">Toyota Commuter VIP</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Maximum comfort for larger groups.</p>
+                  <h3 className="text-xl font-bold text-[#111418] dark:text-white">{t.home.fleet.van.name}</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{t.home.fleet.van.desc}</p>
                 </div>
                 <div className="flex gap-4 text-sm text-gray-600 dark:text-gray-300">
                   <div className="flex items-center gap-1"><span className="material-symbols-outlined text-[18px]">person</span> 9</div>
                   <div className="flex items-center gap-1"><span className="material-symbols-outlined text-[18px]">luggage</span> 8</div>
                 </div>
                 <div className="mt-auto pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                  <div className="text-xs text-gray-500">Starting from</div>
+                  <div className="text-xs text-gray-500">{t.home.fleet.startingFrom}</div>
                   <span className="text-lg font-bold text-brand-primary">฿4,500</span>
                 </div>
               </div>
@@ -188,7 +188,7 @@ export default function Home() {
       {/* Testimonials */}
       <div className="bg-background-light dark:bg-background-dark py-16 px-4 md:px-10">
         <div className="max-w-[960px] mx-auto">
-          <h2 className="text-[#111418] dark:text-white text-2xl font-bold mb-8 text-center">What our customers say</h2>
+          <h2 className="text-[#111418] dark:text-white text-2xl font-bold mb-8 text-center">{t.home.testimonials.title}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Review 1 */}
             <div className="bg-white dark:bg-[#1a202c] p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
@@ -199,7 +199,7 @@ export default function Home() {
                 <span className="material-symbols-outlined text-[20px] fill-current">star</span>
                 <span className="material-symbols-outlined text-[20px] fill-current">star</span>
               </div>
-              <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">"The driver was waiting for us at the airport with a sign. The car was spotless and the drive to Hua Hin was very smooth."</p>
+              <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">{t.home.testimonials.review1}</p>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
                   <img src="/images/avatar1.jpg" alt="Sarah Jenkins" className="w-full h-full object-cover" />
@@ -216,7 +216,7 @@ export default function Home() {
                 <span className="material-symbols-outlined text-[20px] fill-current">star</span>
                 <span className="material-symbols-outlined text-[20px] fill-current">star</span>
               </div>
-              <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">"Excellent service! Used them for a business trip from Bangkok to Pattaya. Wi-Fi in the car was a life saver."</p>
+              <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">{t.home.testimonials.review2}</p>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
                   <img src="/images/avatar2.jpg" alt="Michael Chen" className="w-full h-full object-cover" />
@@ -233,7 +233,7 @@ export default function Home() {
                 <span className="material-symbols-outlined text-[20px] fill-current">star</span>
                 <span className="material-symbols-outlined text-[20px] fill-current">star</span>
               </div>
-              <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">"Highly recommended. The VIP Van was incredibly comfortable for our family of 6. Will book again."</p>
+              <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">{t.home.testimonials.review3}</p>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
                   <img src="/images/avatar3.jpg" alt="Emily Rossi" className="w-full h-full object-cover" />

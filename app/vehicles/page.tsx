@@ -11,25 +11,27 @@ import Link from 'next/link';
 // basically mocking the "database" content for this new design.
 // In a real app we'd map the existing data to these images.
 
-const displayVehicles = [
-  { id: 'mercedes-e', name: 'Mercedes-Benz E-Class', type: 'sedan', price: 150, passengers: 3, luggage: 2, transmission: 'Auto', image: '/images/mercedes-e.jpg', desc: 'The benchmark for executive comfort and style.' },
-  { id: 'alphard', name: 'Toyota Alphard', type: 'van', price: 200, passengers: 6, luggage: 4, transmission: 'Auto', image: '/images/alphard.jpg', desc: 'Ultimate luxury and space for groups.', tag: 'Luxury Van' },
-  { id: 'bmw5', name: 'BMW 5 Series', type: 'sedan', price: 160, passengers: 3, luggage: 2, transmission: 'Hybrid', image: '/images/bmw5.jpg', desc: 'Dynamic performance meets executive class.' },
-  { id: 'tesla-s', name: 'Tesla Model S', type: 'sedan', price: 180, passengers: 4, luggage: 2, transmission: 'EV', image: '/images/tesla-s.jpg', desc: 'Silent, smooth, and sustainable luxury.', tag: 'Electric' },
-  { id: 'mercedes-v', name: 'Mercedes-Benz V-Class', type: 'van', price: 250, passengers: 7, luggage: 6, transmission: 'Auto', image: '/images/mercedes-v.jpg', desc: 'Spacious executive travel for teams.', tag: 'Executive Van' },
-  { id: 'audi-a6', name: 'Audi A6', type: 'sedan', price: 155, passengers: 3, luggage: 2, transmission: 'A/C', image: '/images/audi-a6.jpg', desc: 'Refined technology and comfort.' },
-  { id: 'lexus-es', name: 'Lexus ES', type: 'sedan', price: 140, passengers: 3, luggage: 2, transmission: 'Quiet', image: '/images/lexus-es.jpg', desc: 'Quiet elegance and superior ride quality.', tag: 'Premium' },
-  { id: 'escalade', name: 'Cadillac Escalade', type: 'suv', price: 300, passengers: 6, luggage: 5, transmission: 'Prem.', image: '/images/cadillac-escalade.jpg', desc: 'Commanding presence and maximum space.', tag: 'Luxury SUV' },
-  { id: 'suburban', name: 'Chevrolet Suburban', type: 'suv', price: 280, passengers: 7, luggage: 6, transmission: 'Power', image: '/images/chevy-suburban.jpg', desc: 'Rugged reliability with room for everyone.', tag: 'Large SUV' },
-  { id: 'camry', name: 'Toyota Camry', type: 'sedan', price: 90, passengers: 4, luggage: 2, transmission: 'Eco', image: '/images/camry.jpg', desc: 'Reliable, efficient, and comfortable for small groups.', tag: 'Economy' },
-  { id: 'odyssey', name: 'Honda Odyssey', type: 'van', price: 130, passengers: 7, luggage: 4, transmission: 'Safe', image: '/images/honda-odyssey.jpg', desc: 'Perfect for family trips with extra cargo.', tag: 'Family Van' },
-  { id: 'transit', name: 'Ford Transit', type: 'van', price: 220, passengers: 12, luggage: 10, transmission: 'XL', image: '/images/ford-transit.jpg', desc: 'Maximum capacity for large touring groups.', tag: 'Group Bus' },
+const getVehicles = (t: any) => [
+  { id: 'mercedes-e', name: t.vehicles.vehiclesList.mercedesE.name, type: 'sedan', price: 150, passengers: 3, luggage: 2, transmission: 'Auto', image: '/images/mercedes-e.jpg', desc: t.vehicles.vehiclesList.mercedesE.desc, tag: t.vehicles.vehiclesList.mercedesE.tag },
+  { id: 'alphard', name: t.vehicles.vehiclesList.alphard.name, type: 'van', price: 200, passengers: 6, luggage: 4, transmission: 'Auto', image: '/images/alphard.jpg', desc: t.vehicles.vehiclesList.alphard.desc, tag: t.vehicles.vehiclesList.alphard.tag },
+  { id: 'bmw5', name: t.vehicles.vehiclesList.bmw5.name, type: 'sedan', price: 160, passengers: 3, luggage: 2, transmission: 'Hybrid', image: '/images/bmw5.jpg', desc: t.vehicles.vehiclesList.bmw5.desc, tag: t.vehicles.vehiclesList.bmw5.tag },
+  { id: 'tesla-s', name: t.vehicles.vehiclesList.teslaS.name, type: 'sedan', price: 180, passengers: 4, luggage: 2, transmission: 'EV', image: '/images/tesla-s.jpg', desc: t.vehicles.vehiclesList.teslaS.desc, tag: t.vehicles.vehiclesList.teslaS.tag },
+  { id: 'mercedes-v', name: t.vehicles.vehiclesList.mercedesV.name, type: 'van', price: 250, passengers: 7, luggage: 6, transmission: 'Auto', image: '/images/mercedes-v.jpg', desc: t.vehicles.vehiclesList.mercedesV.desc, tag: t.vehicles.vehiclesList.mercedesV.tag },
+  { id: 'audi-a6', name: t.vehicles.vehiclesList.audiA6.name, type: 'sedan', price: 155, passengers: 3, luggage: 2, transmission: 'A/C', image: '/images/audi-a6.jpg', desc: t.vehicles.vehiclesList.audiA6.desc, tag: t.vehicles.vehiclesList.audiA6.tag },
+  { id: 'lexus-es', name: t.vehicles.vehiclesList.lexusES.name, type: 'sedan', price: 140, passengers: 3, luggage: 2, transmission: 'Quiet', image: '/images/lexus-es.jpg', desc: t.vehicles.vehiclesList.lexusES.desc, tag: t.vehicles.vehiclesList.lexusES.tag },
+  { id: 'escalade', name: t.vehicles.vehiclesList.escalade.name, type: 'suv', price: 300, passengers: 6, luggage: 5, transmission: 'Prem.', image: '/images/cadillac-escalade.jpg', desc: t.vehicles.vehiclesList.escalade.desc, tag: t.vehicles.vehiclesList.escalade.tag },
+  { id: 'suburban', name: t.vehicles.vehiclesList.suburban.name, type: 'suv', price: 280, passengers: 7, luggage: 6, transmission: 'Power', image: '/images/chevy-suburban.jpg', desc: t.vehicles.vehiclesList.suburban.desc, tag: t.vehicles.vehiclesList.suburban.tag },
+  { id: 'camry', name: t.home.fleet.camry.name, type: 'sedan', price: 90, passengers: 4, luggage: 2, transmission: 'Eco', image: '/images/camry.jpg', desc: t.home.fleet.camry.desc, tag: t.home.fleet.economy },
+  { id: 'odyssey', name: t.vehicles.vehiclesList.odyssey.name, type: 'van', price: 130, passengers: 7, luggage: 4, transmission: 'Safe', image: '/images/honda-odyssey.jpg', desc: t.vehicles.vehiclesList.odyssey.desc, tag: t.vehicles.vehiclesList.odyssey.tag },
+  { id: 'transit', name: t.vehicles.vehiclesList.transit.name, type: 'van', price: 220, passengers: 12, luggage: 10, transmission: 'XL', image: '/images/ford-transit.jpg', desc: t.vehicles.vehiclesList.transit.desc, tag: t.vehicles.vehiclesList.transit.tag },
 ];
 
 export default function VehiclesPage() {
   const router = useRouter();
   const { updateBooking } = useBooking();
   const { t } = useLanguage();
+
+  const displayVehicles = getVehicles(t);
 
   const handleVehicleSelect = (vehicle: any) => {
     // Map to the shape expected by context if needed, or update context type
@@ -53,8 +55,8 @@ export default function VehiclesPage() {
       <div className="w-full max-w-[1440px] px-6 lg:px-20 py-8">
         {/* PageHeading */}
         <div className="mb-8 flex flex-col gap-2 md:mb-10">
-          <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white md:text-5xl">Choose Your Ride</h1>
-          <p className="max-w-2xl text-lg text-slate-600 dark:text-slate-400">Select the perfect vehicle for your long-distance journey. All rentals include a professional driver and premium amenities.</p>
+          <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white md:text-5xl">{t.vehicles.title}</h1>
+          <p className="max-w-2xl text-lg text-slate-600 dark:text-slate-400">{t.vehicles.subtitle}</p>
         </div>
 
         {/* Sticky Filters Bar */}
@@ -62,18 +64,18 @@ export default function VehiclesPage() {
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 mr-2 text-slate-500 dark:text-slate-400">
               <span className="material-symbols-outlined">tune</span>
-              <span className="text-sm font-medium">Filters</span>
+              <span className="text-sm font-medium">{t.vehicles.filters}</span>
             </div>
             <button className="group flex h-9 items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white pl-4 pr-3 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-brand-primary hover:text-brand-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-brand-primary">
-              <span>Vehicle Type</span>
+              <span>{t.home.booking.vehicleType}</span>
               <span className="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-brand-primary">keyboard_arrow_down</span>
             </button>
             <button className="group flex h-9 items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white pl-4 pr-3 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-brand-primary hover:text-brand-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-brand-primary">
-              <span>Price Range</span>
+              <span>{t.vehicles.priceRange}</span>
               <span className="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-brand-primary">keyboard_arrow_down</span>
             </button>
             <button className="group flex h-9 items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white pl-4 pr-3 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-brand-primary hover:text-brand-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-brand-primary">
-              <span>Passengers</span>
+              <span>{t.vehicles.passengers}</span>
               <span className="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-brand-primary">keyboard_arrow_down</span>
             </button>
             <div className="ml-auto flex items-center gap-2">
@@ -125,7 +127,7 @@ export default function VehiclesPage() {
                   <button
                     onClick={() => handleVehicleSelect(vehicle)}
                     className="rounded-lg bg-brand-primary/10 px-4 py-2 text-sm font-bold text-brand-primary transition-colors hover:bg-brand-primary hover:text-white">
-                    Select
+                    {t.vehicles.selectVehicle}
                   </button>
                 </div>
               </div>

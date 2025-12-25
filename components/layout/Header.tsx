@@ -21,8 +21,8 @@ export default function Header() {
           <Link href="/vehicles" className="text-[#111418] dark:text-gray-200 text-sm font-medium leading-normal hover:text-brand-primary transition-colors">
             {t.nav.vehicles}
           </Link>
-          <a href="#" className="text-[#111418] dark:text-gray-200 text-sm font-medium leading-normal hover:text-brand-primary transition-colors">Services</a>
-          <a href="#" className="text-[#111418] dark:text-gray-200 text-sm font-medium leading-normal hover:text-brand-primary transition-colors">Contact</a>
+          <a href="#" className="text-[#111418] dark:text-gray-200 text-sm font-medium leading-normal hover:text-brand-primary transition-colors">{t.nav.services}</a>
+          <a href="#" className="text-[#111418] dark:text-gray-200 text-sm font-medium leading-normal hover:text-brand-primary transition-colors">{t.nav.contact}</a>
           <div className="flex items-center gap-1 cursor-pointer hover:opacity-80">
             <button
               onClick={() => setLanguage('en')}
