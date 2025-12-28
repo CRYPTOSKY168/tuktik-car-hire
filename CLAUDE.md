@@ -1,9 +1,9 @@
 # TukTik Car Rental - Project Documentation
 
 > **Last Updated:** 2025-12-29
-> **Version:** 5.6 (Notification Sound & Mark All Read Fix)
+> **Version:** 5.8 (Mobile-Friendly Date/Time Picker)
 > **Status:** Production
-> **Lines:** ~2200+
+> **Lines:** ~2400+
 
 ---
 
@@ -1940,6 +1940,36 @@ STRIPE_WEBHOOK_SECRET=
 
 ## Changelog
 
+### 2025-12-29 v5.8 - Mobile-Friendly Date/Time Picker 📅
+- แทนที่ native date/time inputs ด้วย **Custom Bottom Sheet Pickers**
+- **Date Picker Features:**
+  - Bottom Sheet เปิดจากด้านล่างบนมือถือ, ตรงกลางบน Desktop
+  - ปฏิทินเต็มหน้า ปุ่มวันที่ขนาดใหญ่ **48x48px** กดง่าย
+  - ปุ่มเลื่อนเดือน ◀ ▶ ขนาดใหญ่
+  - Quick Actions: ปุ่ม "วันนี้" และ "พรุ่งนี้"
+  - ไฮไลท์วันที่เลือกด้วย gradient สีส้ม
+  - วันในอดีตถูก disable อัตโนมัติ
+  - รองรับ Thai/English day names
+- **Time Picker Features:**
+  - แบ่งช่วงเวลาชัดเจน: เช้าตรู่, เช้า, สาย, บ่าย, เย็น, ค่ำ
+  - Grid 4 คอลัมน์ ปุ่มใหญ่กดง่าย
+  - ไอคอนประจำช่วงเวลา (☀️ 🌅 🌙)
+  - แสดงเวลาที่เลือกขนาดใหญ่ด้านบน
+- **UX Improvements:**
+  - Backdrop blur effect
+  - Animation slide-in from bottom
+  - รองรับ Dark mode
+  - Touch-friendly สำหรับมือถือ
+- **ไฟล์ที่แก้:** `app/vehicles/page.tsx`
+
+### 2025-12-29 v5.7 - Auth Page Protection 🔒
+- ป้องกันผู้ใช้ที่ login แล้วเข้าหน้า `/login` และ `/register`
+- เพิ่ม `useAuth` hook เช็คสถานะ login
+- ถ้า login แล้ว redirect ไป `/dashboard` ทันที
+- แสดง loading spinner ระหว่างตรวจสอบ auth state
+- ใช้ `router.replace()` ป้องกันกด back กลับมา
+- **ไฟล์ที่แก้:** `app/login/page.tsx`, `app/register/page.tsx`
+
 ### 2025-12-29 v5.6 - Notification Sound & Mark All Read Fix 🔔
 - เพิ่มเสียงแจ้งเตือนเมื่อมี notification ใหม่
   - ใช้ **Web Audio API** สร้างเสียง chime สองโน้ต (A5 → D6)
@@ -2398,4 +2428,4 @@ vercel --prod        # Deploy to production
 ---
 
 *Document maintained by development team. Last updated: 2025-12-29*
-*Lines: ~2250 | Version: 5.6 (Notification Sound & Mark All Read Fix) 🔔*
+*Lines: ~2500 | Version: 5.8 (Mobile-Friendly Date/Time Picker) 📅*
