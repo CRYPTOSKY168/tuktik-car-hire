@@ -676,104 +676,134 @@ export default function VehiclesPage() {
           </>
         )}
 
-        {/* Trip Details Modal - Modern Glass Design */}
+        {/* Trip Details Modal - Premium Modern Design */}
         {isDetailsModalOpen && (
           <div
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-md"
             onClick={(e) => e.target === e.currentTarget && setIsDetailsModalOpen(false)}
           >
-            <div className="bg-white dark:bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
+            <div className="bg-white dark:bg-gray-900 w-full sm:max-w-lg sm:rounded-3xl rounded-t-[2rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-300 max-h-[92vh] overflow-y-auto">
 
               {/* Drag Handle - Mobile */}
-              <div className="sm:hidden flex justify-center pt-3 pb-1">
-                <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
+              <div className="sm:hidden flex justify-center pt-3 pb-2">
+                <div className="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
               </div>
 
-              {/* Vehicle Preview Header */}
-              <div className="relative p-4 sm:p-5">
+              {/* Header with Gradient */}
+              <div className="relative bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 p-6 pb-20">
+                {/* Close Button */}
                 <button
                   onClick={() => setIsDetailsModalOpen(false)}
-                  className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-500 transition-colors z-10"
+                  className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-full text-white transition-all"
                 >
-                  <span className="material-symbols-outlined text-xl">close</span>
+                  <span className="material-symbols-outlined">close</span>
                 </button>
 
-                {/* Vehicle Card */}
-                <div className="flex items-center gap-3 pr-10">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 overflow-hidden flex-shrink-0">
+                {/* Header Content */}
+                <div className="text-center">
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/20 backdrop-blur-sm rounded-full text-white/90 text-sm font-medium mb-3">
+                    <span className="material-symbols-outlined text-lg">directions_car</span>
+                    {language === 'th' ? 'ยืนยันการจอง' : 'Confirm Booking'}
+                  </div>
+                  <h2 className="text-2xl font-bold text-white">
+                    {language === 'th' ? 'กรอกรายละเอียดการเดินทาง' : 'Enter Trip Details'}
+                  </h2>
+                </div>
+
+                {/* Decorative Elements */}
+                <div className="absolute -bottom-4 left-0 right-0 h-8 bg-white dark:bg-gray-900 rounded-t-[2rem]"></div>
+              </div>
+
+              {/* Vehicle Card - Floating */}
+              <div className="px-5 -mt-16 relative z-10">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-4 flex items-center gap-4">
+                  <div className="w-24 h-20 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 overflow-hidden flex-shrink-0 shadow-inner">
                     {pendingVehicle?.image ? (
                       <img src={pendingVehicle.image} alt={pendingVehicle.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <span className="material-symbols-outlined text-gray-400 text-3xl">directions_car</span>
+                        <span className="material-symbols-outlined text-gray-400 text-4xl">directions_car</span>
                       </div>
                     )}
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                      {language === 'th' ? 'รถที่เลือก' : 'Selected Vehicle'}
-                    </p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase rounded-md">
+                        {pendingVehicle?.type || 'Sedan'}
+                      </span>
+                    </div>
                     <h3 className="font-bold text-gray-900 dark:text-white text-lg truncate">{pendingVehicle?.name}</h3>
-                    <p className="text-blue-600 font-bold text-lg">
-                      ฿{pendingVehicle?.price?.toLocaleString()}
-                    </p>
+                    <div className="flex items-baseline gap-1 mt-1">
+                      <span className="text-2xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                        ฿{pendingVehicle?.price?.toLocaleString()}
+                      </span>
+                      <span className="text-xs text-gray-400">/{language === 'th' ? 'เที่ยว' : 'trip'}</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Form */}
-              <form onSubmit={handleConfirmDetails} className="p-4 sm:p-5 pt-0 space-y-4">
+              <form onSubmit={handleConfirmDetails} className="p-5 pt-4 space-y-5">
 
-                {/* Route Section */}
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl p-4">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-base">route</span>
-                    {language === 'th' ? 'เส้นทาง' : 'Route'}
-                  </p>
+                {/* Route Section - Timeline Style */}
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-800 dark:to-gray-800/50 rounded-2xl p-5 border border-gray-100 dark:border-gray-700">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                      <span className="material-symbols-outlined text-white text-sm">route</span>
+                    </div>
+                    <h3 className="font-bold text-gray-800 dark:text-white">
+                      {language === 'th' ? 'เส้นทางการเดินทาง' : 'Trip Route'}
+                    </h3>
+                  </div>
 
                   {/* Visual Route */}
-                  <div className="relative space-y-3">
+                  <div className="relative space-y-3 pl-1">
                     {/* Connecting Line */}
-                    <div className="absolute left-[18px] top-[28px] bottom-[28px] w-0.5 bg-gradient-to-b from-emerald-400 to-red-400"></div>
+                    <div className="absolute left-[19px] top-[36px] bottom-[36px] w-0.5 bg-gradient-to-b from-emerald-400 via-blue-400 to-rose-400"></div>
 
                     {/* Pickup */}
                     <div className="relative">
                       <div
                         onClick={() => setActiveDropdown(activeDropdown === 'pickup' ? null : 'pickup')}
-                        className={`flex items-center gap-3 p-3 bg-white dark:bg-gray-900 rounded-xl border-2 cursor-pointer transition-all ${activeDropdown === 'pickup' ? 'border-emerald-400 shadow-lg shadow-emerald-500/10' : 'border-transparent hover:border-gray-200'}`}
+                        className={`flex items-center gap-4 p-4 bg-white dark:bg-gray-900 rounded-2xl border-2 cursor-pointer transition-all hover:shadow-lg ${activeDropdown === 'pickup' ? 'border-emerald-400 shadow-lg shadow-emerald-500/20 scale-[1.02]' : 'border-gray-100 dark:border-gray-700 hover:border-emerald-300'}`}
                       >
-                        <div className="w-9 h-9 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/30">
-                          <span className="material-symbols-outlined text-white text-lg">trip_origin</span>
+                        <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-green-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/30">
+                          <span className="material-symbols-outlined text-white">flight_takeoff</span>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[10px] text-gray-400 uppercase font-bold">{language === 'th' ? 'จุดรับ' : 'Pickup'}</p>
-                          <p className={`font-semibold truncate ${tripDetails.pickupLocation ? 'text-gray-800 dark:text-white' : 'text-gray-400'}`}>
-                            {tripDetails.pickupLocation || (language === 'th' ? 'เลือกจุดรับ' : 'Select pickup')}
+                          <p className="text-[11px] text-emerald-600 dark:text-emerald-400 uppercase font-bold tracking-wider">{language === 'th' ? 'จุดรับ' : 'Pickup'}</p>
+                          <p className={`font-bold text-base truncate ${tripDetails.pickupLocation ? 'text-gray-800 dark:text-white' : 'text-gray-400'}`}>
+                            {tripDetails.pickupLocation || (language === 'th' ? 'แตะเพื่อเลือก' : 'Tap to select')}
                           </p>
                         </div>
-                        <span className="material-symbols-outlined text-gray-400">expand_more</span>
+                        <span className={`material-symbols-outlined transition-transform ${activeDropdown === 'pickup' ? 'rotate-180 text-emerald-500' : 'text-gray-400'}`}>expand_more</span>
                       </div>
 
                       {/* Pickup Dropdown */}
                       {activeDropdown === 'pickup' && (
-                        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-xl max-h-48 overflow-y-auto z-30">
-                          {locations.map((location) => (
-                            <button
-                              key={location.id}
-                              type="button"
-                              onClick={() => {
-                                setTripDetails({ ...tripDetails, pickupLocation: location.name[language] });
-                                setActiveDropdown(null);
-                              }}
-                              className={`w-full text-left px-4 py-3 text-sm font-medium transition-colors flex items-center gap-3 border-b border-gray-50 dark:border-gray-700 last:border-0 ${tripDetails.pickupLocation === location.name[language] ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
-                            >
-                              <span className="material-symbols-outlined text-emerald-500 text-lg">location_on</span>
-                              {location.name[language]}
-                              {tripDetails.pickupLocation === location.name[language] && (
-                                <span className="material-symbols-outlined text-emerald-500 ml-auto">check_circle</span>
-                              )}
-                            </button>
-                          ))}
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl max-h-52 overflow-y-auto z-30 animate-in fade-in slide-in-from-top-2 duration-200">
+                          <div className="p-2">
+                            {locations.map((location) => (
+                              <button
+                                key={location.id}
+                                type="button"
+                                onClick={() => {
+                                  setTripDetails({ ...tripDetails, pickupLocation: location.name[language] });
+                                  setActiveDropdown(null);
+                                }}
+                                className={`w-full text-left px-4 py-3 rounded-xl text-sm font-semibold transition-all flex items-center gap-3 ${tripDetails.pickupLocation === location.name[language] ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                              >
+                                <span className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center">
+                                  <span className="material-symbols-outlined text-emerald-500 text-lg">location_on</span>
+                                </span>
+                                {location.name[language]}
+                                {tripDetails.pickupLocation === location.name[language] && (
+                                  <span className="material-symbols-outlined text-emerald-500 ml-auto">check_circle</span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -782,52 +812,60 @@ export default function VehiclesPage() {
                     <div className="relative">
                       <div
                         onClick={() => setActiveDropdown(activeDropdown === 'dropoff' ? null : 'dropoff')}
-                        className={`flex items-center gap-3 p-3 bg-white dark:bg-gray-900 rounded-xl border-2 cursor-pointer transition-all ${activeDropdown === 'dropoff' ? 'border-red-400 shadow-lg shadow-red-500/10' : 'border-transparent hover:border-gray-200'}`}
+                        className={`flex items-center gap-4 p-4 bg-white dark:bg-gray-900 rounded-2xl border-2 cursor-pointer transition-all hover:shadow-lg ${activeDropdown === 'dropoff' ? 'border-rose-400 shadow-lg shadow-rose-500/20 scale-[1.02]' : 'border-gray-100 dark:border-gray-700 hover:border-rose-300'}`}
                       >
-                        <div className="w-9 h-9 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg shadow-red-500/30">
-                          <span className="material-symbols-outlined text-white text-lg">location_on</span>
+                        <div className="w-10 h-10 bg-gradient-to-br from-rose-400 to-red-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-rose-500/30">
+                          <span className="material-symbols-outlined text-white">flag</span>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[10px] text-gray-400 uppercase font-bold">{language === 'th' ? 'จุดส่ง' : 'Dropoff'}</p>
-                          <p className={`font-semibold truncate ${tripDetails.dropoffLocation ? 'text-gray-800 dark:text-white' : 'text-gray-400'}`}>
-                            {tripDetails.dropoffLocation || (language === 'th' ? 'เลือกจุดส่ง' : 'Select dropoff')}
+                          <p className="text-[11px] text-rose-600 dark:text-rose-400 uppercase font-bold tracking-wider">{language === 'th' ? 'จุดส่ง' : 'Dropoff'}</p>
+                          <p className={`font-bold text-base truncate ${tripDetails.dropoffLocation ? 'text-gray-800 dark:text-white' : 'text-gray-400'}`}>
+                            {tripDetails.dropoffLocation || (language === 'th' ? 'แตะเพื่อเลือก' : 'Tap to select')}
                           </p>
                         </div>
-                        <span className="material-symbols-outlined text-gray-400">expand_more</span>
+                        <span className={`material-symbols-outlined transition-transform ${activeDropdown === 'dropoff' ? 'rotate-180 text-rose-500' : 'text-gray-400'}`}>expand_more</span>
                       </div>
 
                       {/* Dropoff Dropdown */}
                       {activeDropdown === 'dropoff' && (
-                        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-xl max-h-48 overflow-y-auto z-30">
-                          {locations.map((location) => (
-                            <button
-                              key={location.id}
-                              type="button"
-                              onClick={() => {
-                                setTripDetails({ ...tripDetails, dropoffLocation: location.name[language] });
-                                setActiveDropdown(null);
-                              }}
-                              className={`w-full text-left px-4 py-3 text-sm font-medium transition-colors flex items-center gap-3 border-b border-gray-50 dark:border-gray-700 last:border-0 ${tripDetails.dropoffLocation === location.name[language] ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
-                            >
-                              <span className="material-symbols-outlined text-red-500 text-lg">flag</span>
-                              {location.name[language]}
-                              {tripDetails.dropoffLocation === location.name[language] && (
-                                <span className="material-symbols-outlined text-red-500 ml-auto">check_circle</span>
-                              )}
-                            </button>
-                          ))}
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl max-h-52 overflow-y-auto z-30 animate-in fade-in slide-in-from-top-2 duration-200">
+                          <div className="p-2">
+                            {locations.map((location) => (
+                              <button
+                                key={location.id}
+                                type="button"
+                                onClick={() => {
+                                  setTripDetails({ ...tripDetails, dropoffLocation: location.name[language] });
+                                  setActiveDropdown(null);
+                                }}
+                                className={`w-full text-left px-4 py-3 rounded-xl text-sm font-semibold transition-all flex items-center gap-3 ${tripDetails.dropoffLocation === location.name[language] ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                              >
+                                <span className="w-8 h-8 bg-rose-100 dark:bg-rose-900/30 rounded-lg flex items-center justify-center">
+                                  <span className="material-symbols-outlined text-rose-500 text-lg">flag</span>
+                                </span>
+                                {location.name[language]}
+                                {tripDetails.dropoffLocation === location.name[language] && (
+                                  <span className="material-symbols-outlined text-rose-500 ml-auto">check_circle</span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* Date & Time Section */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
-                    <label htmlFor="tripPickupDate" className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1 mb-2">
-                      <span className="material-symbols-outlined text-sm">calendar_month</span>
-                      {language === 'th' ? 'วันที่' : 'Date'}
+                {/* Date & Time Section - Modern Cards */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-2xl p-4 border border-amber-100 dark:border-amber-800/30">
+                    <label htmlFor="tripPickupDate" className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center shadow-lg shadow-amber-500/30">
+                        <span className="material-symbols-outlined text-white text-sm">calendar_month</span>
+                      </div>
+                      <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+                        {language === 'th' ? 'วันที่' : 'Date'}
+                      </span>
                     </label>
                     <input
                       id="tripPickupDate"
@@ -836,15 +874,19 @@ export default function VehiclesPage() {
                       autoComplete="off"
                       required
                       min={new Date().toISOString().split('T')[0]}
-                      className="w-full px-0 py-1 bg-transparent border-0 font-bold text-gray-800 dark:text-white outline-none text-sm"
+                      className="w-full px-0 py-1 bg-transparent border-0 font-bold text-gray-800 dark:text-white outline-none text-lg"
                       value={tripDetails.pickupDate}
                       onChange={(e) => setTripDetails({ ...tripDetails, pickupDate: e.target.value })}
                     />
                   </div>
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
-                    <label htmlFor="tripPickupTime" className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1 mb-2">
-                      <span className="material-symbols-outlined text-sm">schedule</span>
-                      {language === 'th' ? 'เวลา' : 'Time'}
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-4 border border-blue-100 dark:border-blue-800/30">
+                    <label htmlFor="tripPickupTime" className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/30">
+                        <span className="material-symbols-outlined text-white text-sm">schedule</span>
+                      </div>
+                      <span className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">
+                        {language === 'th' ? 'เวลา' : 'Time'}
+                      </span>
                     </label>
                     <input
                       id="tripPickupTime"
@@ -852,7 +894,7 @@ export default function VehiclesPage() {
                       type="time"
                       autoComplete="off"
                       required
-                      className="w-full px-0 py-1 bg-transparent border-0 font-bold text-gray-800 dark:text-white outline-none text-sm"
+                      className="w-full px-0 py-1 bg-transparent border-0 font-bold text-gray-800 dark:text-white outline-none text-lg"
                       value={tripDetails.pickupTime}
                       onChange={(e) => setTripDetails({ ...tripDetails, pickupTime: e.target.value })}
                     />
@@ -860,34 +902,38 @@ export default function VehiclesPage() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-3 pt-2">
+                <div className="flex gap-3 pt-3">
                   <button
                     type="button"
                     onClick={() => setIsDetailsModalOpen(false)}
-                    className="flex-1 py-3.5 rounded-xl font-semibold text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                    className="flex-1 py-4 rounded-2xl font-bold text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all border-2 border-transparent hover:border-gray-300 dark:hover:border-gray-600"
                   >
                     {language === 'th' ? 'ยกเลิก' : 'Cancel'}
                   </button>
                   <button
                     type="submit"
                     disabled={!tripDetails.pickupLocation || !tripDetails.dropoffLocation}
-                    className="flex-1 py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30"
+                    className="flex-[1.5] py-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-xl shadow-blue-500/30 hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-[0.98]"
                   >
-                    <span>{language === 'th' ? 'จองเลย' : 'Book Now'}</span>
-                    <span className="material-symbols-outlined text-lg">arrow_forward</span>
+                    <span className="text-lg">{language === 'th' ? 'ยืนยันการจอง' : 'Confirm Booking'}</span>
+                    <span className="material-symbols-outlined">arrow_forward</span>
                   </button>
                 </div>
 
-                {/* Trust Badges */}
-                <div className="flex items-center justify-center gap-4 pt-2 text-xs text-gray-400">
-                  <span className="flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm text-emerald-500">verified</span>
-                    {language === 'th' ? 'คนขับมืออาชีพ' : 'Pro Driver'}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm text-blue-500">security</span>
-                    {language === 'th' ? 'ชำระเงินปลอดภัย' : 'Secure Pay'}
-                  </span>
+                {/* Trust Badges - Modern Style */}
+                <div className="flex items-center justify-center gap-6 pt-3 pb-2">
+                  <div className="flex items-center gap-2 text-gray-500">
+                    <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center">
+                      <span className="material-symbols-outlined text-emerald-500 text-sm">verified</span>
+                    </div>
+                    <span className="text-xs font-medium">{language === 'th' ? 'คนขับมืออาชีพ' : 'Pro Driver'}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-500">
+                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                      <span className="material-symbols-outlined text-blue-500 text-sm">shield</span>
+                    </div>
+                    <span className="text-xs font-medium">{language === 'th' ? 'ปลอดภัย 100%' : '100% Safe'}</span>
+                  </div>
                 </div>
               </form>
             </div>
