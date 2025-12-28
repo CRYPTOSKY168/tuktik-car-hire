@@ -13,6 +13,7 @@ import { countryCodes } from '@/lib/constants/countryCodes';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
+import { useAuth } from '@/lib/contexts/AuthContext';
 
 declare global {
     interface Window {
@@ -22,6 +23,7 @@ declare global {
 
 export default function LoginPage() {
     const { t } = useLanguage();
+    const { user, loading: authLoading } = useAuth();
     const [activeMethod, setActiveMethod] = useState<'email' | 'phone'>('email');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -32,6 +34,13 @@ export default function LoginPage() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const router = useRouter();
+
+    // Redirect if already logged in
+    useEffect(() => {
+        if (!authLoading && user) {
+            router.replace('/dashboard');
+        }
+    }, [user, authLoading, router]);
 
     // Initialize Recaptcha - with proper DOM check
     useEffect(() => {
@@ -171,6 +180,15 @@ export default function LoginPage() {
             setLoading(false);
         }
     };
+
+    // Show loading while checking auth state
+    if (authLoading || user) {
+        return (
+            <main className="flex-1 flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-[#111418] px-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary"></div>
+            </main>
+        );
+    }
 
     return (
         <main className="flex-1 flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-[#111418] px-4">

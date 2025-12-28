@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup, RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
 import { FirestoreService } from '@/lib/firebase/firestore';
@@ -8,10 +8,21 @@ import { countryCodes } from '@/lib/constants/countryCodes';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
+import { useAuth } from '@/lib/contexts/AuthContext';
 
 export default function RegisterPage() {
     const { t } = useLanguage();
+    const { user, loading: authLoading } = useAuth();
+    const router = useRouter();
     const [activeMethod, setActiveMethod] = useState<'email' | 'phone'>('email');
+
+    // Redirect if already logged in
+    useEffect(() => {
+        if (!authLoading && user) {
+            router.replace('/dashboard');
+        }
+    }, [user, authLoading, router]);
+
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -23,7 +34,6 @@ export default function RegisterPage() {
     const [confirmationResult, setConfirmationResult] = useState<any>(null);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const router = useRouter();
 
     // Initialize Recaptcha
     const initRecaptcha = () => {
@@ -180,6 +190,15 @@ export default function RegisterPage() {
             setLoading(false);
         }
     };
+
+    // Show loading while checking auth state
+    if (authLoading || user) {
+        return (
+            <main className="flex-1 flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-[#111418] px-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary"></div>
+            </main>
+        );
+    }
 
     return (
         <main className="flex-1 flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-[#111418] px-4">
