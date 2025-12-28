@@ -158,6 +158,112 @@ export default function VehiclesPage() {
   });
   const [activeDropdown, setActiveDropdown] = useState<'pickup' | 'dropoff' | null>(null);
 
+  // Bottom Sheet States for Date/Time Pickers
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
+
+  // Generate calendar days for selected month
+  const generateCalendarDays = () => {
+    const year = selectedMonth.getFullYear();
+    const month = selectedMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDay = firstDay.getDay(); // 0 = Sunday
+
+    const days: (number | null)[] = [];
+
+    // Add empty slots for days before the 1st
+    for (let i = 0; i < startingDay; i++) {
+      days.push(null);
+    }
+
+    // Add the days of the month
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push(i);
+    }
+
+    return days;
+  };
+
+  // Check if date is in the past
+  const isDateDisabled = (day: number) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkDate = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), day);
+    return checkDate < today;
+  };
+
+  // Format date for display
+  const formatDisplayDate = (dateStr: string) => {
+    if (!dateStr) return language === 'th' ? 'เลือกวันที่' : 'Select date';
+    const date = new Date(dateStr);
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    };
+    return date.toLocaleDateString(language === 'th' ? 'th-TH' : 'en-US', options);
+  };
+
+  // Time slots
+  const timeSlots = [
+    '00:00', '00:30', '01:00', '01:30', '02:00', '02:30', '03:00', '03:30',
+    '04:00', '04:30', '05:00', '05:30', '06:00', '06:30', '07:00', '07:30',
+    '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+    '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+    '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30',
+    '20:00', '20:30', '21:00', '21:30', '22:00', '22:30', '23:00', '23:30',
+  ];
+
+  // Quick time options
+  const quickTimeOptions = [
+    { label: language === 'th' ? 'เช้าตรู่' : 'Early Morning', times: ['05:00', '05:30', '06:00', '06:30'] },
+    { label: language === 'th' ? 'เช้า' : 'Morning', times: ['07:00', '07:30', '08:00', '08:30', '09:00', '09:30'] },
+    { label: language === 'th' ? 'สาย' : 'Late Morning', times: ['10:00', '10:30', '11:00', '11:30'] },
+    { label: language === 'th' ? 'บ่าย' : 'Afternoon', times: ['12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30'] },
+    { label: language === 'th' ? 'เย็น' : 'Evening', times: ['16:00', '16:30', '17:00', '17:30', '18:00', '18:30'] },
+    { label: language === 'th' ? 'ค่ำ' : 'Night', times: ['19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00', '22:30', '23:00', '23:30'] },
+  ];
+
+  // Get month name
+  const getMonthName = (date: Date) => {
+    return date.toLocaleDateString(language === 'th' ? 'th-TH' : 'en-US', { month: 'long', year: 'numeric' });
+  };
+
+  // Navigate months
+  const prevMonth = () => {
+    const newDate = new Date(selectedMonth);
+    newDate.setMonth(newDate.getMonth() - 1);
+    const today = new Date();
+    if (newDate.getFullYear() > today.getFullYear() ||
+      (newDate.getFullYear() === today.getFullYear() && newDate.getMonth() >= today.getMonth())) {
+      setSelectedMonth(newDate);
+    }
+  };
+
+  const nextMonth = () => {
+    const newDate = new Date(selectedMonth);
+    newDate.setMonth(newDate.getMonth() + 1);
+    setSelectedMonth(newDate);
+  };
+
+  // Handle date selection
+  const handleDateSelect = (day: number) => {
+    if (isDateDisabled(day)) return;
+    const dateStr = `${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    setTripDetails({ ...tripDetails, pickupDate: dateStr });
+    setIsDatePickerOpen(false);
+  };
+
+  // Handle time selection
+  const handleTimeSelect = (time: string) => {
+    setTripDetails({ ...tripDetails, pickupTime: time });
+    setIsTimePickerOpen(false);
+  };
+
   const handleVehicleSelect = (vehicle: any) => {
     if (!bookingData.pickupLocation || !bookingData.dropoffLocation || !bookingData.pickupDate) {
       setPendingVehicle(vehicle);
@@ -856,49 +962,67 @@ export default function VehiclesPage() {
                   </div>
                 </div>
 
-                {/* Date & Time Section - Modern Cards */}
+                {/* Date & Time Section - Touch-Friendly Cards */}
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-2xl p-4 border border-amber-100 dark:border-amber-800/30">
-                    <label htmlFor="tripPickupDate" className="flex items-center gap-2 mb-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center shadow-lg shadow-amber-500/30">
-                        <span className="material-symbols-outlined text-white text-sm">calendar_month</span>
+                  {/* Date Picker Card */}
+                  <button
+                    type="button"
+                    onClick={() => setIsDatePickerOpen(true)}
+                    className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-2xl p-4 border-2 border-amber-200 dark:border-amber-800/50 hover:border-amber-400 dark:hover:border-amber-600 transition-all text-left active:scale-[0.98] hover:shadow-lg hover:shadow-amber-500/20"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/30">
+                        <span className="material-symbols-outlined text-white">calendar_month</span>
                       </div>
                       <span className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
                         {language === 'th' ? 'วันที่' : 'Date'}
                       </span>
-                    </label>
+                    </div>
+                    <p className={`font-bold text-lg ${tripDetails.pickupDate ? 'text-gray-800 dark:text-white' : 'text-gray-400'}`}>
+                      {tripDetails.pickupDate ? formatDisplayDate(tripDetails.pickupDate) : (language === 'th' ? 'แตะเพื่อเลือก' : 'Tap to select')}
+                    </p>
+                    {/* Hidden input for form validation */}
                     <input
-                      id="tripPickupDate"
+                      type="text"
                       name="tripPickupDate"
-                      type="date"
-                      autoComplete="off"
-                      required
-                      min={new Date().toISOString().split('T')[0]}
-                      className="w-full px-0 py-1 bg-transparent border-0 font-bold text-gray-800 dark:text-white outline-none text-lg"
                       value={tripDetails.pickupDate}
-                      onChange={(e) => setTripDetails({ ...tripDetails, pickupDate: e.target.value })}
+                      required
+                      readOnly
+                      tabIndex={-1}
+                      className="sr-only"
+                      aria-hidden="true"
                     />
-                  </div>
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-4 border border-blue-100 dark:border-blue-800/30">
-                    <label htmlFor="tripPickupTime" className="flex items-center gap-2 mb-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/30">
-                        <span className="material-symbols-outlined text-white text-sm">schedule</span>
+                  </button>
+
+                  {/* Time Picker Card */}
+                  <button
+                    type="button"
+                    onClick={() => setIsTimePickerOpen(true)}
+                    className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-4 border-2 border-blue-200 dark:border-blue-800/50 hover:border-blue-400 dark:hover:border-blue-600 transition-all text-left active:scale-[0.98] hover:shadow-lg hover:shadow-blue-500/20"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+                        <span className="material-symbols-outlined text-white">schedule</span>
                       </div>
                       <span className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">
                         {language === 'th' ? 'เวลา' : 'Time'}
                       </span>
-                    </label>
+                    </div>
+                    <p className="font-bold text-2xl text-gray-800 dark:text-white">
+                      {tripDetails.pickupTime}
+                    </p>
+                    {/* Hidden input for form validation */}
                     <input
-                      id="tripPickupTime"
+                      type="text"
                       name="tripPickupTime"
-                      type="time"
-                      autoComplete="off"
-                      required
-                      className="w-full px-0 py-1 bg-transparent border-0 font-bold text-gray-800 dark:text-white outline-none text-lg"
                       value={tripDetails.pickupTime}
-                      onChange={(e) => setTripDetails({ ...tripDetails, pickupTime: e.target.value })}
+                      required
+                      readOnly
+                      tabIndex={-1}
+                      className="sr-only"
+                      aria-hidden="true"
                     />
-                  </div>
+                  </button>
                 </div>
 
                 {/* Action Buttons */}
@@ -936,6 +1060,218 @@ export default function VehiclesPage() {
                   </div>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Date Picker Bottom Sheet */}
+        {isDatePickerOpen && (
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setIsDatePickerOpen(false)}
+            />
+
+            {/* Bottom Sheet */}
+            <div className="relative bg-white dark:bg-gray-900 w-full sm:w-[420px] sm:rounded-3xl rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-hidden">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-5 text-white">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                      <span className="material-symbols-outlined text-2xl">calendar_month</span>
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-xl">{language === 'th' ? 'เลือกวันที่' : 'Select Date'}</h3>
+                      <p className="text-white/80 text-sm">{language === 'th' ? 'แตะวันที่ต้องการ' : 'Tap your preferred date'}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setIsDatePickerOpen(false)}
+                    className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
+                  >
+                    <span className="material-symbols-outlined">close</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Calendar */}
+              <div className="p-5">
+                {/* Month Navigation */}
+                <div className="flex items-center justify-between mb-5">
+                  <button
+                    type="button"
+                    onClick={prevMonth}
+                    className="w-12 h-12 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl flex items-center justify-center transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-gray-600 dark:text-gray-300">chevron_left</span>
+                  </button>
+                  <h4 className="font-bold text-xl text-gray-800 dark:text-white">
+                    {getMonthName(selectedMonth)}
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={nextMonth}
+                    className="w-12 h-12 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl flex items-center justify-center transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-gray-600 dark:text-gray-300">chevron_right</span>
+                  </button>
+                </div>
+
+                {/* Day Headers */}
+                <div className="grid grid-cols-7 gap-1 mb-3">
+                  {(language === 'th'
+                    ? ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
+                    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                  ).map((day) => (
+                    <div key={day} className="text-center text-sm font-bold text-gray-400 dark:text-gray-500 py-2">
+                      {day}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Calendar Days */}
+                <div className="grid grid-cols-7 gap-1">
+                  {generateCalendarDays().map((day, index) => {
+                    if (day === null) {
+                      return <div key={`empty-${index}`} className="h-12" />;
+                    }
+
+                    const dateStr = `${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const isSelected = tripDetails.pickupDate === dateStr;
+                    const isDisabled = isDateDisabled(day);
+                    const isToday = new Date().toISOString().split('T')[0] === dateStr;
+
+                    return (
+                      <button
+                        key={`day-${day}`}
+                        type="button"
+                        onClick={() => handleDateSelect(day)}
+                        disabled={isDisabled}
+                        className={`h-12 rounded-xl font-bold text-lg transition-all ${
+                          isSelected
+                            ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/30 scale-110'
+                            : isDisabled
+                              ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                              : isToday
+                                ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50'
+                                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Quick Actions */}
+                <div className="flex gap-3 mt-5 pt-5 border-t border-gray-200 dark:border-gray-700">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const today = new Date().toISOString().split('T')[0];
+                      setTripDetails({ ...tripDetails, pickupDate: today });
+                      setIsDatePickerOpen(false);
+                    }}
+                    className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl font-bold text-gray-700 dark:text-gray-300 transition-colors"
+                  >
+                    {language === 'th' ? 'วันนี้' : 'Today'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const tomorrow = new Date();
+                      tomorrow.setDate(tomorrow.getDate() + 1);
+                      setTripDetails({ ...tripDetails, pickupDate: tomorrow.toISOString().split('T')[0] });
+                      setIsDatePickerOpen(false);
+                    }}
+                    className="flex-1 py-3 bg-amber-100 dark:bg-amber-900/30 hover:bg-amber-200 dark:hover:bg-amber-900/50 rounded-xl font-bold text-amber-700 dark:text-amber-400 transition-colors"
+                  >
+                    {language === 'th' ? 'พรุ่งนี้' : 'Tomorrow'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Time Picker Bottom Sheet */}
+        {isTimePickerOpen && (
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setIsTimePickerOpen(false)}
+            />
+
+            {/* Bottom Sheet */}
+            <div className="relative bg-white dark:bg-gray-900 w-full sm:w-[420px] sm:rounded-3xl rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-hidden">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-5 text-white">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                      <span className="material-symbols-outlined text-2xl">schedule</span>
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-xl">{language === 'th' ? 'เลือกเวลา' : 'Select Time'}</h3>
+                      <p className="text-white/80 text-sm">{language === 'th' ? 'เวลารับที่ต้องการ' : 'Pickup time'}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setIsTimePickerOpen(false)}
+                    className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
+                  >
+                    <span className="material-symbols-outlined">close</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Time Selection */}
+              <div className="p-5 overflow-y-auto max-h-[60vh]">
+                {/* Current Selected Time */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-4 mb-5 text-center">
+                  <p className="text-sm text-blue-600 dark:text-blue-400 font-medium mb-1">
+                    {language === 'th' ? 'เวลาที่เลือก' : 'Selected Time'}
+                  </p>
+                  <p className="text-4xl font-black text-blue-700 dark:text-blue-300">
+                    {tripDetails.pickupTime}
+                  </p>
+                </div>
+
+                {/* Time Sections */}
+                {quickTimeOptions.map((section) => (
+                  <div key={section.label} className="mb-5">
+                    <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <span className="material-symbols-outlined text-lg">
+                        {section.label.includes('เช้าตรู่') || section.label.includes('Early') ? 'wb_twilight' :
+                          section.label.includes('เช้า') || section.label.includes('Morning') ? 'wb_sunny' :
+                            section.label.includes('สาย') || section.label.includes('Late') ? 'light_mode' :
+                              section.label.includes('บ่าย') || section.label.includes('Afternoon') ? 'wb_sunny' :
+                                section.label.includes('เย็น') || section.label.includes('Evening') ? 'wb_twilight' : 'dark_mode'}
+                      </span>
+                      {section.label}
+                    </h4>
+                    <div className="grid grid-cols-4 gap-2">
+                      {section.times.map((time) => (
+                        <button
+                          key={time}
+                          type="button"
+                          onClick={() => handleTimeSelect(time)}
+                          className={`py-3 rounded-xl font-bold text-base transition-all ${
+                            tripDetails.pickupTime === time
+                              ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30 scale-105'
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-700 dark:hover:text-blue-400'
+                          }`}
+                        >
+                          {time}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
