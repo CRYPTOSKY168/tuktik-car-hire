@@ -114,13 +114,17 @@ export const NotificationService = {
         if (!db) return 0;
 
         try {
+            // Get all notifications and filter client-side to handle both field names
             const q = query(
                 collection(db, NOTIFICATIONS_COLLECTION),
-                where('userId', '==', userId),
-                where('read', '==', false)
+                where('userId', '==', userId)
             );
             const snapshot = await getDocs(q);
-            return snapshot.size;
+            // Count notifications where either 'read' or 'isRead' is false
+            return snapshot.docs.filter((doc) => {
+                const data = doc.data();
+                return data.read === false || data.isRead === false;
+            }).length;
         } catch (error) {
             console.error('Error getting unread count:', error);
             return 0;
@@ -242,6 +246,7 @@ export const AdminNotificationService = {
             const docRef = await addDoc(collection(db, ADMIN_NOTIFICATIONS_COLLECTION), {
                 ...notification,
                 read: false,
+                isRead: false, // Add both field names for consistency
                 readBy: [],
                 createdAt: Timestamp.now(),
             });
@@ -288,12 +293,13 @@ export const AdminNotificationService = {
         if (!db) return 0;
 
         try {
-            const q = query(
-                collection(db, ADMIN_NOTIFICATIONS_COLLECTION),
-                where('read', '==', false)
-            );
+            // Get all and filter client-side to handle both field names
+            const q = query(collection(db, ADMIN_NOTIFICATIONS_COLLECTION));
             const snapshot = await getDocs(q);
-            return snapshot.size;
+            return snapshot.docs.filter((doc) => {
+                const data = doc.data();
+                return data.read === false || data.isRead === false;
+            }).length;
         } catch (error) {
             console.error('Error getting admin unread count:', error);
             return 0;
@@ -306,8 +312,10 @@ export const AdminNotificationService = {
 
         try {
             const docRef = doc(db, ADMIN_NOTIFICATIONS_COLLECTION, notificationId);
+            // Update both field names to ensure consistency
             await updateDoc(docRef, {
                 read: true,
+                isRead: true,
                 [`readBy`]: [adminId], // Add admin to readBy array
             });
         } catch (error) {
@@ -325,22 +333,29 @@ export const AdminNotificationService = {
         try {
             console.log('AdminNotificationService.markAllAsRead: Starting');
 
-            const q = query(
-                collection(db, ADMIN_NOTIFICATIONS_COLLECTION),
-                where('read', '==', false)
-            );
+            // Get ALL admin notifications (not filtering by read status)
+            const q = query(collection(db, ADMIN_NOTIFICATIONS_COLLECTION));
             const snapshot = await getDocs(q);
 
-            console.log('AdminNotificationService.markAllAsRead: Found', snapshot.docs.length, 'unread notifications');
+            console.log('AdminNotificationService.markAllAsRead: Found', snapshot.docs.length, 'total notifications');
 
-            if (snapshot.empty) {
+            // Filter unread notifications (check both 'read' and 'isRead' fields)
+            const unreadDocs = snapshot.docs.filter((docSnap) => {
+                const data = docSnap.data();
+                return data.read === false || data.isRead === false;
+            });
+
+            console.log('AdminNotificationService.markAllAsRead: Found', unreadDocs.length, 'unread notifications');
+
+            if (unreadDocs.length === 0) {
                 console.log('AdminNotificationService.markAllAsRead: No unread notifications to update');
                 return;
             }
 
             const batch = writeBatch(db);
-            snapshot.docs.forEach((docSnap) => {
-                batch.update(docSnap.ref, { read: true });
+            unreadDocs.forEach((docSnap) => {
+                // Update both fields to ensure consistency
+                batch.update(docSnap.ref, { read: true, isRead: true });
             });
             await batch.commit();
 
