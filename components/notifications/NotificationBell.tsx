@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import {
@@ -21,7 +21,52 @@ export default function NotificationBell({ isAdmin = false }: NotificationBellPr
     const [isOpen, setIsOpen] = useState(false);
     const [notifications, setNotifications] = useState<(UserNotification | AdminNotification)[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [markingAllRead, setMarkingAllRead] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const prevUnreadCountRef = useRef<number>(0);
+
+    // Play notification sound using Web Audio API
+    const playNotificationSound = useCallback(() => {
+        try {
+            const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+            if (!AudioContext) return;
+
+            const audioContext = new AudioContext();
+
+            // Create a pleasant notification chime
+            const playTone = (freq: number, startTime: number, duration: number) => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.setValueAtTime(freq, startTime);
+                oscillator.type = 'sine';
+
+                // Smooth fade in and out
+                gainNode.gain.setValueAtTime(0, startTime);
+                gainNode.gain.linearRampToValueAtTime(0.3, startTime + 0.02);
+                gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
+
+                oscillator.start(startTime);
+                oscillator.stop(startTime + duration);
+            };
+
+            const now = audioContext.currentTime;
+            // Play two ascending tones for a friendly notification sound
+            playTone(880, now, 0.15);        // A5
+            playTone(1174.66, now + 0.1, 0.2); // D6
+
+            // Close audio context after sounds finish
+            setTimeout(() => {
+                audioContext.close();
+            }, 500);
+        } catch (err) {
+            // Browser might block autoplay - ignore error
+            console.log('Could not play notification sound:', err);
+        }
+    }, []);
 
     // Subscribe to notifications
     useEffect(() => {
@@ -31,20 +76,36 @@ export default function NotificationBell({ isAdmin = false }: NotificationBellPr
 
         if (isAdmin) {
             unsubscribe = AdminNotificationService.subscribeToNotifications((data) => {
+                const newUnreadCount = data.filter((n) => !n.read).length;
+
+                // Play sound if unread count increased (new notification arrived)
+                if (newUnreadCount > prevUnreadCountRef.current && prevUnreadCountRef.current > 0) {
+                    playNotificationSound();
+                }
+                prevUnreadCountRef.current = newUnreadCount;
+
                 setNotifications(data);
-                setUnreadCount(data.filter((n) => !n.read).length);
+                setUnreadCount(newUnreadCount);
             });
         } else {
             unsubscribe = NotificationService.subscribeToNotifications(user.uid, (data) => {
+                const newUnreadCount = data.filter((n) => !n.read).length;
+
+                // Play sound if unread count increased (new notification arrived)
+                if (newUnreadCount > prevUnreadCountRef.current && prevUnreadCountRef.current > 0) {
+                    playNotificationSound();
+                }
+                prevUnreadCountRef.current = newUnreadCount;
+
                 setNotifications(data);
-                setUnreadCount(data.filter((n) => !n.read).length);
+                setUnreadCount(newUnreadCount);
             });
         }
 
         return () => {
             if (unsubscribe) unsubscribe();
         };
-    }, [user, isAdmin]);
+    }, [user, isAdmin, playNotificationSound]);
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -73,10 +134,27 @@ export default function NotificationBell({ isAdmin = false }: NotificationBellPr
 
     // Mark all as read
     const handleMarkAllRead = async () => {
-        if (isAdmin) {
-            await AdminNotificationService.markAllAsRead();
-        } else if (user) {
-            await NotificationService.markAllAsRead(user.uid);
+        if (markingAllRead) return; // Prevent double click
+
+        setMarkingAllRead(true);
+        try {
+            if (isAdmin) {
+                await AdminNotificationService.markAllAsRead();
+            } else if (user) {
+                await NotificationService.markAllAsRead(user.uid);
+            }
+
+            // Immediately update local state for instant feedback
+            setNotifications((prev) =>
+                prev.map((n) => ({ ...n, read: true }))
+            );
+            setUnreadCount(0);
+            prevUnreadCountRef.current = 0;
+        } catch (error) {
+            console.error('Error marking all as read:', error);
+            alert(language === 'th' ? 'ไม่สามารถอ่านทั้งหมดได้ กรุณาลองใหม่' : 'Failed to mark all as read. Please try again.');
+        } finally {
+            setMarkingAllRead(false);
         }
     };
 
@@ -160,9 +238,17 @@ export default function NotificationBell({ isAdmin = false }: NotificationBellPr
                         {unreadCount > 0 && (
                             <button
                                 onClick={handleMarkAllRead}
-                                className="text-xs text-white/80 hover:text-white font-medium"
+                                disabled={markingAllRead}
+                                className="text-xs text-white/80 hover:text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                             >
-                                {language === 'th' ? 'อ่านทั้งหมด' : 'Mark all read'}
+                                {markingAllRead ? (
+                                    <>
+                                        <span className="inline-block w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                                        <span>{language === 'th' ? 'กำลังอ่าน...' : 'Reading...'}</span>
+                                    </>
+                                ) : (
+                                    language === 'th' ? 'อ่านทั้งหมด' : 'Mark all read'
+                                )}
                             </button>
                         )}
                     </div>
