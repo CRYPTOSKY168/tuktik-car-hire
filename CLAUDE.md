@@ -1306,6 +1306,10 @@ vercel --prod
 
 ### Environment Variables Checklist
 
+> ⚠️ **สำคัญมาก:** เมื่อเพิ่ม Environment Variable ใหม่ ต้องเพิ่มใน **2 ที่**:
+> 1. `.env.local` - สำหรับ localhost development
+> 2. **Vercel Dashboard** - สำหรับ production (`vercel env add` หรือผ่าน UI)
+
 ```markdown
 # Vercel Environment Variables ต้องมี:
 □ NEXT_PUBLIC_FIREBASE_API_KEY
