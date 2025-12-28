@@ -1,5 +1,7 @@
 # TukTik Car Rental - Complete Booking Website
 
+> **[อ่านเป็นภาษาไทย](README.th.md)** | English
+
 A modern, fully responsive car rental booking website built with Next.js, React, TypeScript, and Tailwind CSS. Designed specifically for Thai tourists with bilingual support (Thai/English).
 
 ## Features
