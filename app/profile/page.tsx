@@ -227,9 +227,9 @@ export default function ProfilePage() {
                   )}
                 </div>
               </div>
-              <label className="absolute -bottom-1 -right-1 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer shadow-lg">
+              <label htmlFor="profilePhoto" className="absolute -bottom-1 -right-1 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer shadow-lg">
                 <span className="material-symbols-outlined text-white text-sm">photo_camera</span>
-                <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} disabled={uploadingPhoto} />
+                <input type="file" id="profilePhoto" name="profilePhoto" accept="image/*" className="hidden" onChange={handlePhotoUpload} disabled={uploadingPhoto} />
               </label>
             </div>
 
@@ -237,6 +237,9 @@ export default function ProfilePage() {
               <div className="space-y-3">
                 <input
                   type="text"
+                  id="displayName"
+                  name="displayName"
+                  autoComplete="name"
                   value={profileForm.displayName}
                   onChange={(e) => setProfileForm({ ...profileForm, displayName: e.target.value })}
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500"
@@ -244,6 +247,9 @@ export default function ProfilePage() {
                 />
                 <input
                   type="tel"
+                  id="profilePhone"
+                  name="profilePhone"
+                  autoComplete="tel"
                   value={profileForm.phone}
                   onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
                   className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500"
@@ -475,6 +481,9 @@ export default function ProfilePage() {
             <div className="space-y-3">
               <input
                 type="text"
+                id="locationName"
+                name="locationName"
+                autoComplete="off"
                 value={newLocation.name}
                 onChange={(e) => setNewLocation({ ...newLocation, name: e.target.value })}
                 className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none"
@@ -482,6 +491,9 @@ export default function ProfilePage() {
               />
               <input
                 type="text"
+                id="locationAddress"
+                name="locationAddress"
+                autoComplete="street-address"
                 value={newLocation.address}
                 onChange={(e) => setNewLocation({ ...newLocation, address: e.target.value })}
                 className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none"
@@ -518,6 +530,9 @@ export default function ProfilePage() {
             <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">ใส่รหัสคูปอง</h3>
             <input
               type="text"
+              id="promoCode"
+              name="promoCode"
+              autoComplete="off"
               value={promoCode}
               onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
               className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-center text-lg font-mono outline-none mb-2"

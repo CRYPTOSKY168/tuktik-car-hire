@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
+import { requireAdmin, requireSuperAdmin, SUPER_ADMIN_EMAIL } from '@/lib/firebase/adminAuth';
 
 export async function GET(request: NextRequest) {
+    // Verify admin access
+    const auth = await requireAdmin(request);
+    if (!auth.isAdmin) {
+        return NextResponse.json(
+            { success: false, error: 'Unauthorized: Admin access required' },
+            { status: 401 }
+        );
+    }
+
     try {
         // Get all users from Firebase Auth (paginated, max 1000 per call)
         const listUsersResult = await adminAuth.listUsers(1000);
@@ -100,12 +110,45 @@ export async function GET(request: NextRequest) {
 
 // POST - Update user (role, disable, etc.)
 export async function POST(request: NextRequest) {
-    try {
-        const body = await request.json();
-        const { action, userId, data } = body;
+    const body = await request.json();
+    const { action, userId, data } = body;
 
+    // Actions that require Super Admin
+    const superAdminActions = ['updateRole'];
+
+    // Verify authorization based on action
+    if (superAdminActions.includes(action)) {
+        const auth = await requireSuperAdmin(request);
+        if (!auth.isSuperAdmin) {
+            return NextResponse.json(
+                { success: false, error: `Unauthorized: Only Super Admin (${SUPER_ADMIN_EMAIL}) can change user roles` },
+                { status: 403 }
+            );
+        }
+    } else {
+        // Other actions require at least admin
+        const auth = await requireAdmin(request);
+        if (!auth.isAdmin) {
+            return NextResponse.json(
+                { success: false, error: 'Unauthorized: Admin access required' },
+                { status: 401 }
+            );
+        }
+    }
+
+    try {
         switch (action) {
             case 'updateRole': {
+                // Only Super Admin can change roles
+                // Prevent removing super admin role from self
+                const userToUpdate = await adminAuth.getUser(userId);
+                if (userToUpdate.email === SUPER_ADMIN_EMAIL && data.role !== 'admin') {
+                    return NextResponse.json(
+                        { success: false, error: 'Cannot remove admin role from Super Admin' },
+                        { status: 400 }
+                    );
+                }
+
                 // Update role in Firestore
                 await adminDb.collection('users').doc(userId).set({
                     role: data.role,
@@ -141,11 +184,41 @@ export async function POST(request: NextRequest) {
 
             case 'revokeDriver': {
                 // Revoke driver access
+                // 1. Update users collection
+                const userDocRevoke = await adminDb.collection('users').doc(userId).get();
+                const userDataRevoke = userDocRevoke.data();
+
                 await adminDb.collection('users').doc(userId).set({
                     isApprovedDriver: false,
                     driverRevokedAt: new Date(),
                     updatedAt: new Date(),
                 }, { merge: true });
+
+                // 2. Also deactivate the driver document if exists
+                if (userDataRevoke?.driverId) {
+                    await adminDb.collection('drivers').doc(userDataRevoke.driverId).update({
+                        isActive: false,
+                        status: 'offline',
+                        revokedAt: new Date(),
+                        updatedAt: new Date(),
+                    });
+                }
+
+                // 3. Also check by userId in drivers collection
+                const driversByUserId = await adminDb.collection('drivers')
+                    .where('userId', '==', userId)
+                    .get();
+
+                const batch = adminDb.batch();
+                driversByUserId.docs.forEach(doc => {
+                    batch.update(doc.ref, {
+                        isActive: false,
+                        status: 'offline',
+                        revokedAt: new Date(),
+                        updatedAt: new Date(),
+                    });
+                });
+                await batch.commit();
 
                 return NextResponse.json({
                     success: true,

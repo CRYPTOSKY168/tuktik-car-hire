@@ -76,16 +76,16 @@ export default function AdminSettingsPage() {
                         <div className="w-12 h-12 border-4 border-blue-200 rounded-full"></div>
                         <div className="w-12 h-12 border-4 border-blue-600 rounded-full animate-spin border-t-transparent absolute top-0 left-0"></div>
                     </div>
-                    <p className="text-gray-500 font-medium">Loading settings...</p>
+                    <p className="text-gray-500 font-medium">กำลังโหลดการตั้งค่า...</p>
                 </div>
             </div>
         );
     }
 
     const TABS = [
-        { id: 'business', label: 'Business Info', icon: 'store' },
-        { id: 'booking', label: 'Booking Settings', icon: 'book_online' },
-        { id: 'notifications', label: 'Notifications', icon: 'notifications' },
+        { id: 'business', label: 'ข้อมูลธุรกิจ', icon: 'store' },
+        { id: 'booking', label: 'ตั้งค่าการจอง', icon: 'book_online' },
+        { id: 'notifications', label: 'การแจ้งเตือน', icon: 'notifications' },
     ];
 
     return (
@@ -93,8 +93,8 @@ export default function AdminSettingsPage() {
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-800">Settings</h1>
-                    <p className="text-sm text-gray-500 mt-1">Manage your business settings and preferences</p>
+                    <h1 className="text-2xl font-bold text-gray-800">ตั้งค่า</h1>
+                    <p className="text-sm text-gray-500 mt-1">จัดการการตั้งค่าธุรกิจและการกำหนดค่า</p>
                 </div>
                 <button
                     onClick={handleSave}
@@ -104,12 +104,12 @@ export default function AdminSettingsPage() {
                     {saving ? (
                         <>
                             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                            Saving...
+                            กำลังบันทึก...
                         </>
                     ) : (
                         <>
                             <span className="material-symbols-outlined text-lg">save</span>
-                            Save Changes
+                            บันทึกการเปลี่ยนแปลง
                         </>
                     )}
                 </button>
@@ -119,7 +119,7 @@ export default function AdminSettingsPage() {
             {savedMessage && (
                 <div className="flex items-center gap-3 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700">
                     <span className="material-symbols-outlined">check_circle</span>
-                    <span className="text-sm font-medium">Settings saved successfully!</span>
+                    <span className="text-sm font-medium">บันทึกการตั้งค่าเรียบร้อยแล้ว!</span>
                 </div>
             )}
 
@@ -152,47 +152,56 @@ export default function AdminSettingsPage() {
                         {activeTab === 'business' && (
                             <div className="space-y-6">
                                 <div>
-                                    <h2 className="text-lg font-semibold text-gray-800 mb-1">Business Information</h2>
-                                    <p className="text-sm text-gray-500">Basic information about your business</p>
+                                    <h2 className="text-lg font-semibold text-gray-800 mb-1">ข้อมูลธุรกิจ</h2>
+                                    <p className="text-sm text-gray-500">ข้อมูลพื้นฐานเกี่ยวกับธุรกิจของคุณ</p>
                                 </div>
 
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Business Name</label>
+                                        <label htmlFor="business-name" className="block text-sm font-medium text-gray-700 mb-2">ชื่อธุรกิจ</label>
                                         <div className="relative">
                                             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">store</span>
                                             <input
+                                                id="business-name"
+                                                name="businessName"
                                                 type="text"
                                                 value={settings.businessName}
                                                 onChange={(e) => setSettings({ ...settings, businessName: e.target.value })}
+                                                autoComplete="organization"
                                                 className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                                                placeholder="Your business name"
+                                                placeholder="ชื่อธุรกิจของคุณ"
                                             />
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Contact Phone</label>
+                                            <label htmlFor="business-phone" className="block text-sm font-medium text-gray-700 mb-2">เบอร์โทรติดต่อ</label>
                                             <div className="relative">
                                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">call</span>
                                                 <input
+                                                    id="business-phone"
+                                                    name="businessPhone"
                                                     type="tel"
                                                     value={settings.businessPhone}
                                                     onChange={(e) => setSettings({ ...settings, businessPhone: e.target.value })}
+                                                    autoComplete="tel"
                                                     className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                                                     placeholder="08X-XXX-XXXX"
                                                 />
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Contact Email</label>
+                                            <label htmlFor="business-email" className="block text-sm font-medium text-gray-700 mb-2">อีเมลติดต่อ</label>
                                             <div className="relative">
                                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">email</span>
                                                 <input
+                                                    id="business-email"
+                                                    name="businessEmail"
                                                     type="email"
                                                     value={settings.businessEmail}
                                                     onChange={(e) => setSettings({ ...settings, businessEmail: e.target.value })}
+                                                    autoComplete="email"
                                                     className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                                                     placeholder="contact@business.com"
                                                 />
@@ -201,12 +210,15 @@ export default function AdminSettingsPage() {
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">Business Address</label>
+                                        <label htmlFor="business-address" className="block text-sm font-medium text-gray-700 mb-2">ที่อยู่ธุรกิจ</label>
                                         <div className="relative">
                                             <span className="material-symbols-outlined absolute left-3 top-3 text-gray-400">location_on</span>
                                             <textarea
+                                                id="business-address"
+                                                name="businessAddress"
                                                 value={settings.businessAddress}
                                                 onChange={(e) => setSettings({ ...settings, businessAddress: e.target.value })}
+                                                autoComplete="street-address"
                                                 className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
                                                 rows={3}
                                                 placeholder="Your business address"
@@ -216,8 +228,10 @@ export default function AdminSettingsPage() {
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Currency</label>
+                                            <label htmlFor="currency" className="block text-sm font-medium text-gray-700 mb-2">สกุลเงิน</label>
                                             <select
+                                                id="currency"
+                                                name="currency"
                                                 value={settings.currency}
                                                 onChange={(e) => setSettings({ ...settings, currency: e.target.value })}
                                                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
@@ -228,8 +242,10 @@ export default function AdminSettingsPage() {
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Timezone</label>
+                                            <label htmlFor="timezone" className="block text-sm font-medium text-gray-700 mb-2">เขตเวลา</label>
                                             <select
+                                                id="timezone"
+                                                name="timezone"
                                                 value={settings.timezone}
                                                 onChange={(e) => setSettings({ ...settings, timezone: e.target.value })}
                                                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
@@ -246,18 +262,20 @@ export default function AdminSettingsPage() {
                         {activeTab === 'booking' && (
                             <div className="space-y-6">
                                 <div>
-                                    <h2 className="text-lg font-semibold text-gray-800 mb-1">Booking Settings</h2>
-                                    <p className="text-sm text-gray-500">Configure how bookings are handled</p>
+                                    <h2 className="text-lg font-semibold text-gray-800 mb-1">ตั้งค่าการจอง</h2>
+                                    <p className="text-sm text-gray-500">กำหนดค่าวิธีการจัดการการจอง</p>
                                 </div>
 
                                 <div className="space-y-4">
                                     {/* Working Hours */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-3">Working Hours</label>
+                                    <fieldset>
+                                        <legend className="block text-sm font-medium text-gray-700 mb-3">เวลาทำการ</legend>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
-                                                <label className="block text-xs text-gray-500 mb-1">Opening Time</label>
+                                                <label htmlFor="working-hours-start" className="block text-xs text-gray-500 mb-1">เวลาเปิด</label>
                                                 <input
+                                                    id="working-hours-start"
+                                                    name="workingHoursStart"
                                                     type="time"
                                                     value={settings.workingHours.start}
                                                     onChange={(e) => setSettings({
@@ -268,8 +286,10 @@ export default function AdminSettingsPage() {
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-xs text-gray-500 mb-1">Closing Time</label>
+                                                <label htmlFor="working-hours-end" className="block text-xs text-gray-500 mb-1">เวลาปิด</label>
                                                 <input
+                                                    id="working-hours-end"
+                                                    name="workingHoursEnd"
                                                     type="time"
                                                     value={settings.workingHours.end}
                                                     onChange={(e) => setSettings({
@@ -280,7 +300,7 @@ export default function AdminSettingsPage() {
                                                 />
                                             </div>
                                         </div>
-                                    </div>
+                                    </fieldset>
 
                                     {/* Toggle Settings */}
                                     <div className="space-y-3">
@@ -290,8 +310,8 @@ export default function AdminSettingsPage() {
                                                     <span className="material-symbols-outlined text-blue-600">verified</span>
                                                 </div>
                                                 <div>
-                                                    <p className="font-medium text-gray-800">Auto-confirm Bookings</p>
-                                                    <p className="text-xs text-gray-500">Automatically confirm new bookings without admin approval</p>
+                                                    <p className="font-medium text-gray-800">ยืนยันการจองอัตโนมัติ</p>
+                                                    <p className="text-xs text-gray-500">ยืนยันการจองใหม่โดยอัตโนมัติโดยไม่ต้องได้รับอนุมัติจากแอดมิน</p>
                                                 </div>
                                             </div>
                                             <button
@@ -308,8 +328,8 @@ export default function AdminSettingsPage() {
                                                     <span className="material-symbols-outlined text-emerald-600">payments</span>
                                                 </div>
                                                 <div>
-                                                    <p className="font-medium text-gray-800">Require Payment Upfront</p>
-                                                    <p className="text-xs text-gray-500">Customers must pay before booking is confirmed</p>
+                                                    <p className="font-medium text-gray-800">ต้องชำระเงินก่อน</p>
+                                                    <p className="text-xs text-gray-500">ลูกค้าต้องชำระเงินก่อนยืนยันการจอง</p>
                                                 </div>
                                             </div>
                                             <button
@@ -327,8 +347,8 @@ export default function AdminSettingsPage() {
                         {activeTab === 'notifications' && (
                             <div className="space-y-6">
                                 <div>
-                                    <h2 className="text-lg font-semibold text-gray-800 mb-1">Notification Settings</h2>
-                                    <p className="text-sm text-gray-500">Configure when and how notifications are sent</p>
+                                    <h2 className="text-lg font-semibold text-gray-800 mb-1">ตั้งค่าการแจ้งเตือน</h2>
+                                    <p className="text-sm text-gray-500">กำหนดค่าเวลาและวิธีการส่งการแจ้งเตือน</p>
                                 </div>
 
                                 <div className="space-y-3">
@@ -338,8 +358,8 @@ export default function AdminSettingsPage() {
                                                 <span className="material-symbols-outlined text-amber-600">admin_panel_settings</span>
                                             </div>
                                             <div>
-                                                <p className="font-medium text-gray-800">Notify Admin on New Booking</p>
-                                                <p className="text-xs text-gray-500">Receive notification when a new booking is created</p>
+                                                <p className="font-medium text-gray-800">แจ้งเตือนแอดมินเมื่อมีการจองใหม่</p>
+                                                <p className="text-xs text-gray-500">รับการแจ้งเตือนเมื่อมีการจองใหม่</p>
                                             </div>
                                         </div>
                                         <button
@@ -356,8 +376,8 @@ export default function AdminSettingsPage() {
                                                 <span className="material-symbols-outlined text-purple-600">person</span>
                                             </div>
                                             <div>
-                                                <p className="font-medium text-gray-800">Notify Customer on Status Change</p>
-                                                <p className="text-xs text-gray-500">Send notification to customers when booking status changes</p>
+                                                <p className="font-medium text-gray-800">แจ้งเตือนลูกค้าเมื่อสถานะเปลี่ยน</p>
+                                                <p className="text-xs text-gray-500">ส่งการแจ้งเตือนให้ลูกค้าเมื่อสถานะการจองเปลี่ยนแปลง</p>
                                             </div>
                                         </div>
                                         <button

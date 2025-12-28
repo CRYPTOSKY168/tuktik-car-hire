@@ -44,3 +44,9 @@ serviceAccountKey.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.env*.local
+
+# Local environment files
+.env.local
+.env.local.backup
+.env.local.vercel

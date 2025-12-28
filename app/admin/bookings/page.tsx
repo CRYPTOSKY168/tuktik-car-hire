@@ -426,10 +426,11 @@ export default function AdminBookingsPage() {
         }
     };
 
-    // Get available drivers (not busy) with search filter
+    // Get available drivers (only 'available' status) with search filter
     const availableDrivers = drivers.filter(d => {
-        // Filter by status (available or offline - not busy)
-        if (d.status === 'busy') return false;
+        // Only show drivers with 'available' status
+        // Exclude 'busy' (มีงานอยู่) and 'offline' (ปิดรับงาน)
+        if (d.status !== 'available') return false;
 
         // Filter by search query
         if (driverModal.searchQuery) {
@@ -519,7 +520,7 @@ export default function AdminBookingsPage() {
                     className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-500/30"
                 >
                     <span className="material-symbols-outlined text-lg">download</span>
-                    Export CSV
+                    ส่งออก CSV
                 </button>
             </div>
 
@@ -623,8 +624,11 @@ export default function AdminBookingsPage() {
                 <div className="flex flex-col lg:flex-row gap-3">
                     {/* Date Filter */}
                     <div className="flex items-center gap-2">
+                        <label htmlFor="filter-date" className="sr-only">กรองตามวันที่</label>
                         <span className="material-symbols-outlined text-gray-400 text-lg">calendar_today</span>
                         <select
+                            id="filter-date"
+                            name="filterDate"
                             value={filterDate}
                             onChange={(e) => setFilterDate(e.target.value)}
                             className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none"
@@ -637,8 +641,11 @@ export default function AdminBookingsPage() {
 
                     {/* Sort */}
                     <div className="flex items-center gap-2">
+                        <label htmlFor="sort-by" className="sr-only">เรียงตาม</label>
                         <span className="material-symbols-outlined text-gray-400 text-lg">sort</span>
                         <select
+                            id="sort-by"
+                            name="sortBy"
                             value={sortBy}
                             onChange={(e) => setSortBy(e.target.value as any)}
                             className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none"
@@ -659,9 +666,13 @@ export default function AdminBookingsPage() {
 
                     {/* Search */}
                     <div className="relative flex-1 lg:max-w-xs">
+                        <label htmlFor="booking-search" className="sr-only">ค้นหาการจอง</label>
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
                         <input
+                            id="booking-search"
+                            name="bookingSearch"
                             type="text"
+                            autoComplete="off"
                             placeholder="ค้นหา ID, ชื่อ, เบอร์โทร..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -864,7 +875,10 @@ export default function AdminBookingsPage() {
                                     )}
 
                                     {/* Status Dropdown for manual change */}
+                                    <label htmlFor={`status-${booking.id}`} className="sr-only">สถานะการจอง</label>
                                     <select
+                                        id={`status-${booking.id}`}
+                                        name={`status-${booking.id}`}
                                         value={booking.status}
                                         onChange={(e) => {
                                             const newStatus = e.target.value;
@@ -891,7 +905,10 @@ export default function AdminBookingsPage() {
                                     </select>
 
                                     {/* Payment Status Dropdown */}
+                                    <label htmlFor={`payment-${booking.id}`} className="sr-only">สถานะการชำระเงิน</label>
                                     <select
+                                        id={`payment-${booking.id}`}
+                                        name={`payment-${booking.id}`}
                                         value={booking.paymentStatus || 'pending'}
                                         onChange={(e) => handlePaymentStatusChange(booking.id, e.target.value, booking)}
                                         className={`px-3 py-2 text-xs font-bold rounded-xl border cursor-pointer ${paymentStatus.bg} ${paymentStatus.text}`}
@@ -1030,9 +1047,13 @@ export default function AdminBookingsPage() {
                                 <>
                                     {/* Search Box */}
                                     <div className="relative">
+                                        <label htmlFor="driver-search" className="sr-only">ค้นหาคนขับ</label>
                                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
                                         <input
+                                            id="driver-search"
+                                            name="driverSearch"
                                             type="text"
+                                            autoComplete="off"
                                             placeholder="ค้นหาชื่อ, เบอร์โทร, ทะเบียน..."
                                             value={driverModal.searchQuery}
                                             onChange={(e) => setDriverModal({ ...driverModal, searchQuery: e.target.value })}
@@ -1040,6 +1061,7 @@ export default function AdminBookingsPage() {
                                         />
                                         {driverModal.searchQuery && (
                                             <button
+                                                type="button"
                                                 onClick={() => setDriverModal({ ...driverModal, searchQuery: '' })}
                                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                                             >
@@ -1111,11 +1133,14 @@ export default function AdminBookingsPage() {
                                 <>
                                     {/* Manual Entry */}
                                     <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-2">ชื่อคนขับ *</label>
+                                        <label htmlFor="manual-driver-name" className="block text-xs font-bold text-gray-500 uppercase mb-2">ชื่อคนขับ *</label>
                                         <div className="relative">
                                             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">person</span>
                                             <input
+                                                id="manual-driver-name"
+                                                name="driverName"
                                                 type="text"
+                                                autoComplete="name"
                                                 value={driverModal.driverName}
                                                 onChange={(e) => setDriverModal({ ...driverModal, driverName: e.target.value })}
                                                 placeholder="ชื่อ-นามสกุล คนขับ"
@@ -1125,11 +1150,14 @@ export default function AdminBookingsPage() {
                                     </div>
 
                                     <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-2">เบอร์โทรคนขับ *</label>
+                                        <label htmlFor="manual-driver-phone" className="block text-xs font-bold text-gray-500 uppercase mb-2">เบอร์โทรคนขับ *</label>
                                         <div className="relative">
                                             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">phone</span>
                                             <input
+                                                id="manual-driver-phone"
+                                                name="driverPhone"
                                                 type="tel"
+                                                autoComplete="tel"
                                                 value={driverModal.driverPhone}
                                                 onChange={(e) => setDriverModal({ ...driverModal, driverPhone: e.target.value })}
                                                 placeholder="08x-xxx-xxxx"
@@ -1140,9 +1168,12 @@ export default function AdminBookingsPage() {
 
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">ทะเบียนรถ</label>
+                                            <label htmlFor="manual-vehicle-plate" className="block text-xs font-bold text-gray-500 uppercase mb-2">ทะเบียนรถ</label>
                                             <input
+                                                id="manual-vehicle-plate"
+                                                name="vehiclePlate"
                                                 type="text"
+                                                autoComplete="off"
                                                 value={driverModal.vehiclePlate}
                                                 onChange={(e) => setDriverModal({ ...driverModal, vehiclePlate: e.target.value })}
                                                 placeholder="กข 1234"
@@ -1150,9 +1181,12 @@ export default function AdminBookingsPage() {
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">รุ่นรถ</label>
+                                            <label htmlFor="manual-vehicle-model" className="block text-xs font-bold text-gray-500 uppercase mb-2">รุ่นรถ</label>
                                             <input
+                                                id="manual-vehicle-model"
+                                                name="vehicleModel"
                                                 type="text"
+                                                autoComplete="off"
                                                 value={driverModal.vehicleModel}
                                                 onChange={(e) => setDriverModal({ ...driverModal, vehicleModel: e.target.value })}
                                                 placeholder="Toyota Camry"

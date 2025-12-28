@@ -326,8 +326,25 @@ export const translations = {
       menu: {
         dashboard: 'Dashboard',
         bookings: 'Bookings',
+        drivers: 'Drivers',
+        customers: 'Customers',
+        members: 'Members',
         vehicles: 'Vehicles',
+        locations: 'Locations',
+        routes: 'Route Pricing',
         settings: 'Settings',
+      },
+      sidebar: {
+        mainMenu: 'Main Menu',
+        system: 'System',
+        logout: 'Logout',
+      },
+      header: {
+        welcomeBack: 'Welcome back,',
+        verifyingAccess: 'Verifying Access...',
+        switchToCustomer: 'Switch to Customer View',
+        settings: 'Settings',
+        logout: 'Log Out',
       },
       vehicles: {
         add: 'Add Vehicle',
@@ -674,8 +691,25 @@ export const translations = {
       menu: {
         dashboard: 'แดชบอร์ด',
         bookings: 'จัดการการจอง',
+        drivers: 'คนขับ',
+        customers: 'ลูกค้า',
+        members: 'สมาชิก',
         vehicles: 'จัดการรถยนต์',
+        locations: 'สถานที่',
+        routes: 'ราคาเส้นทาง',
         settings: 'ตั้งค่า',
+      },
+      sidebar: {
+        mainMenu: 'เมนูหลัก',
+        system: 'ระบบ',
+        logout: 'ออกจากระบบ',
+      },
+      header: {
+        welcomeBack: 'ยินดีต้อนรับกลับ,',
+        verifyingAccess: 'กำลังตรวจสอบสิทธิ์...',
+        switchToCustomer: 'สลับไปหน้าลูกค้า',
+        settings: 'ตั้งค่า',
+        logout: 'ออกจากระบบ',
       },
       vehicles: {
         add: 'เพิ่มรถใหม่',

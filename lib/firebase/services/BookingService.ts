@@ -269,6 +269,29 @@ export const BookingService = {
             const booking = await getDoc(docRef);
             const currentData = booking.data();
 
+            // === VALIDATION 1: Check if driver already has an active job ===
+            if (driverInfo.driverId) {
+                const activeBookingsQuery = query(
+                    collection(db!, COLLECTION_NAME),
+                    where('driver.driverId', '==', driverInfo.driverId),
+                    where('status', 'in', ['driver_assigned', 'driver_en_route', 'in_progress'])
+                );
+                const activeBookingsSnap = await getDocs(activeBookingsQuery);
+
+                if (!activeBookingsSnap.empty) {
+                    throw new Error('คนขับกำลังมีงานอยู่ ไม่สามารถรับงานซ้อนได้');
+                }
+
+                // === VALIDATION 2: Check if driver is the booking owner ===
+                const driverDocRef = doc(db!, 'drivers', driverInfo.driverId);
+                const driverDocSnap = await getDoc(driverDocRef);
+                const driverData = driverDocSnap.data();
+
+                if (driverData?.userId && driverData.userId === currentData?.userId) {
+                    throw new Error('คนขับไม่สามารถรับงานของตัวเองได้');
+                }
+            }
+
             const statusHistory = currentData?.statusHistory || [];
             statusHistory.push({
                 status: BookingStatus.DRIVER_ASSIGNED,

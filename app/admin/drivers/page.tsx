@@ -5,9 +5,9 @@ import { FirestoreService } from '@/lib/firebase/firestore';
 import { Driver, DriverStatus } from '@/lib/types';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
-    [DriverStatus.AVAILABLE]: { label: 'Available', color: 'bg-green-100 text-green-700', dot: 'bg-green-500' },
-    [DriverStatus.BUSY]: { label: 'Busy', color: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' },
-    [DriverStatus.OFFLINE]: { label: 'Offline', color: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' }
+    [DriverStatus.AVAILABLE]: { label: 'ว่าง', color: 'bg-green-100 text-green-700', dot: 'bg-green-500' },
+    [DriverStatus.BUSY]: { label: 'กำลังวิ่งงาน', color: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' },
+    [DriverStatus.OFFLINE]: { label: 'ปิดรับงาน', color: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' }
 };
 
 export default function AdminDriversPage() {
@@ -149,7 +149,7 @@ export default function AdminDriversPage() {
                         <div className="w-12 h-12 border-4 border-blue-200 rounded-full"></div>
                         <div className="w-12 h-12 border-4 border-blue-600 rounded-full animate-spin border-t-transparent absolute top-0 left-0"></div>
                     </div>
-                    <p className="text-gray-500 font-medium">Loading drivers...</p>
+                    <p className="text-gray-500 font-medium">กำลังโหลดข้อมูลคนขับ...</p>
                 </div>
             </div>
         );
@@ -160,15 +160,15 @@ export default function AdminDriversPage() {
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-800">Driver Management</h1>
-                    <p className="text-sm text-gray-500 mt-1">Manage your fleet drivers and their availability</p>
+                    <h1 className="text-2xl font-bold text-gray-800">จัดการคนขับ</h1>
+                    <p className="text-sm text-gray-500 mt-1">จัดการคนขับและสถานะการรับงาน</p>
                 </div>
                 <button
                     onClick={() => openModal()}
                     className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl text-sm font-medium text-white hover:shadow-lg hover:shadow-blue-500/30 transition-all"
                 >
                     <span className="material-symbols-outlined text-lg">person_add</span>
-                    Add Driver
+                    เพิ่มคนขับ
                 </button>
             </div>
 
@@ -181,7 +181,7 @@ export default function AdminDriversPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
-                            <p className="text-xs text-gray-500">Total Drivers</p>
+                            <p className="text-xs text-gray-500">คนขับทั้งหมด</p>
                         </div>
                     </div>
                 </div>
@@ -192,7 +192,7 @@ export default function AdminDriversPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-green-600">{stats.available}</p>
-                            <p className="text-xs text-gray-500">Available</p>
+                            <p className="text-xs text-gray-500">ว่าง</p>
                         </div>
                     </div>
                 </div>
@@ -214,7 +214,7 @@ export default function AdminDriversPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-gray-500">{stats.offline}</p>
-                            <p className="text-xs text-gray-500">Offline</p>
+                            <p className="text-xs text-gray-500">ปิดรับงาน</p>
                         </div>
                     </div>
                 </div>
@@ -225,12 +225,16 @@ export default function AdminDriversPage() {
                 <div className="flex flex-col sm:flex-row gap-4">
                     {/* Search */}
                     <div className="flex-1 relative">
+                        <label htmlFor="driver-search" className="sr-only">ค้นหาคนขับ</label>
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
                         <input
+                            id="driver-search"
+                            name="driverSearch"
                             type="text"
                             placeholder="Search by name, phone, or plate..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
+                            autoComplete="off"
                             className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                         />
                     </div>
@@ -260,18 +264,18 @@ export default function AdminDriversPage() {
                     <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
                         <span className="material-symbols-outlined text-3xl text-gray-400">person_off</span>
                     </div>
-                    <p className="text-gray-500 font-medium">No drivers found</p>
+                    <p className="text-gray-500 font-medium">ไม่พบคนขับ</p>
                     <p className="text-sm text-gray-400 mt-1">
                         {searchQuery || filterStatus !== 'all'
-                            ? 'Try adjusting your search or filters'
-                            : 'Add your first driver to get started'}
+                            ? 'ลองปรับคำค้นหาหรือตัวกรอง'
+                            : 'เพิ่มคนขับคนแรกเพื่อเริ่มต้น'}
                     </p>
                     {!searchQuery && filterStatus === 'all' && (
                         <button
                             onClick={() => openModal()}
                             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
                         >
-                            Add First Driver
+                            เพิ่มคนขับคนแรก
                         </button>
                     )}
                 </div>
@@ -397,10 +401,10 @@ export default function AdminDriversPage() {
                         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                             <div>
                                 <h2 className="text-lg font-semibold text-gray-800">
-                                    {editingDriver ? 'Edit Driver' : 'Add New Driver'}
+                                    {editingDriver ? 'แก้ไขคนขับ' : 'เพิ่มคนขับใหม่'}
                                 </h2>
                                 <p className="text-sm text-gray-500">
-                                    {editingDriver ? 'Update driver information' : 'Enter driver details below'}
+                                    {editingDriver ? 'อัปเดตข้อมูลคนขับ' : 'กรอกข้อมูลคนขับด้านล่าง'}
                                 </p>
                             </div>
                             <button
@@ -416,26 +420,32 @@ export default function AdminDriversPage() {
                             {/* Name & Phone */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <label htmlFor="driver-name" className="block text-sm font-medium text-gray-700 mb-1">
                                         Name <span className="text-red-500">*</span>
                                     </label>
                                     <input
+                                        id="driver-name"
+                                        name="driverName"
                                         type="text"
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        autoComplete="name"
                                         className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                                         placeholder="Driver name"
                                         required
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    <label htmlFor="driver-phone" className="block text-sm font-medium text-gray-700 mb-1">
                                         Phone <span className="text-red-500">*</span>
                                     </label>
                                     <input
+                                        id="driver-phone"
+                                        name="driverPhone"
                                         type="tel"
                                         value={formData.phone}
                                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                        autoComplete="tel"
                                         className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                                         placeholder="08X-XXX-XXXX"
                                         required
@@ -446,21 +456,27 @@ export default function AdminDriversPage() {
                             {/* Email & License */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                    <label htmlFor="driver-email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                                     <input
+                                        id="driver-email"
+                                        name="driverEmail"
                                         type="email"
                                         value={formData.email}
                                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                        autoComplete="email"
                                         className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                                         placeholder="driver@email.com"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">License Number</label>
+                                    <label htmlFor="driver-license" className="block text-sm font-medium text-gray-700 mb-1">License Number</label>
                                     <input
+                                        id="driver-license"
+                                        name="licenseNumber"
                                         type="text"
                                         value={formData.licenseNumber}
                                         onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
+                                        autoComplete="off"
                                         className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                                         placeholder="License number"
                                     />
@@ -468,44 +484,53 @@ export default function AdminDriversPage() {
                             </div>
 
                             {/* Vehicle Section */}
-                            <div className="pt-2">
-                                <p className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                            <fieldset className="pt-2">
+                                <legend className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
                                     <span className="material-symbols-outlined text-lg">directions_car</span>
                                     Vehicle Information
-                                </p>
+                                </legend>
                                 <div className="grid grid-cols-3 gap-4">
                                     <div>
-                                        <label className="block text-xs text-gray-500 mb-1">Plate Number</label>
+                                        <label htmlFor="vehicle-plate" className="block text-xs text-gray-500 mb-1">Plate Number</label>
                                         <input
+                                            id="vehicle-plate"
+                                            name="vehiclePlate"
                                             type="text"
                                             value={formData.vehiclePlate}
                                             onChange={(e) => setFormData({ ...formData, vehiclePlate: e.target.value.toUpperCase() })}
+                                            autoComplete="off"
                                             className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-mono"
                                             placeholder="กข 1234"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs text-gray-500 mb-1">Model</label>
+                                        <label htmlFor="vehicle-model" className="block text-xs text-gray-500 mb-1">Model</label>
                                         <input
+                                            id="vehicle-model"
+                                            name="vehicleModel"
                                             type="text"
                                             value={formData.vehicleModel}
                                             onChange={(e) => setFormData({ ...formData, vehicleModel: e.target.value })}
+                                            autoComplete="off"
                                             className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                                             placeholder="Toyota Camry"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs text-gray-500 mb-1">Color</label>
+                                        <label htmlFor="vehicle-color" className="block text-xs text-gray-500 mb-1">Color</label>
                                         <input
+                                            id="vehicle-color"
+                                            name="vehicleColor"
                                             type="text"
                                             value={formData.vehicleColor}
                                             onChange={(e) => setFormData({ ...formData, vehicleColor: e.target.value })}
+                                            autoComplete="off"
                                             className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                                             placeholder="Black"
                                         />
                                     </div>
                                 </div>
-                            </div>
+                            </fieldset>
 
                             {/* Status */}
                             <div>
@@ -531,13 +556,15 @@ export default function AdminDriversPage() {
 
                             {/* Notes */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                                <label htmlFor="driver-notes" className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                                 <textarea
+                                    id="driver-notes"
+                                    name="driverNotes"
                                     value={formData.notes}
                                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                                     className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
                                     rows={3}
-                                    placeholder="Additional notes about this driver..."
+                                    placeholder="หมายเหตุเพิ่มเติมเกี่ยวกับคนขับ..."
                                 />
                             </div>
                         </form>
@@ -549,7 +576,7 @@ export default function AdminDriversPage() {
                                 onClick={() => setShowModal(false)}
                                 className="px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-200 rounded-xl transition-colors"
                             >
-                                Cancel
+                                ยกเลิก
                             </button>
                             <button
                                 onClick={handleSubmit}
@@ -564,7 +591,7 @@ export default function AdminDriversPage() {
                                 ) : (
                                     <>
                                         <span className="material-symbols-outlined text-lg">save</span>
-                                        {editingDriver ? 'Update Driver' : 'Add Driver'}
+                                        {editingDriver ? 'อัปเดตคนขับ' : 'เพิ่มคนขับ'}
                                     </>
                                 )}
                             </button>

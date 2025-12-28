@@ -39,17 +39,29 @@ const getAdminApp = () => {
     }
 
     // Option 4: Use individual environment variables
-    if (process.env.FIREBASE_PROJECT_ID &&
+    const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    if (projectId &&
         process.env.FIREBASE_CLIENT_EMAIL &&
         process.env.FIREBASE_PRIVATE_KEY) {
-        return admin.initializeApp({
-            credential: admin.credential.cert({
-                projectId: process.env.FIREBASE_PROJECT_ID,
-                clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-                privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-            }),
-            projectId: process.env.FIREBASE_PROJECT_ID,
-        });
+        console.log('Firebase Admin Init - Project:', projectId);
+        console.log('Firebase Admin Init - Client Email:', process.env.FIREBASE_CLIENT_EMAIL?.substring(0, 20) + '...');
+        console.log('Firebase Admin Init - Private Key length:', process.env.FIREBASE_PRIVATE_KEY?.length);
+
+        try {
+            const app = admin.initializeApp({
+                credential: admin.credential.cert({
+                    projectId: projectId,
+                    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+                    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+                }),
+                projectId: projectId,
+            });
+            console.log('Firebase Admin initialized successfully');
+            return app;
+        } catch (initError: any) {
+            console.error('Firebase Admin init error:', initError.message);
+            throw initError;
+        }
     }
 
     // Option 5: Use application default credentials (works in Google Cloud environment)

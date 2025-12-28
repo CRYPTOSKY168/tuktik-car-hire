@@ -249,12 +249,16 @@ export default function AdminLocationsPage() {
 
                     {/* Search */}
                     <div className="relative">
+                        <label htmlFor="location-search" className="sr-only">ค้นหาสถานที่</label>
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
                         <input
+                            id="location-search"
+                            name="locationSearch"
                             type="text"
                             placeholder="Search locations..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
+                            autoComplete="off"
                             className="w-full lg:w-72 pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         />
                     </div>
@@ -341,31 +345,37 @@ export default function AdminLocationsPage() {
                         <form onSubmit={handleSubmit} className="p-6 space-y-5">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Name (English)</label>
+                                    <label htmlFor="location-name-en" className="block text-xs font-bold text-gray-500 uppercase mb-2">Name (English)</label>
                                     <input
+                                        id="location-name-en"
+                                        name="nameEn"
                                         required
                                         type="text"
                                         value={formData.nameEn}
                                         onChange={e => setFormData({ ...formData, nameEn: e.target.value })}
+                                        autoComplete="off"
                                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                                         placeholder="Bangkok"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Name (Thai)</label>
+                                    <label htmlFor="location-name-th" className="block text-xs font-bold text-gray-500 uppercase mb-2">Name (Thai)</label>
                                     <input
+                                        id="location-name-th"
+                                        name="nameTh"
                                         required
                                         type="text"
                                         value={formData.nameTh}
                                         onChange={e => setFormData({ ...formData, nameTh: e.target.value })}
+                                        autoComplete="off"
                                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                                         placeholder="กรุงเทพมหานคร"
                                     />
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Type</label>
+                            <fieldset>
+                                <legend className="block text-xs font-bold text-gray-500 uppercase mb-2">Type</legend>
                                 <div className="grid grid-cols-3 gap-2">
                                     {['airport', 'city', 'province'].map((type) => {
                                         const config = getTypeConfig(type);
@@ -385,29 +395,35 @@ export default function AdminLocationsPage() {
                                         );
                                     })}
                                 </div>
-                            </div>
+                            </fieldset>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Latitude</label>
+                                    <label htmlFor="location-lat" className="block text-xs font-bold text-gray-500 uppercase mb-2">Latitude</label>
                                     <input
+                                        id="location-lat"
+                                        name="latitude"
                                         required
                                         type="number"
                                         step="any"
                                         value={formData.lat}
                                         onChange={e => setFormData({ ...formData, lat: e.target.value })}
+                                        autoComplete="off"
                                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono"
                                         placeholder="13.7563"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Longitude</label>
+                                    <label htmlFor="location-lng" className="block text-xs font-bold text-gray-500 uppercase mb-2">Longitude</label>
                                     <input
+                                        id="location-lng"
+                                        name="longitude"
                                         required
                                         type="number"
                                         step="any"
                                         value={formData.lng}
                                         onChange={e => setFormData({ ...formData, lng: e.target.value })}
+                                        autoComplete="off"
                                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono"
                                         placeholder="100.5018"
                                     />

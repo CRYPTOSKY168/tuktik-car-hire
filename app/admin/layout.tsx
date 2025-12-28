@@ -12,7 +12,7 @@ import { auth } from '@/lib/firebase/config';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const { user, loading } = useAuth();
-    const { t } = useLanguage();
+    const { t, language, setLanguage } = useLanguage();
     const router = useRouter();
     const pathname = usePathname();
     const [isAdmin, setIsAdmin] = useState(false);
@@ -85,7 +85,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         <div className="w-16 h-16 border-4 border-blue-200 rounded-full"></div>
                         <div className="w-16 h-16 border-4 border-blue-600 rounded-full animate-spin border-t-transparent absolute top-0 left-0"></div>
                     </div>
-                    <p className="text-blue-600 font-semibold">Verifying Access...</p>
+                    <p className="text-blue-600 font-semibold">{t.admin.header.verifyingAccess}</p>
                 </div>
             </div>
         );
@@ -96,16 +96,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const menuItems = [
         { id: 'dashboard', label: t.admin.menu.dashboard, icon: 'dashboard', href: '/admin' },
         { id: 'bookings', label: t.admin.menu.bookings, icon: 'receipt_long', href: '/admin/bookings' },
-        { id: 'drivers', label: 'Drivers', icon: 'badge', href: '/admin/drivers' },
-        { id: 'customers', label: 'Customers', icon: 'group', href: '/admin/customers' },
-        { id: 'members', label: 'Members', icon: 'person', href: '/admin/members' },
+        { id: 'drivers', label: t.admin.menu.drivers, icon: 'badge', href: '/admin/drivers' },
+        { id: 'customers', label: t.admin.menu.customers, icon: 'group', href: '/admin/customers' },
+        { id: 'members', label: t.admin.menu.members, icon: 'person', href: '/admin/members' },
         { id: 'vehicles', label: t.admin.menu.vehicles, icon: 'directions_car', href: '/admin/vehicles' },
-        { id: 'locations', label: 'Locations', icon: 'location_on', href: '/admin/locations' },
-        { id: 'routes', label: 'Route Pricing', icon: 'route', href: '/admin/routes' },
+        { id: 'locations', label: t.admin.menu.locations, icon: 'location_on', href: '/admin/locations' },
+        { id: 'routes', label: t.admin.menu.routes, icon: 'route', href: '/admin/routes' },
     ];
 
     const secondaryMenuItems = [
-        { id: 'settings', label: 'Settings', icon: 'settings', href: '/admin/settings' },
+        { id: 'settings', label: t.admin.menu.settings, icon: 'settings', href: '/admin/settings' },
     ];
 
     return (
@@ -161,7 +161,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 {/* Main Navigation */}
                 <nav className="p-3 space-y-1">
                     <p className={`text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3 ${sidebarCollapsed ? 'lg:text-center' : 'px-3'}`}>
-                        {sidebarCollapsed ? '•••' : 'Main Menu'}
+                        {sidebarCollapsed ? '•••' : t.admin.sidebar.mainMenu}
                     </p>
                     {menuItems.map((item) => {
                         const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
@@ -193,7 +193,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 {/* Secondary Navigation */}
                 <nav className="p-3 space-y-1 mt-4">
                     <p className={`text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3 ${sidebarCollapsed ? 'lg:text-center' : 'px-3'}`}>
-                        {sidebarCollapsed ? '•••' : 'System'}
+                        {sidebarCollapsed ? '•••' : t.admin.sidebar.system}
                     </p>
                     {secondaryMenuItems.map((item) => {
                         const isActive = pathname === item.href;
@@ -227,11 +227,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             text-red-500 hover:bg-red-50 hover:text-red-600
                             ${sidebarCollapsed ? 'lg:justify-center lg:px-0' : ''}
                         `}
-                        title={sidebarCollapsed ? 'Logout' : undefined}
+                        title={sidebarCollapsed ? t.admin.sidebar.logout : undefined}
                     >
                         <span className="material-symbols-outlined text-xl">logout</span>
                         {!sidebarCollapsed && (
-                            <span className="font-medium text-sm">Logout</span>
+                            <span className="font-medium text-sm">{t.admin.sidebar.logout}</span>
                         )}
                     </button>
                 </nav>
@@ -275,13 +275,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             <span className="material-symbols-outlined">menu</span>
                         </button>
                         <div className="hidden sm:block">
-                            <p className="text-xs text-gray-400">Welcome back,</p>
+                            <p className="text-xs text-gray-400">{t.admin.header.welcomeBack}</p>
                             <h2 className="text-sm font-semibold text-gray-800">{user?.displayName || 'Administrator'}</h2>
                         </div>
                     </div>
 
                     {/* Right: Actions */}
                     <div className="flex items-center gap-2">
+                        {/* Language Switcher */}
+                        <button
+                            onClick={() => setLanguage(language === 'th' ? 'en' : 'th')}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors"
+                            title={language === 'th' ? 'Switch to English' : 'เปลี่ยนเป็นภาษาไทย'}
+                        >
+                            <span className="material-symbols-outlined text-lg text-gray-500">translate</span>
+                            <span className="text-sm font-medium text-gray-600">{language === 'th' ? 'TH' : 'EN'}</span>
+                        </button>
+
                         {/* Notifications */}
                         <NotificationBell isAdmin={true} />
 
@@ -317,14 +327,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                             className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                                         >
                                             <span className="material-symbols-outlined text-lg text-gray-400">settings</span>
-                                            Settings
+                                            {t.admin.header.settings}
                                         </Link>
                                         <Link
                                             href="/dashboard"
                                             className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                                         >
                                             <span className="material-symbols-outlined text-lg text-gray-400">swap_horiz</span>
-                                            Switch to Customer
+                                            {t.admin.header.switchToCustomer}
                                         </Link>
                                     </div>
 
@@ -334,7 +344,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                             className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                                         >
                                             <span className="material-symbols-outlined text-lg">logout</span>
-                                            Logout
+                                            {t.admin.header.logout}
                                         </button>
                                     </div>
                                 </div>

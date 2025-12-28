@@ -24,6 +24,9 @@ export default function VehiclesPage() {
   // Route Edit Dropdown
   const [routeEditDropdown, setRouteEditDropdown] = useState<'pickup' | 'dropoff' | null>(null);
 
+  // Location Selection Dropdown (for initial selection)
+  const [locationDropdown, setLocationDropdown] = useState<'pickup' | 'dropoff' | null>(null);
+
   // Fetch Vehicles from Firestore
   useEffect(() => {
     const fetchVehicles = async () => {
@@ -255,57 +258,137 @@ export default function VehiclesPage() {
                 </p>
               </div>
 
-              {/* Location Selectors */}
+              {/* Location Selectors - Custom Dropdown for Mobile */}
               <div className="space-y-4">
                 {/* Pickup */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                     <span className="flex items-center gap-2">
-                      <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                      <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
                       {language === 'th' ? 'จุดรับ' : 'Pickup Location'}
                     </span>
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-emerald-500">trip_origin</span>
-                    <select
-                      value={bookingData.pickupLocation || ''}
-                      onChange={(e) => updateBooking({ pickupLocation: e.target.value })}
-                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-gray-800 appearance-none cursor-pointer font-medium transition-all"
+                    <button
+                      type="button"
+                      onClick={() => setLocationDropdown(locationDropdown === 'pickup' ? null : 'pickup')}
+                      className="w-full flex items-center gap-3 pl-12 pr-10 py-4 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-2xl hover:border-emerald-400 transition-all shadow-sm text-left"
                     >
-                      <option value="">{language === 'th' ? '-- เลือกจุดรับ --' : '-- Select Pickup --'}</option>
-                      {locations.map((loc) => (
-                        <option key={loc.id} value={language === 'th' ? loc.name?.th : loc.name?.en}>
-                          {language === 'th' ? loc.name?.th : loc.name?.en}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-gray-400">expand_more</span>
+                      <span className="absolute left-4 material-symbols-outlined text-emerald-500 text-xl">trip_origin</span>
+                      <span className={`flex-1 font-semibold ${bookingData.pickupLocation ? 'text-gray-800 dark:text-white' : 'text-gray-400'}`}>
+                        {bookingData.pickupLocation || (language === 'th' ? 'เลือกจุดรับของคุณ' : 'Select your pickup')}
+                      </span>
+                      <span className="absolute right-4 material-symbols-outlined text-gray-400">expand_more</span>
+                    </button>
+
+                    {/* Pickup Dropdown - Bottom Sheet on Mobile */}
+                    {locationDropdown === 'pickup' && (
+                      <>
+                        <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={() => setLocationDropdown(null)}></div>
+                        <div className="fixed bottom-0 left-0 right-0 sm:absolute sm:bottom-auto sm:top-full sm:left-0 sm:right-0 sm:mt-2 bg-white dark:bg-gray-800 sm:rounded-xl rounded-t-3xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 overflow-hidden">
+                          <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gradient-to-r from-emerald-500 to-green-600">
+                            <div className="sm:hidden w-12 h-1 bg-white/30 rounded-full mx-auto mb-3"></div>
+                            <p className="text-sm font-bold text-white uppercase tracking-wider text-center sm:text-left">
+                              {language === 'th' ? 'เลือกจุดรับ' : 'Select Pickup'}
+                            </p>
+                          </div>
+                          <div className="max-h-[50vh] sm:max-h-64 overflow-y-auto">
+                            {locations.map((loc) => (
+                              <button
+                                key={loc.id}
+                                type="button"
+                                onClick={() => {
+                                  updateBooking({ pickupLocation: language === 'th' ? loc.name?.th : loc.name?.en });
+                                  setLocationDropdown(null);
+                                }}
+                                className={`w-full text-left px-4 py-4 sm:py-3 text-base sm:text-sm hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors flex items-center gap-3 border-b border-gray-50 dark:border-gray-700 last:border-0 ${bookingData.pickupLocation === (language === 'th' ? loc.name?.th : loc.name?.en) ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 font-bold' : 'text-gray-700 dark:text-gray-300'}`}
+                              >
+                                <span className="material-symbols-outlined text-emerald-500 text-lg">location_on</span>
+                                {language === 'th' ? loc.name?.th : loc.name?.en}
+                                {bookingData.pickupLocation === (language === 'th' ? loc.name?.th : loc.name?.en) && (
+                                  <span className="material-symbols-outlined text-emerald-500 ml-auto">check_circle</span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
+                </div>
+
+                {/* Swap Button */}
+                <div className="flex justify-center -my-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const temp = bookingData.pickupLocation;
+                      updateBooking({
+                        pickupLocation: bookingData.dropoffLocation,
+                        dropoffLocation: temp
+                      });
+                    }}
+                    className="w-10 h-10 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-full flex items-center justify-center hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all shadow-sm group"
+                    title={language === 'th' ? 'สลับจุดรับ-ส่ง' : 'Swap locations'}
+                  >
+                    <span className="material-symbols-outlined text-gray-400 group-hover:text-blue-500 transition-colors rotate-90">swap_vert</span>
+                  </button>
                 </div>
 
                 {/* Dropoff */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                     <span className="flex items-center gap-2">
                       <span className="w-2 h-2 bg-red-500 rounded-full"></span>
                       {language === 'th' ? 'จุดส่ง' : 'Dropoff Location'}
                     </span>
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-red-500">location_on</span>
-                    <select
-                      value={bookingData.dropoffLocation || ''}
-                      onChange={(e) => updateBooking({ dropoffLocation: e.target.value })}
-                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-gray-800 appearance-none cursor-pointer font-medium transition-all"
+                    <button
+                      type="button"
+                      onClick={() => setLocationDropdown(locationDropdown === 'dropoff' ? null : 'dropoff')}
+                      className="w-full flex items-center gap-3 pl-12 pr-10 py-4 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-2xl hover:border-red-400 transition-all shadow-sm text-left"
                     >
-                      <option value="">{language === 'th' ? '-- เลือกจุดส่ง --' : '-- Select Dropoff --'}</option>
-                      {locations.map((loc) => (
-                        <option key={loc.id} value={language === 'th' ? loc.name?.th : loc.name?.en}>
-                          {language === 'th' ? loc.name?.th : loc.name?.en}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-gray-400">expand_more</span>
+                      <span className="absolute left-4 material-symbols-outlined text-red-500 text-xl">location_on</span>
+                      <span className={`flex-1 font-semibold ${bookingData.dropoffLocation ? 'text-gray-800 dark:text-white' : 'text-gray-400'}`}>
+                        {bookingData.dropoffLocation || (language === 'th' ? 'เลือกจุดส่งของคุณ' : 'Select your dropoff')}
+                      </span>
+                      <span className="absolute right-4 material-symbols-outlined text-gray-400">expand_more</span>
+                    </button>
+
+                    {/* Dropoff Dropdown - Bottom Sheet on Mobile */}
+                    {locationDropdown === 'dropoff' && (
+                      <>
+                        <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={() => setLocationDropdown(null)}></div>
+                        <div className="fixed bottom-0 left-0 right-0 sm:absolute sm:bottom-auto sm:top-full sm:left-0 sm:right-0 sm:mt-2 bg-white dark:bg-gray-800 sm:rounded-xl rounded-t-3xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 overflow-hidden">
+                          <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gradient-to-r from-red-500 to-rose-600">
+                            <div className="sm:hidden w-12 h-1 bg-white/30 rounded-full mx-auto mb-3"></div>
+                            <p className="text-sm font-bold text-white uppercase tracking-wider text-center sm:text-left">
+                              {language === 'th' ? 'เลือกจุดส่ง' : 'Select Dropoff'}
+                            </p>
+                          </div>
+                          <div className="max-h-[50vh] sm:max-h-64 overflow-y-auto">
+                            {locations.map((loc) => (
+                              <button
+                                key={loc.id}
+                                type="button"
+                                onClick={() => {
+                                  updateBooking({ dropoffLocation: language === 'th' ? loc.name?.th : loc.name?.en });
+                                  setLocationDropdown(null);
+                                }}
+                                className={`w-full text-left px-4 py-4 sm:py-3 text-base sm:text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-3 border-b border-gray-50 dark:border-gray-700 last:border-0 ${bookingData.dropoffLocation === (language === 'th' ? loc.name?.th : loc.name?.en) ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 font-bold' : 'text-gray-700 dark:text-gray-300'}`}
+                              >
+                                <span className="material-symbols-outlined text-red-500 text-lg">flag</span>
+                                {language === 'th' ? loc.name?.th : loc.name?.en}
+                                {bookingData.dropoffLocation === (language === 'th' ? loc.name?.th : loc.name?.en) && (
+                                  <span className="material-symbols-outlined text-red-500 ml-auto">check_circle</span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -359,12 +442,13 @@ export default function VehiclesPage() {
 
                     {routeEditDropdown === 'pickup' && (
                       <>
-                        <div className="fixed inset-0 z-40" onClick={() => setRouteEditDropdown(null)}></div>
-                        <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-                          <div className="p-3 border-b border-gray-100 bg-gradient-to-r from-emerald-500 to-green-600">
-                            <p className="text-xs font-bold text-white uppercase tracking-wider">{language === 'th' ? 'เลือกจุดรับ' : 'Select Pickup'}</p>
+                        <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={() => setRouteEditDropdown(null)}></div>
+                        <div className="fixed bottom-0 left-0 right-0 sm:absolute sm:bottom-auto sm:top-full sm:left-0 sm:right-auto sm:mt-2 sm:w-72 bg-white dark:bg-gray-800 sm:rounded-xl rounded-t-2xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 overflow-hidden animate-in slide-in-from-bottom sm:fade-in sm:zoom-in-95 duration-200">
+                          <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gradient-to-r from-emerald-500 to-green-600">
+                            <div className="sm:hidden w-12 h-1 bg-white/30 rounded-full mx-auto mb-3"></div>
+                            <p className="text-sm font-bold text-white uppercase tracking-wider text-center sm:text-left">{language === 'th' ? 'เลือกจุดรับ' : 'Select Pickup'}</p>
                           </div>
-                          <div className="max-h-64 overflow-y-auto">
+                          <div className="max-h-[50vh] sm:max-h-64 overflow-y-auto">
                             {locations.map((loc) => (
                               <button
                                 key={loc.id}
@@ -372,7 +456,7 @@ export default function VehiclesPage() {
                                   updateBooking({ pickupLocation: language === 'th' ? loc.name?.th : loc.name?.en });
                                   setRouteEditDropdown(null);
                                 }}
-                                className={`w-full text-left px-4 py-3 text-sm hover:bg-emerald-50 transition-colors flex items-center gap-3 border-b border-gray-50 last:border-0 ${bookingData.pickupLocation === (language === 'th' ? loc.name?.th : loc.name?.en) ? 'bg-emerald-50 text-emerald-700 font-bold' : 'text-gray-700'}`}
+                                className={`w-full text-left px-4 py-4 sm:py-3 text-base sm:text-sm hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors flex items-center gap-3 border-b border-gray-50 dark:border-gray-700 last:border-0 ${bookingData.pickupLocation === (language === 'th' ? loc.name?.th : loc.name?.en) ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 font-bold' : 'text-gray-700 dark:text-gray-300'}`}
                               >
                                 <span className="material-symbols-outlined text-emerald-500 text-lg">location_on</span>
                                 {language === 'th' ? loc.name?.th : loc.name?.en}
@@ -410,12 +494,13 @@ export default function VehiclesPage() {
 
                     {routeEditDropdown === 'dropoff' && (
                       <>
-                        <div className="fixed inset-0 z-40" onClick={() => setRouteEditDropdown(null)}></div>
-                        <div className="absolute top-full right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-                          <div className="p-3 border-b border-gray-100 bg-gradient-to-r from-red-500 to-rose-600">
-                            <p className="text-xs font-bold text-white uppercase tracking-wider">{language === 'th' ? 'เลือกจุดส่ง' : 'Select Dropoff'}</p>
+                        <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={() => setRouteEditDropdown(null)}></div>
+                        <div className="fixed bottom-0 left-0 right-0 sm:absolute sm:bottom-auto sm:top-full sm:right-0 sm:left-auto sm:mt-2 sm:w-72 bg-white dark:bg-gray-800 sm:rounded-xl rounded-t-2xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 overflow-hidden animate-in slide-in-from-bottom sm:fade-in sm:zoom-in-95 duration-200">
+                          <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gradient-to-r from-red-500 to-rose-600">
+                            <div className="sm:hidden w-12 h-1 bg-white/30 rounded-full mx-auto mb-3"></div>
+                            <p className="text-sm font-bold text-white uppercase tracking-wider text-center sm:text-left">{language === 'th' ? 'เลือกจุดส่ง' : 'Select Dropoff'}</p>
                           </div>
-                          <div className="max-h-64 overflow-y-auto">
+                          <div className="max-h-[50vh] sm:max-h-64 overflow-y-auto">
                             {locations.map((loc) => (
                               <button
                                 key={loc.id}
@@ -423,7 +508,7 @@ export default function VehiclesPage() {
                                   updateBooking({ dropoffLocation: language === 'th' ? loc.name?.th : loc.name?.en });
                                   setRouteEditDropdown(null);
                                 }}
-                                className={`w-full text-left px-4 py-3 text-sm hover:bg-red-50 transition-colors flex items-center gap-3 border-b border-gray-50 last:border-0 ${bookingData.dropoffLocation === (language === 'th' ? loc.name?.th : loc.name?.en) ? 'bg-red-50 text-red-700 font-bold' : 'text-gray-700'}`}
+                                className={`w-full text-left px-4 py-4 sm:py-3 text-base sm:text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-3 border-b border-gray-50 dark:border-gray-700 last:border-0 ${bookingData.dropoffLocation === (language === 'th' ? loc.name?.th : loc.name?.en) ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 font-bold' : 'text-gray-700 dark:text-gray-300'}`}
                               >
                                 <span className="material-symbols-outlined text-red-500 text-lg">flag</span>
                                 {language === 'th' ? loc.name?.th : loc.name?.en}
@@ -740,12 +825,15 @@ export default function VehiclesPage() {
                 {/* Date & Time Section */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1 mb-2">
+                    <label htmlFor="tripPickupDate" className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1 mb-2">
                       <span className="material-symbols-outlined text-sm">calendar_month</span>
                       {language === 'th' ? 'วันที่' : 'Date'}
                     </label>
                     <input
+                      id="tripPickupDate"
+                      name="tripPickupDate"
                       type="date"
+                      autoComplete="off"
                       required
                       min={new Date().toISOString().split('T')[0]}
                       className="w-full px-0 py-1 bg-transparent border-0 font-bold text-gray-800 dark:text-white outline-none text-sm"
@@ -754,12 +842,15 @@ export default function VehiclesPage() {
                     />
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1 mb-2">
+                    <label htmlFor="tripPickupTime" className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1 mb-2">
                       <span className="material-symbols-outlined text-sm">schedule</span>
                       {language === 'th' ? 'เวลา' : 'Time'}
                     </label>
                     <input
+                      id="tripPickupTime"
+                      name="tripPickupTime"
                       type="time"
+                      autoComplete="off"
                       required
                       className="w-full px-0 py-1 bg-transparent border-0 font-bold text-gray-800 dark:text-white outline-none text-sm"
                       value={tripDetails.pickupTime}

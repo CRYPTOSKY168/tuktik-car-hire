@@ -338,22 +338,199 @@ export default function PaymentPage() {
   // Active Booking Block - only block if NOT awaiting_payment
   // If awaiting_payment, let them continue to payment
   if (hasActiveBooking && activeBookingData && activeBookingData.status !== 'awaiting_payment') {
+    // Status configuration
+    const statusConfig: Record<string, { label: string; color: string; bgColor: string; icon: string; step: number }> = {
+      pending: { label: 'รอยืนยัน', color: 'text-amber-600', bgColor: 'bg-amber-100', icon: 'schedule', step: 1 },
+      confirmed: { label: 'ยืนยันแล้ว', color: 'text-blue-600', bgColor: 'bg-blue-100', icon: 'check_circle', step: 2 },
+      driver_assigned: { label: 'มอบหมายคนขับแล้ว', color: 'text-indigo-600', bgColor: 'bg-indigo-100', icon: 'person_check', step: 3 },
+      driver_en_route: { label: 'คนขับกำลังมา', color: 'text-purple-600', bgColor: 'bg-purple-100', icon: 'directions_car', step: 4 },
+      in_progress: { label: 'กำลังเดินทาง', color: 'text-emerald-600', bgColor: 'bg-emerald-100', icon: 'moving', step: 5 },
+    };
+
+    const currentStatus = statusConfig[activeBookingData.status] || { label: activeBookingData.status, color: 'text-gray-600', bgColor: 'bg-gray-100', icon: 'info', step: 0 };
+    const steps = [
+      { key: 'pending', label: 'รอยืนยัน', icon: 'schedule' },
+      { key: 'confirmed', label: 'ยืนยันแล้ว', icon: 'check_circle' },
+      { key: 'driver_assigned', label: 'มอบหมายคนขับ', icon: 'person_check' },
+      { key: 'driver_en_route', label: 'คนขับกำลังมา', icon: 'directions_car' },
+      { key: 'in_progress', label: 'กำลังเดินทาง', icon: 'moving' },
+    ];
+
     return (
-      <main className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="material-symbols-outlined text-amber-500 text-3xl">warning</span>
-          </div>
-          <h1 className="text-xl font-bold text-gray-800 dark:text-white mb-2">คุณมีงานจองอยู่แล้ว</h1>
-          <p className="text-sm text-gray-500 mb-4">กรุณารอให้งานจองปัจจุบันเสร็จสิ้นหรือยกเลิกก่อน</p>
-          <div className="flex gap-2">
-            <button onClick={() => router.push('/dashboard')} className="flex-1 py-3 bg-blue-600 text-white font-semibold rounded-xl">
-              ดูสถานะงานจอง
+      <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
+        {/* Header */}
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 sticky top-0 z-40">
+          <div className="max-w-lg mx-auto px-4 py-4 flex items-center gap-3">
+            <button onClick={() => router.push('/')} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+              <span className="material-symbols-outlined text-gray-600 dark:text-gray-400">arrow_back</span>
             </button>
-            <button onClick={() => router.push('/')} className="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold rounded-xl">
-              หน้าหลัก
+            <h1 className="text-lg font-bold text-gray-800 dark:text-white">การจองของคุณ</h1>
+          </div>
+        </div>
+
+        <div className="max-w-lg mx-auto px-4 py-6 space-y-4">
+          {/* Status Card */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
+            {/* Status Header */}
+            <div className={`${currentStatus.bgColor} px-5 py-4`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-12 h-12 rounded-full bg-white/80 flex items-center justify-center`}>
+                  <span className={`material-symbols-outlined text-2xl ${currentStatus.color}`}>{currentStatus.icon}</span>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-500">สถานะปัจจุบัน</p>
+                  <p className={`text-lg font-bold ${currentStatus.color}`}>{currentStatus.label}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Progress Steps */}
+            <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                {steps.map((step, index) => {
+                  const isCompleted = currentStatus.step > index + 1;
+                  const isCurrent = currentStatus.step === index + 1;
+                  return (
+                    <div key={step.key} className="flex flex-col items-center flex-1">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm
+                        ${isCompleted ? 'bg-emerald-500 text-white' : isCurrent ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-400'}`}>
+                        {isCompleted ? (
+                          <span className="material-symbols-outlined text-sm">check</span>
+                        ) : (
+                          <span className="material-symbols-outlined text-sm">{step.icon}</span>
+                        )}
+                      </div>
+                      <p className={`text-[10px] mt-1 text-center leading-tight ${isCurrent ? 'text-blue-600 font-semibold' : 'text-gray-400'}`}>
+                        {step.label}
+                      </p>
+                      {index < steps.length - 1 && (
+                        <div className={`absolute h-0.5 w-full top-4 left-1/2 -z-10 ${isCompleted ? 'bg-emerald-500' : 'bg-gray-200'}`} />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Trip Details */}
+            <div className="p-5 space-y-4">
+              {/* Route */}
+              <div className="flex gap-3">
+                <div className="flex flex-col items-center">
+                  <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                  <div className="w-0.5 h-8 bg-gray-200 dark:bg-gray-700"></div>
+                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <div>
+                    <p className="text-xs text-gray-400">จุดรับ</p>
+                    <p className="font-medium text-gray-800 dark:text-white">{activeBookingData.pickupLocation}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">จุดส่ง</p>
+                    <p className="font-medium text-gray-800 dark:text-white">{activeBookingData.dropoffLocation}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Date & Time */}
+              <div className="flex gap-4 pt-2">
+                <div className="flex items-center gap-2 flex-1 bg-gray-50 dark:bg-gray-700/50 rounded-xl px-3 py-2">
+                  <span className="material-symbols-outlined text-blue-500 text-xl">calendar_today</span>
+                  <div>
+                    <p className="text-[10px] text-gray-400">วันที่</p>
+                    <p className="text-sm font-semibold text-gray-800 dark:text-white">
+                      {activeBookingData.pickupDate ? new Date(activeBookingData.pickupDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-1 bg-gray-50 dark:bg-gray-700/50 rounded-xl px-3 py-2">
+                  <span className="material-symbols-outlined text-purple-500 text-xl">schedule</span>
+                  <div>
+                    <p className="text-[10px] text-gray-400">เวลา</p>
+                    <p className="text-sm font-semibold text-gray-800 dark:text-white">{activeBookingData.pickupTime || '-'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Vehicle */}
+              <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl px-3 py-2">
+                <span className="material-symbols-outlined text-amber-500 text-xl">directions_car</span>
+                <div className="flex-1">
+                  <p className="text-[10px] text-gray-400">ยานพาหนะ</p>
+                  <p className="text-sm font-semibold text-gray-800 dark:text-white">{activeBookingData.vehicleName || activeBookingData.vehicle?.name || '-'}</p>
+                </div>
+                <p className="text-lg font-bold text-blue-600">฿{(activeBookingData.totalCost || 0).toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Driver Card - Show if assigned */}
+          {activeBookingData.driver && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-5">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xl font-bold">
+                  {activeBookingData.driver.name?.charAt(0) || 'D'}
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-gray-400">คนขับของคุณ</p>
+                  <p className="font-bold text-gray-800 dark:text-white">{activeBookingData.driver.name}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    {activeBookingData.driver.vehiclePlate && (
+                      <span className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full text-gray-600 dark:text-gray-300">
+                        {activeBookingData.driver.vehiclePlate}
+                      </span>
+                    )}
+                    {activeBookingData.driver.vehicleModel && (
+                      <span className="text-xs text-gray-500">{activeBookingData.driver.vehicleModel}</span>
+                    )}
+                  </div>
+                </div>
+                <a
+                  href={`tel:${activeBookingData.driver.phone}`}
+                  className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center"
+                >
+                  <span className="material-symbols-outlined text-emerald-600">call</span>
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* Info Message */}
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-4">
+            <div className="flex gap-3">
+              <span className="material-symbols-outlined text-blue-500">info</span>
+              <div>
+                <p className="text-sm font-medium text-blue-800 dark:text-blue-300">มีการจองที่ยังไม่เสร็จสิ้น</p>
+                <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                  คุณสามารถจองใหม่ได้หลังจากการจองนี้เสร็จสิ้นหรือถูกยกเลิก
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="space-y-3">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2"
+            >
+              <span className="material-symbols-outlined">visibility</span>
+              ดูรายละเอียดเพิ่มเติม
+            </button>
+            <button
+              onClick={() => router.push('/')}
+              className="w-full py-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl flex items-center justify-center gap-2"
+            >
+              <span className="material-symbols-outlined">home</span>
+              กลับหน้าหลัก
             </button>
           </div>
+
+          {/* Booking ID */}
+          <p className="text-center text-xs text-gray-400">
+            หมายเลขการจอง: #{activeBookingData.id?.slice(0, 8).toUpperCase()}
+          </p>
         </div>
       </main>
     );
@@ -420,58 +597,95 @@ export default function PaymentPage() {
             <div className="px-4 pb-4 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">ชื่อ *</label>
+                  <label htmlFor="firstName" className="text-xs font-medium text-gray-500 mb-1 block">ชื่อ *</label>
                   <input
-                    type="text" name="firstName" value={formData.firstName} onChange={handleChange}
+                    type="text"
+                    id="firstName"
+                    name="firstName"
+                    autoComplete="given-name"
+                    value={formData.firstName}
+                    onChange={handleChange}
                     className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500 dark:text-white"
                     placeholder="ชื่อจริง"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">นามสกุล *</label>
+                  <label htmlFor="lastName" className="text-xs font-medium text-gray-500 mb-1 block">นามสกุล *</label>
                   <input
-                    type="text" name="lastName" value={formData.lastName} onChange={handleChange}
+                    type="text"
+                    id="lastName"
+                    name="lastName"
+                    autoComplete="family-name"
+                    value={formData.lastName}
+                    onChange={handleChange}
                     className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500 dark:text-white"
                     placeholder="นามสกุล"
                   />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">เบอร์โทร *</label>
+                <label htmlFor="phone" className="text-xs font-medium text-gray-500 mb-1 block">เบอร์โทร *</label>
                 <input
-                  type="tel" name="phone" value={formData.phone} onChange={handleChange}
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  autoComplete="tel"
+                  value={formData.phone}
+                  onChange={handleChange}
                   className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500 dark:text-white"
                   placeholder="08X-XXX-XXXX"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">อีเมล *</label>
+                <label htmlFor="email" className="text-xs font-medium text-gray-500 mb-1 block">อีเมล *</label>
                 <input
-                  type="email" name="email" value={formData.email} onChange={handleChange}
+                  type="email"
+                  id="email"
+                  name="email"
+                  autoComplete="email"
+                  value={formData.email}
+                  onChange={handleChange}
                   className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500 dark:text-white"
                   placeholder="email@example.com"
                 />
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">เที่ยวบิน</label>
+                  <label htmlFor="flightNumber" className="text-xs font-medium text-gray-500 mb-1 block">เที่ยวบิน</label>
                   <input
-                    type="text" name="flightNumber" value={formData.flightNumber} onChange={handleChange}
+                    type="text"
+                    id="flightNumber"
+                    name="flightNumber"
+                    autoComplete="off"
+                    value={formData.flightNumber}
+                    onChange={handleChange}
                     className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500 dark:text-white"
                     placeholder="TG123"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">ผู้โดยสาร</label>
+                  <label htmlFor="passengerCount" className="text-xs font-medium text-gray-500 mb-1 block">ผู้โดยสาร</label>
                   <input
-                    type="number" name="passengerCount" value={formData.passengerCount} onChange={handleChange} min="1"
+                    type="number"
+                    id="passengerCount"
+                    name="passengerCount"
+                    autoComplete="off"
+                    value={formData.passengerCount}
+                    onChange={handleChange}
+                    min="1"
                     className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-500 mb-1 block">กระเป๋า</label>
+                  <label htmlFor="luggageCount" className="text-xs font-medium text-gray-500 mb-1 block">กระเป๋า</label>
                   <input
-                    type="number" name="luggageCount" value={formData.luggageCount} onChange={handleChange} min="0"
+                    type="number"
+                    id="luggageCount"
+                    name="luggageCount"
+                    autoComplete="off"
+                    value={formData.luggageCount}
+                    onChange={handleChange}
+                    min="0"
                     className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500 dark:text-white"
                   />
                 </div>
@@ -643,6 +857,9 @@ export default function PaymentPage() {
                         <div className="space-y-3">
                           <input
                             type="tel"
+                            id="cashPhone"
+                            name="cashPhone"
+                            autoComplete="tel"
                             value={cashPhoneNumber}
                             onChange={(e) => setCashPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
                             className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-center text-lg font-mono outline-none"
@@ -662,6 +879,10 @@ export default function PaymentPage() {
                         <div className="space-y-3">
                           <input
                             type="text"
+                            id="otpCode"
+                            name="otpCode"
+                            autoComplete="one-time-code"
+                            inputMode="numeric"
                             value={otpCode}
                             onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                             className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-center text-2xl font-mono tracking-widest outline-none"

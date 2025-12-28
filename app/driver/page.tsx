@@ -186,15 +186,53 @@ export default function DriverDashboard() {
         };
     }, [checkForNewBookings]);
 
+    const [statusLoading, setStatusLoading] = useState(false);
+
+    // Helper function to get auth token (force refresh to avoid expired token)
+    const getAuthToken = async (): Promise<string | null> => {
+        const user = auth?.currentUser;
+        if (!user) return null;
+        try {
+            // Force refresh token to ensure it's valid
+            return await user.getIdToken(true);
+        } catch {
+            return null;
+        }
+    };
+
     const handleStatusChange = async (newStatus: DriverStatus) => {
         if (!driver) return;
 
+        setStatusLoading(true);
         try {
-            await FirestoreService.updateDriverStatus(driver.id, newStatus);
+            const token = await getAuthToken();
+            if (!token) {
+                throw new Error('กรุณาเข้าสู่ระบบใหม่');
+            }
+
+            // Use API endpoint to update driver status (with authentication)
+            const response = await fetch('/api/driver/status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ driverId: driver.id, status: newStatus })
+            });
+
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to update status');
+            }
+
             setDriverStatus(newStatus);
             setDriver({ ...driver, status: newStatus });
-        } catch {
-            // Error handling
+        } catch (error: any) {
+            console.error('Error updating status:', error);
+            alert(`ไม่สามารถเปลี่ยนสถานะได้: ${error.message || 'Unknown error'}`);
+        } finally {
+            setStatusLoading(false);
         }
     };
 
@@ -203,11 +241,74 @@ export default function DriverDashboard() {
 
         setUpdatingStatus(bookingId);
         try {
-            await FirestoreService.driverUpdateBookingStatus(bookingId, driver.id, newStatus);
+            const token = await getAuthToken();
+            if (!token) {
+                throw new Error('กรุณาเข้าสู่ระบบใหม่');
+            }
+
+            // Use API route to update booking status (with authentication)
+            const response = await fetch('/api/driver/bookings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    action: 'updateStatus',
+                    bookingId,
+                    driverId: driver.id,
+                    data: { status: newStatus }
+                })
+            });
+
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to update status');
+            }
             // Bookings will update automatically via real-time subscription
         } catch (error: any) {
             console.error('Error updating booking:', error);
-            alert(error.message || 'Failed to update booking status');
+            alert(error.message || 'ไม่สามารถอัปเดตสถานะได้');
+        } finally {
+            setUpdatingStatus(null);
+        }
+    };
+
+    const handleRejectJob = async (bookingId: string) => {
+        if (!driver) return;
+
+        if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการปฏิเสธงานนี้?')) return;
+
+        setUpdatingStatus(bookingId);
+        try {
+            const token = await getAuthToken();
+            if (!token) {
+                throw new Error('กรุณาเข้าสู่ระบบใหม่');
+            }
+
+            const response = await fetch('/api/driver/bookings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    action: 'rejectJob',
+                    bookingId,
+                    driverId: driver.id
+                })
+            });
+
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to reject job');
+            }
+
+            setShowNewJobModal(false);
+            setNewJobAlert(null);
+        } catch (error: any) {
+            console.error('Error rejecting job:', error);
+            alert(error.message || 'ไม่สามารถปฏิเสธงานได้');
         } finally {
             setUpdatingStatus(null);
         }
@@ -252,6 +353,17 @@ export default function DriverDashboard() {
         return b.pickupDate === today;
     });
 
+    // Determine if driver is truly busy (has actual active bookings)
+    const isActuallyBusy = activeBookings.length > 0;
+
+    // Auto-correct stale "busy" status if no active bookings
+    useEffect(() => {
+        if (driver && driverStatus === DriverStatus.BUSY && !isActuallyBusy) {
+            // Status is "busy" but no active bookings - auto correct to available
+            handleStatusChange(DriverStatus.AVAILABLE);
+        }
+    }, [driver, driverStatus, isActuallyBusy]);
+
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
@@ -274,31 +386,97 @@ export default function DriverDashboard() {
         );
     }
 
+    // Check if driver is online (available or busy)
+    // Use isActuallyBusy for accurate busy status
+    const isOnline = driverStatus === DriverStatus.AVAILABLE || driverStatus === DriverStatus.BUSY || isActuallyBusy;
+    const displayBusy = isActuallyBusy; // Only show "busy" if there are actual active jobs
+
+    // Toggle online/offline
+    const handleToggleOnline = async () => {
+        if (isOnline) {
+            // Go offline (only if not busy)
+            if (!displayBusy) {
+                await handleStatusChange(DriverStatus.OFFLINE);
+            }
+        } else {
+            // Go online (available)
+            await handleStatusChange(DriverStatus.AVAILABLE);
+        }
+    };
+
     return (
         <div className="space-y-6">
-            {/* Driver Status Card */}
-            <div className="bg-white rounded-2xl shadow-sm p-4">
-                <h3 className="font-semibold text-gray-800 mb-3">สถานะของคุณ</h3>
-                <div className="flex gap-2">
-                    {[
-                        { status: DriverStatus.AVAILABLE, label: 'พร้อมรับงาน', icon: 'check_circle', color: 'bg-green-500' },
-                        { status: DriverStatus.BUSY, label: 'กำลังวิ่งงาน', icon: 'local_taxi', color: 'bg-orange-500' },
-                        { status: DriverStatus.OFFLINE, label: 'ออฟไลน์', icon: 'do_not_disturb', color: 'bg-gray-500' },
-                    ].map((item) => (
-                        <button
-                            key={item.status}
-                            onClick={() => handleStatusChange(item.status)}
-                            className={`flex-1 py-3 px-2 rounded-xl flex flex-col items-center gap-1 transition-all ${
-                                driverStatus === item.status
-                                    ? `${item.color} text-white shadow-lg`
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                        >
-                            <span className="material-symbols-outlined">{item.icon}</span>
-                            <span className="text-xs font-medium">{item.label}</span>
-                        </button>
-                    ))}
+            {/* Driver Status Card - Simple Toggle */}
+            <div className={`rounded-2xl shadow-lg p-5 transition-all duration-300 ${
+                isOnline
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-600'
+                    : 'bg-gradient-to-r from-gray-400 to-gray-500'
+            }`}>
+                <div className="flex items-center justify-between">
+                    <div className="text-white">
+                        <p className="text-sm opacity-80">สถานะของคุณ</p>
+                        <p className="text-2xl font-bold">
+                            {isOnline ? (
+                                displayBusy ? 'กำลังวิ่งงาน' : 'พร้อมรับงาน'
+                            ) : 'ออฟไลน์'}
+                        </p>
+                        <p className="text-xs opacity-70 mt-1">
+                            {isOnline
+                                ? displayBusy
+                                    ? `คุณมี ${activeBookings.length} งานอยู่`
+                                    : 'คุณจะได้รับการแจ้งเตือนงานใหม่'
+                                : 'คุณจะไม่ได้รับงานใหม่'}
+                        </p>
+                    </div>
+
+                    {/* Toggle Switch */}
+                    <button
+                        onClick={handleToggleOnline}
+                        disabled={displayBusy || statusLoading}
+                        className={`relative w-20 h-10 rounded-full transition-all duration-300 ${
+                            statusLoading
+                                ? 'bg-white/20 cursor-wait'
+                                : displayBusy
+                                    ? 'bg-orange-400 cursor-not-allowed'
+                                    : isOnline
+                                        ? 'bg-white/30 hover:bg-white/40'
+                                        : 'bg-white/20 hover:bg-white/30'
+                        }`}
+                        title={displayBusy ? 'ต้องเสร็จงานก่อนถึงจะปิดได้' : ''}
+                    >
+                        <div className={`absolute top-1 w-8 h-8 rounded-full bg-white shadow-lg transition-all duration-300 flex items-center justify-center ${
+                            isOnline ? 'left-11' : 'left-1'
+                        }`}>
+                            {statusLoading ? (
+                                <div className="w-4 h-4 border-2 border-gray-300 border-t-green-500 rounded-full animate-spin"></div>
+                            ) : (
+                                <span className={`material-symbols-outlined text-lg ${
+                                    displayBusy
+                                        ? 'text-orange-500'
+                                        : isOnline
+                                            ? 'text-green-500'
+                                            : 'text-gray-400'
+                                }`}>
+                                    {displayBusy
+                                        ? 'local_taxi'
+                                        : isOnline
+                                            ? 'check'
+                                            : 'power_settings_new'}
+                                </span>
+                            )}
+                        </div>
+                    </button>
                 </div>
+
+                {/* Status indicator */}
+                {displayBusy && (
+                    <div className="mt-3 pt-3 border-t border-white/20">
+                        <p className="text-white/80 text-xs flex items-center gap-1">
+                            <span className="material-symbols-outlined text-sm animate-pulse">info</span>
+                            คุณมีงานอยู่ ต้องเสร็จงานก่อนถึงจะปิดสถานะได้
+                        </p>
+                    </div>
+                )}
             </div>
 
             {/* Stats */}
@@ -387,25 +565,40 @@ export default function DriverDashboard() {
                                             <span className="text-xl font-bold text-gray-800">฿{booking.totalCost.toLocaleString()}</span>
                                         </div>
 
-                                        {/* Action Button */}
+                                        {/* Action Buttons */}
                                         {nextAction && (
-                                            <button
-                                                onClick={() => handleBookingAction(booking.id, nextAction.nextStatus)}
-                                                disabled={updatingStatus === booking.id}
-                                                className={`w-full py-4 bg-gradient-to-r ${nextAction.color} text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg disabled:opacity-50`}
-                                            >
-                                                {updatingStatus === booking.id ? (
-                                                    <>
-                                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                                        กำลังอัพเดท...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <span className="material-symbols-outlined">{nextAction.icon}</span>
-                                                        {nextAction.label}
-                                                    </>
+                                            <div className="space-y-2">
+                                                {/* Main action button */}
+                                                <button
+                                                    onClick={() => handleBookingAction(booking.id, nextAction.nextStatus)}
+                                                    disabled={updatingStatus === booking.id}
+                                                    className={`w-full py-4 bg-gradient-to-r ${nextAction.color} text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg disabled:opacity-50`}
+                                                >
+                                                    {updatingStatus === booking.id ? (
+                                                        <>
+                                                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                                            กำลังอัพเดท...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <span className="material-symbols-outlined">{nextAction.icon}</span>
+                                                            {nextAction.label}
+                                                        </>
+                                                    )}
+                                                </button>
+
+                                                {/* Reject button - only for driver_assigned status */}
+                                                {booking.status === 'driver_assigned' && (
+                                                    <button
+                                                        onClick={() => handleRejectJob(booking.id)}
+                                                        disabled={updatingStatus === booking.id}
+                                                        className="w-full py-2.5 bg-red-50 text-red-600 font-medium rounded-xl flex items-center justify-center gap-2 hover:bg-red-100 transition-all disabled:opacity-50"
+                                                    >
+                                                        <span className="material-symbols-outlined text-lg">cancel</span>
+                                                        ปฏิเสธงานนี้
+                                                    </button>
                                                 )}
-                                            </button>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
@@ -532,30 +725,48 @@ export default function DriverDashboard() {
                                 </div>
 
                                 {/* Action buttons */}
-                                <div className="flex gap-3 pt-2">
+                                <div className="space-y-3 pt-2">
+                                    {/* Accept / Reject buttons */}
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => handleRejectJob(newJobAlert.id)}
+                                            disabled={updatingStatus === newJobAlert.id}
+                                            className="flex-1 py-3.5 bg-red-100 text-red-700 font-bold rounded-xl hover:bg-red-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                        >
+                                            {updatingStatus === newJobAlert.id ? (
+                                                <div className="w-5 h-5 border-2 border-red-300 border-t-red-600 rounded-full animate-spin"></div>
+                                            ) : (
+                                                <>
+                                                    <span className="material-symbols-outlined">cancel</span>
+                                                    ไม่รับงาน
+                                                </>
+                                            )}
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setShowNewJobModal(false);
+                                                // Scroll to the booking
+                                                const element = document.getElementById(`booking-${newJobAlert.id}`);
+                                                if (element) {
+                                                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                    element.classList.add('ring-4', 'ring-green-400', 'ring-opacity-50');
+                                                    setTimeout(() => {
+                                                        element.classList.remove('ring-4', 'ring-green-400', 'ring-opacity-50');
+                                                    }, 3000);
+                                                }
+                                            }}
+                                            className="flex-1 py-3.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-green-500/30 hover:shadow-xl hover:shadow-green-500/40 transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <span className="material-symbols-outlined">check_circle</span>
+                                            รับงาน
+                                        </button>
+                                    </div>
+                                    {/* View Later button */}
                                     <button
                                         onClick={() => setShowNewJobModal(false)}
-                                        className="flex-1 py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-all"
+                                        className="w-full py-2.5 text-gray-500 font-medium text-sm hover:text-gray-700 transition-all"
                                     >
                                         ดูภายหลัง
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setShowNewJobModal(false);
-                                            // Scroll to the booking
-                                            const element = document.getElementById(`booking-${newJobAlert.id}`);
-                                            if (element) {
-                                                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                                element.classList.add('ring-4', 'ring-green-400', 'ring-opacity-50');
-                                                setTimeout(() => {
-                                                    element.classList.remove('ring-4', 'ring-green-400', 'ring-opacity-50');
-                                                }, 3000);
-                                            }
-                                        }}
-                                        className="flex-1 py-3.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-green-500/30 hover:shadow-xl hover:shadow-green-500/40 transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <span className="material-symbols-outlined">check_circle</span>
-                                        รับงาน
                                     </button>
                                 </div>
                             </div>

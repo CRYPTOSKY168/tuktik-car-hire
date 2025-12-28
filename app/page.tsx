@@ -514,24 +514,32 @@ export default function Home() {
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2">{language === 'th' ? 'ชื่อ' : 'Name'}</label>
+                  <label htmlFor="contact-name" className="block text-xs font-bold text-gray-500 uppercase mb-2">{language === 'th' ? 'ชื่อ' : 'Name'}</label>
                   <input
+                    id="contact-name"
+                    name="name"
                     type="text"
+                    autoComplete="name"
                     placeholder={language === 'th' ? 'ชื่อของคุณ' : 'Your name'}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2">{language === 'th' ? 'อีเมล' : 'Email'}</label>
+                  <label htmlFor="contact-email" className="block text-xs font-bold text-gray-500 uppercase mb-2">{language === 'th' ? 'อีเมล' : 'Email'}</label>
                   <input
+                    id="contact-email"
+                    name="email"
                     type="email"
+                    autoComplete="email"
                     placeholder={language === 'th' ? 'อีเมลของคุณ' : 'Your email'}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2">{language === 'th' ? 'ข้อความ' : 'Message'}</label>
+                  <label htmlFor="contact-message" className="block text-xs font-bold text-gray-500 uppercase mb-2">{language === 'th' ? 'ข้อความ' : 'Message'}</label>
                   <textarea
+                    id="contact-message"
+                    name="message"
                     rows={4}
                     placeholder={language === 'th' ? 'ข้อความของคุณ...' : 'Your message...'}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"

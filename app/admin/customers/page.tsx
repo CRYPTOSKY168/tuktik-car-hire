@@ -269,7 +269,7 @@ export default function AdminCustomersPage() {
                         <div className="w-12 h-12 border-4 border-blue-200 rounded-full"></div>
                         <div className="w-12 h-12 border-4 border-blue-600 rounded-full animate-spin border-t-transparent absolute top-0 left-0"></div>
                     </div>
-                    <p className="text-gray-500 font-medium">Loading customers...</p>
+                    <p className="text-gray-500 font-medium">กำลังโหลดข้อมูลลูกค้า...</p>
                 </div>
             </div>
         );
@@ -280,8 +280,8 @@ export default function AdminCustomersPage() {
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-800">Customer Management</h1>
-                    <p className="text-sm text-gray-500 mt-1">View and manage all customers (registered + guests)</p>
+                    <h1 className="text-2xl font-bold text-gray-800">จัดการลูกค้า</h1>
+                    <p className="text-sm text-gray-500 mt-1">ดูและจัดการลูกค้าทั้งหมด (สมาชิก + ผู้เยี่ยมชม)</p>
                 </div>
             </div>
 
@@ -294,7 +294,7 @@ export default function AdminCustomersPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-gray-800">{overallStats.totalCustomers}</p>
-                            <p className="text-xs text-gray-500">Total Customers</p>
+                            <p className="text-xs text-gray-500">ลูกค้าทั้งหมด</p>
                         </div>
                     </div>
                 </div>
@@ -305,7 +305,7 @@ export default function AdminCustomersPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-green-600">{overallStats.registeredCustomers}</p>
-                            <p className="text-xs text-gray-500">Registered</p>
+                            <p className="text-xs text-gray-500">สมาชิก</p>
                         </div>
                     </div>
                 </div>
@@ -316,7 +316,7 @@ export default function AdminCustomersPage() {
                         </div>
                         <div>
                             <p className="text-xl font-bold text-emerald-600">฿{overallStats.totalRevenue.toLocaleString()}</p>
-                            <p className="text-xs text-gray-500">Total Revenue</p>
+                            <p className="text-xs text-gray-500">รายได้รวม</p>
                         </div>
                     </div>
                 </div>
@@ -327,7 +327,7 @@ export default function AdminCustomersPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-purple-600">{overallStats.totalTrips}</p>
-                            <p className="text-xs text-gray-500">Completed Trips</p>
+                            <p className="text-xs text-gray-500">เที่ยวสำเร็จ</p>
                         </div>
                     </div>
                 </div>
@@ -338,20 +338,26 @@ export default function AdminCustomersPage() {
                 <div className="flex flex-col sm:flex-row gap-4">
                     {/* Search */}
                     <div className="flex-1 relative">
+                        <label htmlFor="customer-search" className="sr-only">ค้นหาลูกค้า</label>
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
                         <input
+                            id="customer-search"
+                            name="customerSearch"
                             type="text"
-                            placeholder="Search by name, email, or phone..."
+                            placeholder="ค้นหาด้วยชื่อ, อีเมล, หรือเบอร์โทร..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
+                            autoComplete="off"
                             className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                         />
                     </div>
 
                     {/* Sort */}
                     <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500">Sort by:</span>
+                        <label htmlFor="customer-sort" className="text-sm text-gray-500">Sort by:</label>
                         <select
+                            id="customer-sort"
+                            name="customerSort"
                             value={sortBy}
                             onChange={(e) => setSortBy(e.target.value as any)}
                             className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
@@ -371,9 +377,9 @@ export default function AdminCustomersPage() {
                     <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
                         <span className="material-symbols-outlined text-3xl text-gray-400">person_search</span>
                     </div>
-                    <p className="text-gray-500 font-medium">No customers found</p>
+                    <p className="text-gray-500 font-medium">ไม่พบลูกค้า</p>
                     <p className="text-sm text-gray-400 mt-1">
-                        {searchQuery ? 'Try adjusting your search' : 'Customers will appear when they book or register'}
+                        {searchQuery ? 'ลองปรับคำค้นหาของคุณ' : 'ลูกค้าจะปรากฏเมื่อจองหรือลงทะเบียน'}
                     </p>
                 </div>
             ) : (

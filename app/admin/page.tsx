@@ -195,16 +195,16 @@ export default function AdminDashboardPage() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800">{t.admin.title}</h1>
-                    <p className="text-sm text-gray-500 mt-1">Welcome to your dashboard overview</p>
+                    <p className="text-sm text-gray-500 mt-1">ภาพรวมแดชบอร์ดของคุณ</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
                         <span className="material-symbols-outlined text-lg">download</span>
-                        Export
+                        ส่งออก
                     </button>
                     <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl text-sm font-medium text-white hover:shadow-lg hover:shadow-blue-500/30 transition-all">
                         <span className="material-symbols-outlined text-lg">add</span>
-                        New Booking
+                        จองใหม่
                     </button>
                 </div>
             </div>
@@ -222,7 +222,7 @@ export default function AdminDashboardPage() {
                             +12.5%
                         </span>
                     </div>
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Total Revenue</p>
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">รายได้รวม</p>
                     <p className="text-2xl font-bold text-gray-800">฿{stats.totalRevenue.toLocaleString()}</p>
                     <div className="mt-3 h-10">
                         <SparklineChart data={revenueChartData} color="#3B82F6" />
@@ -240,7 +240,7 @@ export default function AdminDashboardPage() {
                             +8.2%
                         </span>
                     </div>
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Total Bookings</p>
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">จำนวนการจอง</p>
                     <p className="text-2xl font-bold text-gray-800">{stats.totalBookings}</p>
                     <div className="mt-3 h-10">
                         <SparklineChart data={bookingsChartData} color="#10B981" />
@@ -256,11 +256,11 @@ export default function AdminDashboardPage() {
                         {stats.pendingBookings > 0 && (
                             <span className="flex items-center gap-1 text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded-full animate-pulse">
                                 <span className="material-symbols-outlined text-sm">priority_high</span>
-                                Action
+                                ต้องดำเนินการ
                             </span>
                         )}
                     </div>
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Pending</p>
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">รอดำเนินการ</p>
                     <p className="text-2xl font-bold text-gray-800">{stats.pendingBookings}</p>
                     <div className="mt-3 flex items-center gap-2">
                         <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -280,14 +280,14 @@ export default function AdminDashboardPage() {
                             <span className="material-symbols-outlined text-white">directions_car</span>
                         </div>
                         <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                            Fleet
+                            กองยาน
                         </span>
                     </div>
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Active Vehicles</p>
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">จำนวนรถ</p>
                     <p className="text-2xl font-bold text-gray-800">{stats.activeVehicles}</p>
                     <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
                         <span className="material-symbols-outlined text-sm text-green-500">check_circle</span>
-                        All vehicles operational
+                        รถพร้อมใช้งานทั้งหมด
                     </div>
                 </div>
             </div>
@@ -298,8 +298,8 @@ export default function AdminDashboardPage() {
                 <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h3 className="font-semibold text-gray-800">Revenue Overview</h3>
-                            <p className="text-sm text-gray-500">Last 7 days performance</p>
+                            <h3 className="font-semibold text-gray-800">ภาพรวมรายได้</h3>
+                            <p className="text-sm text-gray-500">ผลการดำเนินงาน 7 วันล่าสุด</p>
                         </div>
                         <div className="flex items-center gap-2">
                             <button className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg">7D</button>
@@ -313,7 +313,7 @@ export default function AdminDashboardPage() {
                         {revenueChartData.map((value, index) => {
                             const maxValue = Math.max(...revenueChartData, 1);
                             const heightPercent = (value / maxValue) * 100;
-                            const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                            const days = ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'];
                             return (
                                 <div key={index} className="flex-1 flex flex-col items-center gap-2">
                                     <div className="w-full relative group">
@@ -335,7 +335,7 @@ export default function AdminDashboardPage() {
                 {/* Booking Stats Ring */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                     <div className="flex items-center justify-between mb-6">
-                        <h3 className="font-semibold text-gray-800">Completion Rate</h3>
+                        <h3 className="font-semibold text-gray-800">อัตราความสำเร็จ</h3>
                         <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">
                             <span className="material-symbols-outlined text-lg">more_horiz</span>
                         </button>
@@ -346,7 +346,7 @@ export default function AdminDashboardPage() {
                             <ProgressRing progress={completionRate} size={140} strokeWidth={12} color="#3B82F6" />
                             <div className="absolute inset-0 flex flex-col items-center justify-center">
                                 <span className="text-3xl font-bold text-gray-800">{completionRate}%</span>
-                                <span className="text-xs text-gray-500">Complete</span>
+                                <span className="text-xs text-gray-500">สำเร็จ</span>
                             </div>
                         </div>
 
@@ -354,14 +354,14 @@ export default function AdminDashboardPage() {
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                                    <span className="text-sm text-gray-600">Completed</span>
+                                    <span className="text-sm text-gray-600">เสร็จสิ้น</span>
                                 </div>
                                 <span className="text-sm font-semibold text-gray-800">{stats.completedBookings}</span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                                    <span className="text-sm text-gray-600">Confirmed</span>
+                                    <span className="text-sm text-gray-600">ยืนยันแล้ว</span>
                                 </div>
                                 <span className="text-sm font-semibold text-gray-800">{stats.confirmedBookings}</span>
                             </div>
@@ -381,14 +381,14 @@ export default function AdminDashboardPage() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h3 className="font-semibold text-gray-800">Recent Bookings</h3>
-                        <p className="text-sm text-gray-500">Latest transactions and activities</p>
+                        <h3 className="font-semibold text-gray-800">การจองล่าสุด</h3>
+                        <p className="text-sm text-gray-500">รายการและกิจกรรมล่าสุด</p>
                     </div>
                     <Link
                         href="/admin/bookings"
                         className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700"
                     >
-                        View All
+                        ดูทั้งหมด
                         <span className="material-symbols-outlined text-lg">arrow_forward</span>
                     </Link>
                 </div>
@@ -515,8 +515,8 @@ export default function AdminDashboardPage() {
                         <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
                             <span className="material-symbols-outlined text-3xl text-gray-400">inbox</span>
                         </div>
-                        <p className="text-gray-500">No bookings yet</p>
-                        <p className="text-sm text-gray-400 mt-1">Bookings will appear here once customers start booking</p>
+                        <p className="text-gray-500">ยังไม่มีการจอง</p>
+                        <p className="text-sm text-gray-400 mt-1">การจองจะปรากฏที่นี่เมื่อลูกค้าเริ่มจอง</p>
                     </div>
                 )}
             </div>
@@ -527,32 +527,32 @@ export default function AdminDashboardPage() {
                     <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mb-3 group-hover:bg-blue-100 transition-colors">
                         <span className="material-symbols-outlined text-blue-600">receipt_long</span>
                     </div>
-                    <p className="font-medium text-gray-800">Manage Bookings</p>
-                    <p className="text-xs text-gray-500 mt-1">View and update</p>
+                    <p className="font-medium text-gray-800">จัดการการจอง</p>
+                    <p className="text-xs text-gray-500 mt-1">ดูและอัปเดต</p>
                 </Link>
 
                 <Link href="/admin/vehicles" className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md hover:border-green-200 transition-all group">
                     <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center mb-3 group-hover:bg-green-100 transition-colors">
                         <span className="material-symbols-outlined text-green-600">directions_car</span>
                     </div>
-                    <p className="font-medium text-gray-800">Fleet Manager</p>
-                    <p className="text-xs text-gray-500 mt-1">Add or edit vehicles</p>
+                    <p className="font-medium text-gray-800">จัดการรถ</p>
+                    <p className="text-xs text-gray-500 mt-1">เพิ่มหรือแก้ไขรถ</p>
                 </Link>
 
                 <Link href="/admin/locations" className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md hover:border-purple-200 transition-all group">
                     <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center mb-3 group-hover:bg-purple-100 transition-colors">
                         <span className="material-symbols-outlined text-purple-600">location_on</span>
                     </div>
-                    <p className="font-medium text-gray-800">Locations</p>
-                    <p className="text-xs text-gray-500 mt-1">Manage service areas</p>
+                    <p className="font-medium text-gray-800">สถานที่</p>
+                    <p className="text-xs text-gray-500 mt-1">จัดการพื้นที่ให้บริการ</p>
                 </Link>
 
                 <Link href="/admin/routes" className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md hover:border-amber-200 transition-all group">
                     <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center mb-3 group-hover:bg-amber-100 transition-colors">
                         <span className="material-symbols-outlined text-amber-600">route</span>
                     </div>
-                    <p className="font-medium text-gray-800">Route Pricing</p>
-                    <p className="text-xs text-gray-500 mt-1">Set pricing rules</p>
+                    <p className="font-medium text-gray-800">ราคาเส้นทาง</p>
+                    <p className="text-xs text-gray-500 mt-1">ตั้งราคาตามเส้นทาง</p>
                 </Link>
             </div>
         </div>

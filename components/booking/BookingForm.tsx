@@ -218,7 +218,7 @@ export default function BookingForm() {
                 onClick={() => setActiveModal('pickup')}
                 className="group cursor-pointer"
               >
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                <label htmlFor="pickupLocation" className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
                   {t.home.booking.pickupLocation}
                 </label>
                 <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border-2 border-transparent hover:border-blue-500/30 transition-all group-hover:bg-blue-50/50">
@@ -233,6 +233,7 @@ export default function BookingForm() {
                   </div>
                   <span className="material-symbols-outlined text-gray-300 group-hover:text-blue-500 transition-colors">chevron_right</span>
                 </div>
+                <input type="text" id="pickupLocation" name="pickupLocation" value={formData.pickupLocation} readOnly tabIndex={-1} className="sr-only" />
               </div>
 
               {/* Dropoff Location */}
@@ -240,7 +241,7 @@ export default function BookingForm() {
                 onClick={() => setActiveModal('dropoff')}
                 className="group cursor-pointer"
               >
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                <label htmlFor="dropoffLocation" className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
                   {t.home.booking.dropoffLocation}
                 </label>
                 <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border-2 border-transparent hover:border-orange-500/30 transition-all group-hover:bg-orange-50/50">
@@ -255,6 +256,7 @@ export default function BookingForm() {
                   </div>
                   <span className="material-symbols-outlined text-gray-300 group-hover:text-orange-500 transition-colors">chevron_right</span>
                 </div>
+                <input type="text" id="dropoffLocation" name="dropoffLocation" value={formData.dropoffLocation} readOnly tabIndex={-1} className="sr-only" />
               </div>
             </div>
 
@@ -269,7 +271,7 @@ export default function BookingForm() {
               <div className="flex gap-3">
                 {/* Date Picker - Click to open modal */}
                 <div className="flex-1">
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  <label htmlFor="pickupDate" className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
                     {t.home.booking.pickupDate}
                   </label>
                   <div
@@ -290,13 +292,12 @@ export default function BookingForm() {
                       <span className="material-symbols-outlined text-gray-300 group-hover:text-emerald-500">expand_more</span>
                     </div>
                   </div>
-                  {/* Hidden native input for form validation */}
-                  <input type="hidden" name="pickupDate" value={formData.pickupDate} required />
+                  <input type="text" id="pickupDate" name="pickupDate" value={formData.pickupDate} readOnly tabIndex={-1} className="sr-only" required />
                 </div>
 
                 {/* Time Picker - Click to open modal */}
                 <div className="w-32">
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  <label htmlFor="pickupTime" className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
                     {t.home.booking.pickupTime}
                   </label>
                   <div
@@ -313,6 +314,7 @@ export default function BookingForm() {
                       <span className="material-symbols-outlined text-gray-300 group-hover:text-purple-500">expand_more</span>
                     </div>
                   </div>
+                  <input type="text" id="pickupTime" name="pickupTime" value={formData.pickupTime} readOnly tabIndex={-1} className="sr-only" />
                 </div>
               </div>
 
@@ -379,10 +381,16 @@ export default function BookingForm() {
             {/* Search Input */}
             <div className="p-4 bg-gray-50 border-b border-gray-100">
               <div className="relative">
+                <label htmlFor="location-search" className="sr-only">
+                  {language === 'th' ? 'ค้นหาสถานที่' : 'Search locations'}
+                </label>
                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">search</span>
                 <input
+                  id="location-search"
+                  name="locationSearch"
                   type="text"
                   autoFocus
+                  autoComplete="off"
                   placeholder={language === 'th' ? 'ค้นหาสถานที่...' : 'Search locations...'}
                   className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-800 font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                   value={searchQuery}

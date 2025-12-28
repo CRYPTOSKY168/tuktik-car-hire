@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { auth } from '@/lib/firebase/config';
 
 interface Member {
     id: string;
@@ -43,7 +44,22 @@ export default function MembersPage() {
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
-    const [autoRefresh, setAutoRefresh] = useState(true);
+    const [autoRefresh, setAutoRefresh] = useState(false); // Disabled by default - user can enable if needed
+
+    // Get auth headers for API calls
+    const getAuthHeaders = useCallback(async (): Promise<HeadersInit> => {
+        try {
+            const user = auth?.currentUser;
+            if (!user) return { 'Content-Type': 'application/json' };
+            const token = await user.getIdToken();
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+        } catch {
+            return { 'Content-Type': 'application/json' };
+        }
+    }, []);
 
     useEffect(() => {
         loadMembers();
@@ -64,7 +80,8 @@ export default function MembersPage() {
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch('/api/admin/users');
+            const headers = await getAuthHeaders();
+            const response = await fetch('/api/admin/users', { headers });
             const data = await response.json();
 
             if (!data.success) {
@@ -92,9 +109,10 @@ export default function MembersPage() {
     const handleRoleChange = async (memberId: string, newRole: 'user' | 'admin') => {
         setActionLoading(memberId);
         try {
+            const headers = await getAuthHeaders();
             const response = await fetch('/api/admin/users', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     action: 'updateRole',
                     userId: memberId,
@@ -110,7 +128,7 @@ export default function MembersPage() {
             ));
         } catch (err: any) {
             console.error('Error updating role:', err);
-            alert('Failed to update role: ' + err.message);
+            alert('ไม่สามารถเปลี่ยนบทบาทได้: ' + err.message);
         } finally {
             setActionLoading(null);
         }
@@ -119,9 +137,10 @@ export default function MembersPage() {
     const handleToggleDisable = async (memberId: string, currentDisabled: boolean) => {
         setActionLoading(memberId);
         try {
+            const headers = await getAuthHeaders();
             const response = await fetch('/api/admin/users', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     action: 'toggleDisable',
                     userId: memberId,
@@ -137,7 +156,7 @@ export default function MembersPage() {
             ));
         } catch (err: any) {
             console.error('Error toggling disable:', err);
-            alert('Failed to update status: ' + err.message);
+            alert('ไม่สามารถเปลี่ยนสถานะได้: ' + err.message);
         } finally {
             setActionLoading(null);
         }
@@ -146,9 +165,10 @@ export default function MembersPage() {
     const handleApproveDriver = async (memberId: string) => {
         setActionLoading(memberId);
         try {
+            const headers = await getAuthHeaders();
             const response = await fetch('/api/admin/users', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     action: 'approveDriver',
                     userId: memberId,
@@ -163,20 +183,21 @@ export default function MembersPage() {
             ));
         } catch (err: any) {
             console.error('Error approving driver:', err);
-            alert('Failed to approve driver: ' + err.message);
+            alert('ไม่สามารถอนุมัติคนขับได้: ' + err.message);
         } finally {
             setActionLoading(null);
         }
     };
 
     const handleRevokeDriver = async (memberId: string) => {
-        if (!confirm('Are you sure you want to revoke driver access?')) return;
+        if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการยกเลิกสิทธิ์คนขับ?')) return;
 
         setActionLoading(memberId);
         try {
+            const headers = await getAuthHeaders();
             const response = await fetch('/api/admin/users', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     action: 'revokeDriver',
                     userId: memberId,
@@ -191,7 +212,7 @@ export default function MembersPage() {
             ));
         } catch (err: any) {
             console.error('Error revoking driver:', err);
-            alert('Failed to revoke driver: ' + err.message);
+            alert('ไม่สามารถยกเลิกสิทธิ์คนขับได้: ' + err.message);
         } finally {
             setActionLoading(null);
         }
@@ -228,26 +249,26 @@ export default function MembersPage() {
     const getDriverStatus = (member: Member) => {
         // Rejected - needs to re-upload documents
         if (member.driverData?.setupStatus === 'rejected') {
-            return { label: 'Rejected', color: 'bg-red-100 text-red-700', icon: 'cancel' };
+            return { label: 'ถูกปฏิเสธ', color: 'bg-red-100 text-red-700', icon: 'cancel' };
         }
         // Has vehicle info but pending review
         if (member.driverData?.setupStatus === 'pending_review') {
-            return { label: 'Pending Review', color: 'bg-orange-100 text-orange-700', icon: 'rate_review' };
+            return { label: 'รอตรวจสอบ', color: 'bg-orange-100 text-orange-700', icon: 'rate_review' };
         }
         // Active driver (approved setup)
         if (member.isDriver && member.hasVehicleInfo && member.driverData?.setupStatus === 'approved') {
-            return { label: 'Active Driver', color: 'bg-green-100 text-green-700', icon: 'local_taxi' };
+            return { label: 'คนขับ', color: 'bg-green-100 text-green-700', icon: 'local_taxi' };
         }
         // Approved but hasn't filled vehicle info yet
         if (member.isApprovedDriver && !member.hasVehicleInfo && !member.isDriver) {
-            return { label: 'Pending Setup', color: 'bg-amber-100 text-amber-700', icon: 'pending' };
+            return { label: 'รอตั้งค่า', color: 'bg-amber-100 text-amber-700', icon: 'pending' };
         }
         // Has vehicle info but no setupStatus (old drivers - treat as active)
         if (member.isDriver && member.hasVehicleInfo && !member.driverData?.setupStatus) {
-            return { label: 'Active Driver', color: 'bg-green-100 text-green-700', icon: 'local_taxi' };
+            return { label: 'คนขับ', color: 'bg-green-100 text-green-700', icon: 'local_taxi' };
         }
         if (member.isApprovedDriver) {
-            return { label: 'Approved', color: 'bg-blue-100 text-blue-700', icon: 'check_circle' };
+            return { label: 'อนุมัติแล้ว', color: 'bg-blue-100 text-blue-700', icon: 'check_circle' };
         }
         return null;
     };
@@ -255,9 +276,10 @@ export default function MembersPage() {
     const handleApproveDriverSetup = async (memberId: string) => {
         setActionLoading(memberId);
         try {
+            const headers = await getAuthHeaders();
             const response = await fetch('/api/admin/users', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     action: 'approveDriverSetup',
                     userId: memberId,
@@ -271,20 +293,21 @@ export default function MembersPage() {
             await loadMembers();
         } catch (err: any) {
             console.error('Error approving driver setup:', err);
-            alert('Failed to approve driver setup: ' + err.message);
+            alert('ไม่สามารถอนุมัติข้อมูลคนขับได้: ' + err.message);
         } finally {
             setActionLoading(null);
         }
     };
 
     const handleRejectDriverSetup = async (memberId: string) => {
-        if (!confirm('Are you sure you want to reject this driver setup?')) return;
+        if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการปฏิเสธการลงทะเบียนคนขับนี้?')) return;
 
         setActionLoading(memberId);
         try {
+            const headers = await getAuthHeaders();
             const response = await fetch('/api/admin/users', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     action: 'rejectDriverSetup',
                     userId: memberId,
@@ -298,7 +321,7 @@ export default function MembersPage() {
             await loadMembers();
         } catch (err: any) {
             console.error('Error rejecting driver setup:', err);
-            alert('Failed to reject driver setup: ' + err.message);
+            alert('ไม่สามารถปฏิเสธข้อมูลคนขับได้: ' + err.message);
         } finally {
             setActionLoading(null);
         }
@@ -335,7 +358,7 @@ export default function MembersPage() {
             <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="flex flex-col items-center gap-4">
                     <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                    <p className="text-gray-500">Loading members from Firebase Auth...</p>
+                    <p className="text-gray-500">กำลังโหลดข้อมูลสมาชิก...</p>
                 </div>
             </div>
         );
@@ -346,13 +369,13 @@ export default function MembersPage() {
             <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="bg-red-50 border border-red-200 rounded-xl p-6 max-w-md text-center">
                     <span className="material-symbols-outlined text-4xl text-red-500 mb-3">error</span>
-                    <h3 className="text-lg font-semibold text-red-800 mb-2">Failed to Load Members</h3>
+                    <h3 className="text-lg font-semibold text-red-800 mb-2">ไม่สามารถโหลดข้อมูลได้</h3>
                     <p className="text-sm text-red-600 mb-4">{error}</p>
                     <button
                         onClick={loadMembers}
                         className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                     >
-                        Try Again
+                        ลองใหม่
                     </button>
                 </div>
             </div>
@@ -364,13 +387,13 @@ export default function MembersPage() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-800">Members Management</h1>
-                    <p className="text-gray-500">Manage users and approve drivers</p>
+                    <h1 className="text-2xl font-bold text-gray-800">จัดการสมาชิก</h1>
+                    <p className="text-gray-500">จัดการผู้ใช้และอนุมัติคนขับ</p>
                 </div>
                 <div className="flex items-center gap-3">
                     {/* Last refresh time */}
                     <div className="text-xs text-gray-500">
-                        Last updated: {lastRefresh.toLocaleTimeString('th-TH')}
+                        อัปเดตล่าสุด: {lastRefresh.toLocaleTimeString('th-TH')}
                     </div>
                     {/* Auto-refresh toggle */}
                     <button
@@ -380,7 +403,7 @@ export default function MembersPage() {
                                 ? 'bg-green-100 text-green-700 hover:bg-green-200'
                                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         }`}
-                        title={autoRefresh ? 'Auto-refresh ON (every 30s)' : 'Auto-refresh OFF'}
+                        title={autoRefresh ? 'รีเฟรชอัตโนมัติ เปิด (ทุก 30 วินาที)' : 'รีเฟรชอัตโนมัติ ปิด'}
                     >
                         <span className="material-symbols-outlined text-lg">
                             {autoRefresh ? 'sync' : 'sync_disabled'}
@@ -393,7 +416,7 @@ export default function MembersPage() {
                         className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
                     >
                         <span className={`material-symbols-outlined text-lg ${loading ? 'animate-spin' : ''}`}>refresh</span>
-                        Refresh
+                        รีเฟรช
                     </button>
                 </div>
             </div>
@@ -407,7 +430,7 @@ export default function MembersPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
-                            <p className="text-sm text-gray-500">Total</p>
+                            <p className="text-sm text-gray-500">ทั้งหมด</p>
                         </div>
                     </div>
                 </div>
@@ -418,7 +441,7 @@ export default function MembersPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-gray-800">{stats.admins}</p>
-                            <p className="text-sm text-gray-500">Admins</p>
+                            <p className="text-sm text-gray-500">แอดมิน</p>
                         </div>
                     </div>
                 </div>
@@ -429,7 +452,7 @@ export default function MembersPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-gray-800">{stats.approvedDrivers}</p>
-                            <p className="text-sm text-gray-500">Approved</p>
+                            <p className="text-sm text-gray-500">อนุมัติแล้ว</p>
                         </div>
                     </div>
                 </div>
@@ -440,7 +463,7 @@ export default function MembersPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-gray-800">{stats.activeDrivers}</p>
-                            <p className="text-sm text-gray-500">Active Drivers</p>
+                            <p className="text-sm text-gray-500">คนขับ</p>
                         </div>
                     </div>
                 </div>
@@ -451,7 +474,7 @@ export default function MembersPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-gray-800">{stats.pendingReview}</p>
-                            <p className="text-sm text-gray-500">Pending Review</p>
+                            <p className="text-sm text-gray-500">รอตรวจสอบ</p>
                         </div>
                     </div>
                 </div>
@@ -463,7 +486,7 @@ export default function MembersPage() {
                             </div>
                             <div>
                                 <p className="text-2xl font-bold text-gray-800">{stats.rejected}</p>
-                                <p className="text-sm text-gray-500">Rejected</p>
+                                <p className="text-sm text-gray-500">ถูกปฏิเสธ</p>
                             </div>
                         </div>
                     </div>
@@ -475,37 +498,51 @@ export default function MembersPage() {
                 <div className="flex flex-col lg:flex-row gap-4">
                     {/* Search */}
                     <div className="flex-1 relative">
+                        <label htmlFor="member-search" className="sr-only">ค้นหาสมาชิก</label>
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
                         <input
+                            id="member-search"
+                            name="memberSearch"
                             type="text"
-                            placeholder="Search by name, email, or phone..."
+                            placeholder="ค้นหาด้วยชื่อ, อีเมล, หรือเบอร์โทร..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
+                            autoComplete="off"
                             className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
                         />
                     </div>
 
                     {/* Role Filter */}
-                    <select
-                        value={roleFilter}
-                        onChange={(e) => setRoleFilter(e.target.value as any)}
-                        className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                    >
-                        <option value="all">All Roles</option>
-                        <option value="user">Users</option>
-                        <option value="admin">Admins</option>
-                    </select>
+                    <div>
+                        <label htmlFor="role-filter" className="sr-only">กรองตามบทบาท</label>
+                        <select
+                            id="role-filter"
+                            name="roleFilter"
+                            value={roleFilter}
+                            onChange={(e) => setRoleFilter(e.target.value as any)}
+                            className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                        >
+                            <option value="all">ทุกบทบาท</option>
+                            <option value="user">สมาชิก</option>
+                            <option value="admin">แอดมิน</option>
+                        </select>
+                    </div>
 
                     {/* Driver Filter */}
-                    <select
-                        value={driverFilter}
-                        onChange={(e) => setDriverFilter(e.target.value as any)}
-                        className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                    >
-                        <option value="all">All Members</option>
-                        <option value="approved">Approved Drivers</option>
-                        <option value="not_approved">Not Approved</option>
-                    </select>
+                    <div>
+                        <label htmlFor="driver-filter" className="sr-only">กรองตามสถานะคนขับ</label>
+                        <select
+                            id="driver-filter"
+                            name="driverFilter"
+                            value={driverFilter}
+                            onChange={(e) => setDriverFilter(e.target.value as any)}
+                            className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                        >
+                            <option value="all">ทุกสมาชิก</option>
+                            <option value="approved">คนขับที่อนุมัติ</option>
+                            <option value="not_approved">ยังไม่อนุมัติ</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -514,19 +551,19 @@ export default function MembersPage() {
                 {filteredMembers.length === 0 ? (
                     <div className="p-12 text-center">
                         <span className="material-symbols-outlined text-5xl text-gray-300 mb-3">person_off</span>
-                        <p className="text-gray-500">No members found</p>
+                        <p className="text-gray-500">ไม่พบสมาชิก</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead className="bg-gray-50 border-b border-gray-200">
                                 <tr>
-                                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Member</th>
-                                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Contact</th>
-                                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Role</th>
-                                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Driver Status</th>
-                                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Last Sign In</th>
-                                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Actions</th>
+                                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">สมาชิก</th>
+                                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">ติดต่อ</th>
+                                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">บทบาท</th>
+                                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">สถานะคนขับ</th>
+                                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">เข้าใช้ล่าสุด</th>
+                                    <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">การดำเนินการ</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
@@ -550,10 +587,10 @@ export default function MembersPage() {
                                                     <div>
                                                         <div className="flex items-center gap-2">
                                                             <p className="font-medium text-gray-800">
-                                                                {member.displayName || 'No Name'}
+                                                                {member.displayName || 'ไม่มีชื่อ'}
                                                             </p>
                                                             {member.emailVerified && (
-                                                                <span className="material-symbols-outlined text-blue-500 text-sm" title="Email Verified">verified</span>
+                                                                <span className="material-symbols-outlined text-blue-500 text-sm" title="ยืนยันอีเมลแล้ว">verified</span>
                                                             )}
                                                         </div>
                                                         <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -576,7 +613,7 @@ export default function MembersPage() {
                                                     <span className="material-symbols-outlined text-sm">
                                                         {member.role === 'admin' ? 'shield' : 'person'}
                                                     </span>
-                                                    {member.role === 'admin' ? 'Admin' : 'User'}
+                                                    {member.role === 'admin' ? 'แอดมิน' : 'สมาชิก'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">
@@ -610,7 +647,7 @@ export default function MembersPage() {
                                                             setShowDetailModal(true);
                                                         }}
                                                         className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
-                                                        title="View Details"
+                                                        title="ดูรายละเอียด"
                                                     >
                                                         <span className="material-symbols-outlined text-lg">visibility</span>
                                                     </button>
@@ -624,7 +661,7 @@ export default function MembersPage() {
                                                                 ? 'bg-purple-100 text-purple-600 hover:bg-purple-200'
                                                                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                                         }`}
-                                                        title={member.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
+                                                        title={member.role === 'admin' ? 'ลบสิทธิ์แอดมิน' : 'ตั้งเป็นแอดมิน'}
                                                     >
                                                         <span className="material-symbols-outlined text-lg">
                                                             {member.role === 'admin' ? 'shield' : 'add_moderator'}
@@ -641,7 +678,7 @@ export default function MembersPage() {
                                                                 }}
                                                                 disabled={actionLoading === member.id}
                                                                 className="p-2 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors"
-                                                                title="View & Approve Setup"
+                                                                title="ดูและอนุมัติ"
                                                             >
                                                                 <span className="material-symbols-outlined text-lg">rate_review</span>
                                                             </button>
@@ -649,7 +686,7 @@ export default function MembersPage() {
                                                                 onClick={() => handleApproveDriverSetup(member.id)}
                                                                 disabled={actionLoading === member.id}
                                                                 className="p-2 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 transition-colors"
-                                                                title="Approve Vehicle Setup"
+                                                                title="อนุมัติข้อมูลรถ"
                                                             >
                                                                 <span className="material-symbols-outlined text-lg">check_circle</span>
                                                             </button>
@@ -657,7 +694,7 @@ export default function MembersPage() {
                                                                 onClick={() => handleRejectDriverSetup(member.id)}
                                                                 disabled={actionLoading === member.id}
                                                                 className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
-                                                                title="Reject Vehicle Setup"
+                                                                title="ปฏิเสธข้อมูลรถ"
                                                             >
                                                                 <span className="material-symbols-outlined text-lg">cancel</span>
                                                             </button>
@@ -667,7 +704,7 @@ export default function MembersPage() {
                                                             onClick={() => handleApproveDriver(member.id)}
                                                             disabled={actionLoading === member.id}
                                                             className="p-2 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 transition-colors"
-                                                            title="Approve as Driver"
+                                                            title="อนุมัติเป็นคนขับ"
                                                         >
                                                             <span className="material-symbols-outlined text-lg">how_to_reg</span>
                                                         </button>
@@ -676,7 +713,7 @@ export default function MembersPage() {
                                                             onClick={() => handleRevokeDriver(member.id)}
                                                             disabled={actionLoading === member.id}
                                                             className="p-2 rounded-lg bg-orange-100 text-orange-600 hover:bg-orange-200 transition-colors"
-                                                            title="Revoke Driver Access"
+                                                            title="ยกเลิกสิทธิ์คนขับ"
                                                         >
                                                             <span className="material-symbols-outlined text-lg">person_remove</span>
                                                         </button>
@@ -691,7 +728,7 @@ export default function MembersPage() {
                                                                 ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
                                                                 : 'bg-red-100 text-red-600 hover:bg-red-200'
                                                         }`}
-                                                        title={member.disabled ? 'Enable Account' : 'Disable Account'}
+                                                        title={member.disabled ? 'เปิดใช้งานบัญชี' : 'ปิดการใช้งานบัญชี'}
                                                     >
                                                         <span className="material-symbols-outlined text-lg">
                                                             {member.disabled ? 'lock_open' : 'lock'}
@@ -714,7 +751,7 @@ export default function MembersPage() {
                     <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
                         <div className="p-6 border-b border-gray-200">
                             <div className="flex items-center justify-between">
-                                <h2 className="text-xl font-bold text-gray-800">Member Details</h2>
+                                <h2 className="text-xl font-bold text-gray-800">รายละเอียดสมาชิก</h2>
                                 <button
                                     onClick={() => { setShowDetailModal(false); setSelectedMember(null); }}
                                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -735,7 +772,7 @@ export default function MembersPage() {
                                     </div>
                                 )}
                                 <div>
-                                    <h3 className="text-lg font-semibold text-gray-800">{selectedMember.displayName || 'No Name'}</h3>
+                                    <h3 className="text-lg font-semibold text-gray-800">{selectedMember.displayName || 'ไม่มีชื่อ'}</h3>
                                     <p className="text-sm text-gray-500">{selectedMember.email}</p>
                                     <div className="flex gap-2 mt-1">
                                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${
@@ -744,7 +781,7 @@ export default function MembersPage() {
                                             {selectedMember.role}
                                         </span>
                                         {selectedMember.isApprovedDriver && (
-                                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">Driver</span>
+                                            <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">คนขับ</span>
                                         )}
                                     </div>
                                 </div>
@@ -757,27 +794,27 @@ export default function MembersPage() {
                                     <p className="text-sm font-mono text-gray-800 break-all">{selectedMember.uid}</p>
                                 </div>
                                 <div className="bg-gray-50 rounded-xl p-3">
-                                    <p className="text-xs text-gray-500 mb-1">Provider</p>
+                                    <p className="text-xs text-gray-500 mb-1">ผู้ให้บริการ</p>
                                     <p className="text-sm text-gray-800">{getProviderLabel(selectedMember.provider)}</p>
                                 </div>
                                 <div className="bg-gray-50 rounded-xl p-3">
-                                    <p className="text-xs text-gray-500 mb-1">Phone</p>
+                                    <p className="text-xs text-gray-500 mb-1">เบอร์โทร</p>
                                     <p className="text-sm text-gray-800">{selectedMember.phone || '-'}</p>
                                 </div>
                                 <div className="bg-gray-50 rounded-xl p-3">
-                                    <p className="text-xs text-gray-500 mb-1">Account Status</p>
+                                    <p className="text-xs text-gray-500 mb-1">สถานะบัญชี</p>
                                     <p className={`text-sm font-medium ${selectedMember.disabled ? 'text-red-600' : 'text-green-600'}`}>
-                                        {selectedMember.disabled ? 'Disabled' : 'Active'}
+                                        {selectedMember.disabled ? 'ปิดใช้งาน' : 'ใช้งานได้'}
                                     </p>
                                 </div>
                                 <div className="bg-gray-50 rounded-xl p-3">
-                                    <p className="text-xs text-gray-500 mb-1">Driver Status</p>
+                                    <p className="text-xs text-gray-500 mb-1">สถานะคนขับ</p>
                                     <p className={`text-sm font-medium ${selectedMember.isApprovedDriver ? 'text-green-600' : 'text-gray-500'}`}>
-                                        {selectedMember.isApprovedDriver ? (selectedMember.hasVehicleInfo ? 'Active' : 'Pending Setup') : 'Not Approved'}
+                                        {selectedMember.isApprovedDriver ? (selectedMember.hasVehicleInfo ? 'ใช้งานได้' : 'รอตั้งค่า') : 'ยังไม่อนุมัติ'}
                                     </p>
                                 </div>
                                 <div className="bg-gray-50 rounded-xl p-3">
-                                    <p className="text-xs text-gray-500 mb-1">Last Sign In</p>
+                                    <p className="text-xs text-gray-500 mb-1">เข้าใช้ล่าสุด</p>
                                     <p className="text-sm text-gray-800">{formatDate(selectedMember.lastSignIn)}</p>
                                 </div>
                             </div>
@@ -793,29 +830,29 @@ export default function MembersPage() {
                                         selectedMember.driverData.setupStatus === 'pending_review' ? 'text-orange-800' : 'text-green-800'
                                     }`}>
                                         <span className="material-symbols-outlined">local_taxi</span>
-                                        Vehicle Information
+                                        ข้อมูลรถ
                                         {selectedMember.driverData.setupStatus === 'rejected' && (
-                                            <span className="ml-auto px-2 py-0.5 bg-red-200 text-red-800 text-xs rounded-full">Rejected</span>
+                                            <span className="ml-auto px-2 py-0.5 bg-red-200 text-red-800 text-xs rounded-full">ถูกปฏิเสธ</span>
                                         )}
                                         {selectedMember.driverData.setupStatus === 'pending_review' && (
-                                            <span className="ml-auto px-2 py-0.5 bg-orange-200 text-orange-800 text-xs rounded-full">Pending Review</span>
+                                            <span className="ml-auto px-2 py-0.5 bg-orange-200 text-orange-800 text-xs rounded-full">รอตรวจสอบ</span>
                                         )}
                                     </h4>
                                     <div className="grid grid-cols-2 gap-3 text-sm">
                                         <div>
-                                            <p className="text-gray-500">License Plate</p>
+                                            <p className="text-gray-500">ทะเบียนรถ</p>
                                             <p className="font-medium text-gray-800">{selectedMember.driverData.vehiclePlate}</p>
                                         </div>
                                         <div>
-                                            <p className="text-gray-500">Vehicle</p>
+                                            <p className="text-gray-500">รุ่นรถ</p>
                                             <p className="font-medium text-gray-800">{selectedMember.driverData.vehicleModel}</p>
                                         </div>
                                         <div>
-                                            <p className="text-gray-500">Color</p>
+                                            <p className="text-gray-500">สี</p>
                                             <p className="font-medium text-gray-800">{selectedMember.driverData.vehicleColor}</p>
                                         </div>
                                         <div>
-                                            <p className="text-gray-500">Status</p>
+                                            <p className="text-gray-500">สถานะ</p>
                                             <p className="font-medium text-gray-800 capitalize">{selectedMember.driverData.status}</p>
                                         </div>
                                     </div>

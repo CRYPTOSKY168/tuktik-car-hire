@@ -257,12 +257,16 @@ export default function AdminRoutesPage() {
             {/* Search */}
             <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
                 <div className="relative">
+                    <label htmlFor="route-search" className="sr-only">ค้นหาเส้นทาง</label>
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
                     <input
+                        id="route-search"
+                        name="routeSearch"
                         type="text"
                         placeholder="Search routes by origin or destination..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
+                        autoComplete="off"
                         className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                     />
                 </div>
@@ -365,10 +369,12 @@ export default function AdminRoutesPage() {
                             {/* Route Selection */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Origin</label>
+                                    <label htmlFor="route-origin" className="block text-xs font-bold text-gray-500 uppercase mb-2">Origin</label>
                                     <div className="relative">
                                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500 text-lg">trip_origin</span>
                                         <select
+                                            id="route-origin"
+                                            name="originId"
                                             required
                                             value={formData.originId}
                                             onChange={e => setFormData({ ...formData, originId: e.target.value })}
@@ -385,10 +391,12 @@ export default function AdminRoutesPage() {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Destination</label>
+                                    <label htmlFor="route-destination" className="block text-xs font-bold text-gray-500 uppercase mb-2">Destination</label>
                                     <div className="relative">
                                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-red-500 text-lg">location_on</span>
                                         <select
+                                            id="route-destination"
+                                            name="destinationId"
                                             required
                                             value={formData.destinationId}
                                             onChange={e => setFormData({ ...formData, destinationId: e.target.value })}
@@ -409,11 +417,11 @@ export default function AdminRoutesPage() {
                             <div className="h-px bg-gray-100"></div>
 
                             {/* Vehicle Prices */}
-                            <div>
-                                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <fieldset>
+                                <legend className="font-bold text-gray-800 mb-4 flex items-center gap-2">
                                     <span className="material-symbols-outlined text-blue-600">payments</span>
                                     Vehicle Prices (THB)
-                                </h3>
+                                </legend>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                     {[
                                         { key: 'Sedan', icon: 'directions_car', color: 'blue' },
@@ -423,13 +431,15 @@ export default function AdminRoutesPage() {
                                         { key: 'Minibus', icon: 'directions_bus', color: 'emerald' },
                                     ].map((item) => (
                                         <div key={item.key} className="relative">
-                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-1">
+                                            <label htmlFor={`price-${item.key.toLowerCase()}`} className="block text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-1">
                                                 <span className={`material-symbols-outlined text-sm text-${item.color}-500`}>{item.icon}</span>
                                                 {item.key}
                                             </label>
                                             <div className="relative">
                                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">฿</span>
                                                 <input
+                                                    id={`price-${item.key.toLowerCase()}`}
+                                                    name={`price${item.key}`}
                                                     type="number"
                                                     placeholder="0"
                                                     // @ts-ignore
@@ -442,7 +452,7 @@ export default function AdminRoutesPage() {
                                         </div>
                                     ))}
                                 </div>
-                            </div>
+                            </fieldset>
 
                             <div className="flex gap-3 pt-4 border-t border-gray-100">
                                 <button
