@@ -141,9 +141,14 @@ export const NotificationService = {
 
     // Mark all as read
     async markAllAsRead(userId: string): Promise<void> {
-        if (!db) return;
+        if (!db) {
+            console.error('markAllAsRead: db is not initialized');
+            throw new Error('Database not initialized');
+        }
 
         try {
+            console.log('markAllAsRead: Starting for userId:', userId);
+
             const q = query(
                 collection(db, NOTIFICATIONS_COLLECTION),
                 where('userId', '==', userId),
@@ -151,13 +156,26 @@ export const NotificationService = {
             );
             const snapshot = await getDocs(q);
 
+            console.log('markAllAsRead: Found', snapshot.docs.length, 'unread notifications');
+
+            if (snapshot.empty) {
+                console.log('markAllAsRead: No unread notifications to update');
+                return;
+            }
+
             const batch = writeBatch(db);
             snapshot.docs.forEach((docSnap) => {
+                console.log('markAllAsRead: Updating doc:', docSnap.id);
                 batch.update(docSnap.ref, { read: true });
             });
             await batch.commit();
-        } catch (error) {
+
+            console.log('markAllAsRead: Successfully marked all as read');
+        } catch (error: any) {
             console.error('Error marking all as read:', error);
+            console.error('Error code:', error?.code);
+            console.error('Error message:', error?.message);
+            throw error; // Re-throw so caller can handle it
         }
     },
 
@@ -284,22 +302,39 @@ export const AdminNotificationService = {
 
     // Mark all as read
     async markAllAsRead(): Promise<void> {
-        if (!db) return;
+        if (!db) {
+            console.error('AdminNotificationService.markAllAsRead: db is not initialized');
+            throw new Error('Database not initialized');
+        }
 
         try {
+            console.log('AdminNotificationService.markAllAsRead: Starting');
+
             const q = query(
                 collection(db, ADMIN_NOTIFICATIONS_COLLECTION),
                 where('read', '==', false)
             );
             const snapshot = await getDocs(q);
 
+            console.log('AdminNotificationService.markAllAsRead: Found', snapshot.docs.length, 'unread notifications');
+
+            if (snapshot.empty) {
+                console.log('AdminNotificationService.markAllAsRead: No unread notifications to update');
+                return;
+            }
+
             const batch = writeBatch(db);
             snapshot.docs.forEach((docSnap) => {
                 batch.update(docSnap.ref, { read: true });
             });
             await batch.commit();
-        } catch (error) {
+
+            console.log('AdminNotificationService.markAllAsRead: Successfully marked all as read');
+        } catch (error: any) {
             console.error('Error marking all admin notifications as read:', error);
+            console.error('Error code:', error?.code);
+            console.error('Error message:', error?.message);
+            throw error; // Re-throw so caller can handle it
         }
     },
 

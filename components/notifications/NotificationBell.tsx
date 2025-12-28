@@ -138,21 +138,20 @@ export default function NotificationBell({ isAdmin = false }: NotificationBellPr
 
         setMarkingAllRead(true);
         try {
+            console.log('handleMarkAllRead: Starting...');
             if (isAdmin) {
                 await AdminNotificationService.markAllAsRead();
             } else if (user) {
+                console.log('handleMarkAllRead: Calling NotificationService.markAllAsRead for user:', user.uid);
                 await NotificationService.markAllAsRead(user.uid);
             }
-
-            // Immediately update local state for instant feedback
-            setNotifications((prev) =>
-                prev.map((n) => ({ ...n, read: true }))
-            );
-            setUnreadCount(0);
-            prevUnreadCountRef.current = 0;
-        } catch (error) {
+            console.log('handleMarkAllRead: Completed successfully');
+            // Real-time listener (onSnapshot) will automatically update the state
+        } catch (error: any) {
             console.error('Error marking all as read:', error);
-            alert(language === 'th' ? 'ไม่สามารถอ่านทั้งหมดได้ กรุณาลองใหม่' : 'Failed to mark all as read. Please try again.');
+            alert(language === 'th'
+                ? `ไม่สามารถอ่านทั้งหมดได้: ${error?.message || 'กรุณาลองใหม่'}`
+                : `Failed to mark all as read: ${error?.message || 'Please try again.'}`);
         } finally {
             setMarkingAllRead(false);
         }
