@@ -2,39 +2,175 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useBooking } from '@/lib/contexts/BookingContext';
+import { useBooking, Vehicle } from '@/lib/contexts/BookingContext';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
-import { vehicles as initialVehicles } from '@/lib/data/vehicles';
-import { Vehicle } from '@/lib/contexts/BookingContext';
-import Link from 'next/link';
-// We'll define a local list of vehicles that matches the assets we downloaded, 
-// basically mocking the "database" content for this new design.
-// In a real app we'd map the existing data to these images.
-
-const getVehicles = (t: any) => [
-  { id: 'mercedes-e', name: t.vehicles.vehiclesList.mercedesE.name, type: 'sedan', price: 150, passengers: 3, luggage: 2, transmission: 'Auto', image: '/images/mercedes-e.jpg', desc: t.vehicles.vehiclesList.mercedesE.desc, tag: t.vehicles.vehiclesList.mercedesE.tag },
-  { id: 'alphard', name: t.vehicles.vehiclesList.alphard.name, type: 'van', price: 200, passengers: 6, luggage: 4, transmission: 'Auto', image: '/images/alphard.jpg', desc: t.vehicles.vehiclesList.alphard.desc, tag: t.vehicles.vehiclesList.alphard.tag },
-  { id: 'bmw5', name: t.vehicles.vehiclesList.bmw5.name, type: 'sedan', price: 160, passengers: 3, luggage: 2, transmission: 'Hybrid', image: '/images/bmw5.jpg', desc: t.vehicles.vehiclesList.bmw5.desc, tag: t.vehicles.vehiclesList.bmw5.tag },
-  { id: 'tesla-s', name: t.vehicles.vehiclesList.teslaS.name, type: 'sedan', price: 180, passengers: 4, luggage: 2, transmission: 'EV', image: '/images/tesla-s.jpg', desc: t.vehicles.vehiclesList.teslaS.desc, tag: t.vehicles.vehiclesList.teslaS.tag },
-  { id: 'mercedes-v', name: t.vehicles.vehiclesList.mercedesV.name, type: 'van', price: 250, passengers: 7, luggage: 6, transmission: 'Auto', image: '/images/mercedes-v.jpg', desc: t.vehicles.vehiclesList.mercedesV.desc, tag: t.vehicles.vehiclesList.mercedesV.tag },
-  { id: 'audi-a6', name: t.vehicles.vehiclesList.audiA6.name, type: 'sedan', price: 155, passengers: 3, luggage: 2, transmission: 'A/C', image: '/images/audi-a6.jpg', desc: t.vehicles.vehiclesList.audiA6.desc, tag: t.vehicles.vehiclesList.audiA6.tag },
-  { id: 'lexus-es', name: t.vehicles.vehiclesList.lexusES.name, type: 'sedan', price: 140, passengers: 3, luggage: 2, transmission: 'Quiet', image: '/images/lexus-es.jpg', desc: t.vehicles.vehiclesList.lexusES.desc, tag: t.vehicles.vehiclesList.lexusES.tag },
-  { id: 'escalade', name: t.vehicles.vehiclesList.escalade.name, type: 'suv', price: 300, passengers: 6, luggage: 5, transmission: 'Prem.', image: '/images/cadillac-escalade.jpg', desc: t.vehicles.vehiclesList.escalade.desc, tag: t.vehicles.vehiclesList.escalade.tag },
-  { id: 'suburban', name: t.vehicles.vehiclesList.suburban.name, type: 'suv', price: 280, passengers: 7, luggage: 6, transmission: 'Power', image: '/images/chevy-suburban.jpg', desc: t.vehicles.vehiclesList.suburban.desc, tag: t.vehicles.vehiclesList.suburban.tag },
-  { id: 'camry', name: t.home.fleet.camry.name, type: 'sedan', price: 90, passengers: 4, luggage: 2, transmission: 'Eco', image: '/images/camry.jpg', desc: t.home.fleet.camry.desc, tag: t.home.fleet.economy },
-  { id: 'odyssey', name: t.vehicles.vehiclesList.odyssey.name, type: 'van', price: 130, passengers: 7, luggage: 4, transmission: 'Safe', image: '/images/honda-odyssey.jpg', desc: t.vehicles.vehiclesList.odyssey.desc, tag: t.vehicles.vehiclesList.odyssey.tag },
-  { id: 'transit', name: t.vehicles.vehiclesList.transit.name, type: 'van', price: 220, passengers: 12, luggage: 10, transmission: 'XL', image: '/images/ford-transit.jpg', desc: t.vehicles.vehiclesList.transit.desc, tag: t.vehicles.vehiclesList.transit.tag },
-];
+import { useCurrency } from '@/lib/contexts/CurrencyContext';
+import { FirestoreService } from '@/lib/firebase/firestore';
 
 export default function VehiclesPage() {
   const router = useRouter();
-  const { updateBooking } = useBooking();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const { updateBooking, bookingData, locations } = useBooking();
+  const { formatPrice } = useCurrency();
+  const [isLoading, setIsLoading] = useState(true);
 
-  const displayVehicles = getVehicles(t);
+  // State for vehicles from DB
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [filteredVehicles, setFilteredVehicles] = useState<any[]>([]);
+
+  // Filter state
+  const [selectedType, setSelectedType] = useState('all');
+
+  // Route Edit Dropdown
+  const [routeEditDropdown, setRouteEditDropdown] = useState<'pickup' | 'dropoff' | null>(null);
+
+  // Fetch Vehicles from Firestore
+  useEffect(() => {
+    const fetchVehicles = async () => {
+      setIsLoading(true);
+      try {
+        const dbVehicles = await FirestoreService.getVehicles();
+        const activeVehicles = dbVehicles.filter(v => v.isActive !== false).map(v => ({
+          id: v.id,
+          name: v.name,
+          type: v.type,
+          price: v.price,
+          priceUSD: v.priceUSD,
+          passengers: v.capacity || v.passengers || 4,
+          luggage: v.luggage || 2,
+          transmission: v.transmission || 'Auto',
+          image: v.image || '',
+          features: Array.isArray(v.features) ? v.features : [],
+          desc: Array.isArray(v.features) ? v.features.join(', ') : (v.features || v.desc || ''),
+          tag: v.tag || '',
+        }));
+
+        setVehicles(activeVehicles);
+        setFilteredVehicles(activeVehicles);
+      } catch (e) {
+        console.error("Failed to load vehicles", e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchVehicles();
+  }, []);
+
+  // Fetch Dynamic Route Price
+  const [routePrices, setRoutePrices] = useState<Record<string, number> | null>(null);
+
+  useEffect(() => {
+    const fetchRoutePrice = async () => {
+      if (bookingData.pickupLocation && bookingData.dropoffLocation && locations.length > 0) {
+        const resolveLocationObj = (input: string) => {
+          return locations.find(l =>
+            l.name?.en?.toLowerCase() === input.toLowerCase() ||
+            l.name?.th?.toLowerCase() === input.toLowerCase()
+          );
+        };
+
+        const originLoc = resolveLocationObj(bookingData.pickupLocation);
+        const destinationLoc = resolveLocationObj(bookingData.dropoffLocation);
+
+        const originId = originLoc?.id || bookingData.pickupLocation;
+        const destinationId = destinationLoc?.id || bookingData.dropoffLocation;
+
+        let prices = await FirestoreService.getRoutePrice(originId, destinationId);
+
+        if (!prices && originLoc && destinationLoc) {
+          const enOrigin = originLoc.name.en;
+          const enDest = destinationLoc.name.en;
+          let retryPrices = await FirestoreService.getRoutePrice(enOrigin, enDest);
+
+          if (!retryPrices) {
+            const cleanName = (s: string) => s.replace(/\s*\([^)]*\)/g, '').trim();
+            retryPrices = await FirestoreService.getRoutePrice(cleanName(enOrigin), cleanName(enDest));
+          }
+
+          if (retryPrices) prices = retryPrices;
+        }
+
+        setRoutePrices(prices as any);
+      } else {
+        setRoutePrices(null);
+      }
+    };
+    fetchRoutePrice();
+  }, [bookingData.pickupLocation, bookingData.dropoffLocation, locations]);
+
+  const getDynamicPrice = (vehicle: any) => {
+    if (routePrices) {
+      const type = vehicle.type?.toLowerCase() || '';
+      const name = vehicle.name?.toLowerCase() || '';
+      const features = vehicle.features?.join(' ').toLowerCase() || '';
+      const combined = `${type} ${name} ${features}`;
+
+      if (combined.includes('luxury') || combined.includes('vip') ||
+        name.includes('alphard') || name.includes('mercedes') ||
+        name.includes('bmw') || name.includes('tesla')) {
+        return routePrices['luxury'] || vehicle.price;
+      }
+
+      if (combined.includes('minibus') || combined.includes('bus') ||
+        combined.includes('transit') || (type === 'van' && vehicle.capacity > 9)) {
+        return routePrices['minibus'] || routePrices['van'] || vehicle.price;
+      }
+
+      if (type === 'van' || combined.includes('van')) return routePrices['van'] || vehicle.price;
+      if (type === 'suv' || combined.includes('suv')) return routePrices['suv'] || vehicle.price;
+      if (type === 'sedan' || combined.includes('sedan')) return routePrices['sedan'] || vehicle.price;
+
+      if (routePrices[type]) return routePrices[type];
+    }
+    return vehicle.price;
+  };
+
+  // Apply filters
+  useEffect(() => {
+    let result = vehicles;
+    if (selectedType !== 'all') {
+      result = result.filter(v => {
+        if (selectedType === 'luxury') return ['mercedes-s', 'tesla-s', 'bmw7', 'alphard'].includes(v.id) || v.price > 2000;
+        return v.type === selectedType;
+      });
+    }
+    setFilteredVehicles(result);
+  }, [vehicles, selectedType]);
+
+  const vehicleTypes = [
+    { value: 'all', label: language === 'th' ? 'ทั้งหมด' : 'All', icon: 'apps' },
+    { value: 'sedan', label: language === 'th' ? 'ซีดาน' : 'Sedan', icon: 'directions_car' },
+    { value: 'suv', label: 'SUV', icon: 'directions_car' },
+    { value: 'van', label: language === 'th' ? 'แวน' : 'Van', icon: 'airport_shuttle' },
+  ];
+
+  // Modal State
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [pendingVehicle, setPendingVehicle] = useState<any>(null);
+  const [tripDetails, setTripDetails] = useState({
+    pickupLocation: '',
+    dropoffLocation: '',
+    pickupDate: '',
+    pickupTime: '10:00',
+  });
+  const [activeDropdown, setActiveDropdown] = useState<'pickup' | 'dropoff' | null>(null);
 
   const handleVehicleSelect = (vehicle: any) => {
-    // Map to the shape expected by context if needed, or update context type
+    if (!bookingData.pickupLocation || !bookingData.dropoffLocation || !bookingData.pickupDate) {
+      setPendingVehicle(vehicle);
+      setTripDetails({
+        pickupLocation: bookingData.pickupLocation || '',
+        dropoffLocation: bookingData.dropoffLocation || '',
+        pickupDate: bookingData.pickupDate || new Date().toISOString().split('T')[0],
+        pickupTime: bookingData.pickupTime || '10:00',
+      });
+      setIsDetailsModalOpen(true);
+      return;
+    }
+    proceedToBooking(vehicle);
+  };
+
+  const proceedToBooking = (vehicle: any) => {
     updateBooking({
       vehicle: {
         id: vehicle.id,
@@ -44,97 +180,629 @@ export default function VehiclesPage() {
         image: vehicle.image,
         passengers: vehicle.passengers,
         luggage: vehicle.luggage,
-        transmission: vehicle.transmission
+        transmission: vehicle.transmission,
+        features: vehicle.features || [],
+        isFixedPrice: vehicle.isFixedPrice || false
       } as Vehicle
     });
-    router.push('/payment'); // Proceed to payment
+    router.push('/payment');
   };
 
-  return (
-    <main className="flex-1 flex flex-col items-center min-h-screen bg-white dark:bg-[#111418]">
-      <div className="w-full max-w-[1440px] px-6 lg:px-20 py-8">
-        {/* PageHeading */}
-        <div className="mb-8 flex flex-col gap-2 md:mb-10">
-          <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white md:text-5xl">{t.vehicles.title}</h1>
-          <p className="max-w-2xl text-lg text-slate-600 dark:text-slate-400">{t.vehicles.subtitle}</p>
-        </div>
+  const handleConfirmDetails = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateBooking({
+      pickupLocation: tripDetails.pickupLocation,
+      dropoffLocation: tripDetails.dropoffLocation,
+      pickupDate: tripDetails.pickupDate,
+      pickupTime: tripDetails.pickupTime,
+    });
+    setIsDetailsModalOpen(false);
+    if (pendingVehicle) {
+      proceedToBooking(pendingVehicle);
+    }
+  };
 
-        {/* Sticky Filters Bar */}
-        <div className="sticky top-[72px] z-40 -mx-6 mb-8 bg-background-light/95 px-6 py-4 backdrop-blur dark:bg-background-dark/95 lg:-mx-20 lg:px-20 border-b border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 mr-2 text-slate-500 dark:text-slate-400">
-              <span className="material-symbols-outlined">tune</span>
-              <span className="text-sm font-medium">{t.vehicles.filters}</span>
-            </div>
-            <button className="group flex h-9 items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white pl-4 pr-3 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-brand-primary hover:text-brand-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-brand-primary">
-              <span>{t.home.booking.vehicleType}</span>
-              <span className="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-brand-primary">keyboard_arrow_down</span>
-            </button>
-            <button className="group flex h-9 items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white pl-4 pr-3 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-brand-primary hover:text-brand-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-brand-primary">
-              <span>{t.vehicles.priceRange}</span>
-              <span className="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-brand-primary">keyboard_arrow_down</span>
-            </button>
-            <button className="group flex h-9 items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white pl-4 pr-3 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-brand-primary hover:text-brand-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-brand-primary">
-              <span>{t.vehicles.passengers}</span>
-              <span className="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-brand-primary">keyboard_arrow_down</span>
-            </button>
-            <div className="ml-auto flex items-center gap-2">
-              <span className="text-sm text-slate-500">Sort by:</span>
-              <button className="text-sm font-semibold text-slate-900 dark:text-white hover:text-brand-primary flex items-center gap-1">
-                Recommended <span className="material-symbols-outlined text-[18px]">sort</span>
-              </button>
-            </div>
+  const getTypeConfig = (type: string) => {
+    switch (type) {
+      case 'sedan': return { bg: 'from-blue-500 to-indigo-600', light: 'bg-blue-50', text: 'text-blue-700', shadow: 'shadow-blue-500/30' };
+      case 'suv': return { bg: 'from-orange-500 to-amber-600', light: 'bg-orange-50', text: 'text-orange-700', shadow: 'shadow-orange-500/30' };
+      case 'van': return { bg: 'from-purple-500 to-violet-600', light: 'bg-purple-50', text: 'text-purple-700', shadow: 'shadow-purple-500/30' };
+      default: return { bg: 'from-gray-500 to-gray-600', light: 'bg-gray-50', text: 'text-gray-700', shadow: 'shadow-gray-500/30' };
+    }
+  };
+
+  // Check if both locations are selected
+  const hasLocations = bookingData.pickupLocation && bookingData.dropoffLocation;
+
+  // Loading State - Finance Style
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center min-h-[60vh] bg-[#f8fafc]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-blue-100 rounded-full"></div>
+            <div className="w-16 h-16 border-4 border-blue-600 rounded-full animate-spin border-t-transparent absolute top-0 left-0"></div>
+          </div>
+          <div className="text-center">
+            <p className="text-gray-800 font-semibold">{language === 'th' ? 'กำลังโหลดรถ...' : 'Loading vehicles...'}</p>
+            <p className="text-sm text-gray-500">{language === 'th' ? 'กรุณารอสักครู่' : 'Please wait'}</p>
           </div>
         </div>
+      </div>
+    );
+  }
 
-        {/* Vehicle Grid */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {displayVehicles.map((vehicle) => (
-            <div key={vehicle.id} className="group relative flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-slate-700 dark:bg-slate-800 dark:shadow-slate-900/50">
-              <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-900">
-                <div className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
-                  style={{ backgroundImage: `url('${vehicle.image}')` }}></div>
-                {vehicle.tag && (
-                  <div className="absolute top-3 right-3 rounded-full bg-white/90 px-2 py-1 text-xs font-bold text-slate-900 shadow-sm backdrop-blur">
-                    {vehicle.tag}
-                  </div>
-                )}
+  return (
+    <div className="flex-1 flex flex-col w-full bg-[#f8fafc] dark:bg-[#0f1419] min-h-screen">
+      <div className="w-full max-w-[1440px] mx-auto px-4 lg:px-8 py-6 lg:py-8">
+
+        {/* Location Required View - Finance Style */}
+        {!hasLocations && (
+          <div className="min-h-[70vh] flex items-center justify-center">
+            <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 md:p-12 max-w-xl w-full">
+              {/* Header */}
+              <div className="text-center mb-8">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                  <span className="material-symbols-outlined text-white text-4xl">route</span>
+                </div>
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
+                  {language === 'th' ? 'เลือกเส้นทางของคุณ' : 'Select Your Route'}
+                </h2>
+                <p className="text-gray-500">
+                  {language === 'th'
+                    ? 'กรุณาเลือกจุดรับและจุดส่งเพื่อดูราคาที่แม่นยำ'
+                    : 'Select pickup and dropoff to see accurate pricing'}
+                </p>
               </div>
-              <div className="flex flex-1 flex-col p-5">
-                <div className="mb-2">
-                  <h3 className="font-display text-lg font-bold text-slate-900 dark:text-white">{vehicle.name}</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-1">{vehicle.desc}</p>
+
+              {/* Location Selectors */}
+              <div className="space-y-4">
+                {/* Pickup */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                      {language === 'th' ? 'จุดรับ' : 'Pickup Location'}
+                    </span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-emerald-500">trip_origin</span>
+                    <select
+                      value={bookingData.pickupLocation || ''}
+                      onChange={(e) => updateBooking({ pickupLocation: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-gray-800 appearance-none cursor-pointer font-medium transition-all"
+                    >
+                      <option value="">{language === 'th' ? '-- เลือกจุดรับ --' : '-- Select Pickup --'}</option>
+                      {locations.map((loc) => (
+                        <option key={loc.id} value={language === 'th' ? loc.name?.th : loc.name?.en}>
+                          {language === 'th' ? loc.name?.th : loc.name?.en}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-gray-400">expand_more</span>
+                  </div>
                 </div>
-                <div className="mb-4 flex items-center gap-4 text-sm text-slate-600 dark:text-slate-300">
-                  <div className="flex items-center gap-1.5" title="Passengers">
-                    <span className="material-symbols-outlined text-[18px] text-brand-primary">group</span>
-                    <span>{vehicle.passengers}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5" title="Luggage">
-                    <span className="material-symbols-outlined text-[18px] text-brand-primary">luggage</span>
-                    <span>{vehicle.luggage}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5" title="Transmission">
-                    <span className="material-symbols-outlined text-[18px] text-brand-primary">settings</span>
-                    <span>{vehicle.transmission}</span>
+
+                {/* Dropoff */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                      {language === 'th' ? 'จุดส่ง' : 'Dropoff Location'}
+                    </span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-red-500">location_on</span>
+                    <select
+                      value={bookingData.dropoffLocation || ''}
+                      onChange={(e) => updateBooking({ dropoffLocation: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-gray-800 appearance-none cursor-pointer font-medium transition-all"
+                    >
+                      <option value="">{language === 'th' ? '-- เลือกจุดส่ง --' : '-- Select Dropoff --'}</option>
+                      {locations.map((loc) => (
+                        <option key={loc.id} value={language === 'th' ? loc.name?.th : loc.name?.en}>
+                          {language === 'th' ? loc.name?.th : loc.name?.en}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-gray-400">expand_more</span>
                   </div>
                 </div>
-                <div className="mt-auto flex items-center justify-between border-t border-slate-100 pt-4 dark:border-slate-700">
-                  <div className="flex flex-col">
-                    <span className="text-xs text-slate-400">Daily Rate</span>
-                    <span className="text-xl font-bold text-brand-primary">${vehicle.price}</span>
+              </div>
+
+              {/* Back Button */}
+              <div className="mt-8 pt-6 border-t border-gray-100 text-center">
+                <button
+                  onClick={() => router.push('/')}
+                  className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-semibold transition-colors"
+                >
+                  <span className="material-symbols-outlined">arrow_back</span>
+                  {language === 'th' ? 'กลับหน้าหลัก' : 'Back to Home'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content - Finance Style */}
+        {hasLocations && (
+          <>
+            {/* Page Header */}
+            <div className="mb-6">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 dark:text-white">
+                    {language === 'th' ? 'เลือกรถของคุณ' : 'Choose Your Vehicle'}
+                  </h1>
+                  <p className="text-gray-500 text-sm mt-1">
+                    {language === 'th' ? 'เลือกรถที่เหมาะกับการเดินทางของคุณ' : 'Select the perfect vehicle for your journey'}
+                  </p>
+                </div>
+
+                {/* Route Display - Editable */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Pickup */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setRouteEditDropdown(routeEditDropdown === 'pickup' ? null : 'pickup')}
+                      className="group flex items-center gap-2 px-4 py-3 bg-white hover:bg-gray-50 rounded-xl shadow-sm border border-gray-200 hover:border-emerald-400 transition-all"
+                    >
+                      <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-green-600 rounded-lg flex items-center justify-center shadow-sm">
+                        <span className="material-symbols-outlined text-white text-sm">trip_origin</span>
+                      </div>
+                      <div className="text-left">
+                        <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">{language === 'th' ? 'จุดรับ' : 'Pickup'}</p>
+                        <p className="text-sm font-semibold text-gray-800 max-w-[120px] truncate">{bookingData.pickupLocation}</p>
+                      </div>
+                      <span className="material-symbols-outlined text-gray-400 text-sm group-hover:text-emerald-500 transition-colors">edit</span>
+                    </button>
+
+                    {routeEditDropdown === 'pickup' && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setRouteEditDropdown(null)}></div>
+                        <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                          <div className="p-3 border-b border-gray-100 bg-gradient-to-r from-emerald-500 to-green-600">
+                            <p className="text-xs font-bold text-white uppercase tracking-wider">{language === 'th' ? 'เลือกจุดรับ' : 'Select Pickup'}</p>
+                          </div>
+                          <div className="max-h-64 overflow-y-auto">
+                            {locations.map((loc) => (
+                              <button
+                                key={loc.id}
+                                onClick={() => {
+                                  updateBooking({ pickupLocation: language === 'th' ? loc.name?.th : loc.name?.en });
+                                  setRouteEditDropdown(null);
+                                }}
+                                className={`w-full text-left px-4 py-3 text-sm hover:bg-emerald-50 transition-colors flex items-center gap-3 border-b border-gray-50 last:border-0 ${bookingData.pickupLocation === (language === 'th' ? loc.name?.th : loc.name?.en) ? 'bg-emerald-50 text-emerald-700 font-bold' : 'text-gray-700'}`}
+                              >
+                                <span className="material-symbols-outlined text-emerald-500 text-lg">location_on</span>
+                                {language === 'th' ? loc.name?.th : loc.name?.en}
+                                {bookingData.pickupLocation === (language === 'th' ? loc.name?.th : loc.name?.en) && (
+                                  <span className="material-symbols-outlined text-emerald-500 ml-auto">check_circle</span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
-                  <button
-                    onClick={() => handleVehicleSelect(vehicle)}
-                    className="rounded-lg bg-brand-primary/10 px-4 py-2 text-sm font-bold text-brand-primary transition-colors hover:bg-brand-primary hover:text-white">
-                    {t.vehicles.selectVehicle}
-                  </button>
+
+                  {/* Arrow */}
+                  <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                    <span className="material-symbols-outlined text-gray-400 text-sm">arrow_forward</span>
+                  </div>
+
+                  {/* Dropoff */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setRouteEditDropdown(routeEditDropdown === 'dropoff' ? null : 'dropoff')}
+                      className="group flex items-center gap-2 px-4 py-3 bg-white hover:bg-gray-50 rounded-xl shadow-sm border border-gray-200 hover:border-red-400 transition-all"
+                    >
+                      <div className="w-8 h-8 bg-gradient-to-br from-red-400 to-rose-600 rounded-lg flex items-center justify-center shadow-sm">
+                        <span className="material-symbols-outlined text-white text-sm">location_on</span>
+                      </div>
+                      <div className="text-left">
+                        <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">{language === 'th' ? 'จุดส่ง' : 'Dropoff'}</p>
+                        <p className="text-sm font-semibold text-gray-800 max-w-[120px] truncate">{bookingData.dropoffLocation}</p>
+                      </div>
+                      <span className="material-symbols-outlined text-gray-400 text-sm group-hover:text-red-500 transition-colors">edit</span>
+                    </button>
+
+                    {routeEditDropdown === 'dropoff' && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setRouteEditDropdown(null)}></div>
+                        <div className="absolute top-full right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                          <div className="p-3 border-b border-gray-100 bg-gradient-to-r from-red-500 to-rose-600">
+                            <p className="text-xs font-bold text-white uppercase tracking-wider">{language === 'th' ? 'เลือกจุดส่ง' : 'Select Dropoff'}</p>
+                          </div>
+                          <div className="max-h-64 overflow-y-auto">
+                            {locations.map((loc) => (
+                              <button
+                                key={loc.id}
+                                onClick={() => {
+                                  updateBooking({ dropoffLocation: language === 'th' ? loc.name?.th : loc.name?.en });
+                                  setRouteEditDropdown(null);
+                                }}
+                                className={`w-full text-left px-4 py-3 text-sm hover:bg-red-50 transition-colors flex items-center gap-3 border-b border-gray-50 last:border-0 ${bookingData.dropoffLocation === (language === 'th' ? loc.name?.th : loc.name?.en) ? 'bg-red-50 text-red-700 font-bold' : 'text-gray-700'}`}
+                              >
+                                <span className="material-symbols-outlined text-red-500 text-lg">flag</span>
+                                {language === 'th' ? loc.name?.th : loc.name?.en}
+                                {bookingData.dropoffLocation === (language === 'th' ? loc.name?.th : loc.name?.en) && (
+                                  <span className="material-symbols-outlined text-red-500 ml-auto">check_circle</span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Filter Tabs */}
+              <div className="bg-white rounded-2xl p-3 border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-2 overflow-x-auto">
+                  {vehicleTypes.map((type) => (
+                    <button
+                      key={type.value}
+                      onClick={() => setSelectedType(type.value)}
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${selectedType === type.value
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30'
+                        : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                    >
+                      <span className="material-symbols-outlined text-lg">{type.icon}</span>
+                      {type.label}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
-          ))}
-        </div>
+
+            {/* Vehicle Grid - Finance Style Cards */}
+            {filteredVehicles.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center flex flex-col items-center shadow-sm">
+                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 mb-4">
+                  <span className="material-symbols-outlined text-4xl">directions_car</span>
+                </div>
+                <h3 className="text-lg font-bold text-gray-800">{language === 'th' ? 'ไม่พบรถ' : 'No vehicles found'}</h3>
+                <p className="text-gray-500 mt-1">{language === 'th' ? 'ลองเปลี่ยนตัวกรองดูครับ' : 'Try adjusting your filters'}</p>
+                <button
+                  onClick={() => setSelectedType('all')}
+                  className="mt-4 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg font-semibold hover:bg-blue-100 transition-colors"
+                >
+                  {language === 'th' ? 'ล้างตัวกรอง' : 'Clear Filters'}
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredVehicles.map((vehicle) => {
+                  const typeConfig = getTypeConfig(vehicle.type);
+                  const dynamicPrice = getDynamicPrice(vehicle);
+
+                  return (
+                    <div
+                      key={vehicle.id}
+                      className="group bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-xl hover:border-blue-200 transition-all duration-300"
+                    >
+                      {/* Image */}
+                      <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+                        {vehicle.image ? (
+                          <img
+                            src={vehicle.image}
+                            alt={vehicle.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-300">
+                            <span className="material-symbols-outlined text-6xl">directions_car</span>
+                          </div>
+                        )}
+
+                        {/* Type Badge */}
+                        <div className="absolute top-3 left-3">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] uppercase font-bold ${typeConfig.light} ${typeConfig.text}`}>
+                            <span className="material-symbols-outlined text-xs">directions_car</span>
+                            {vehicle.type}
+                          </span>
+                        </div>
+
+                        {/* Tag Badge */}
+                        {vehicle.tag && (
+                          <div className="absolute top-3 right-3">
+                            <span className="px-2.5 py-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-lg text-[10px] uppercase font-bold shadow-lg">
+                              {vehicle.tag}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Gradient Overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      </div>
+
+                      {/* Content */}
+                      <div className="p-5">
+                        {/* Title */}
+                        <div className="mb-3">
+                          <h3 className="text-lg font-bold text-gray-800 group-hover:text-blue-600 transition-colors">{vehicle.name}</h3>
+                          <p className="text-sm text-gray-500 line-clamp-1">{vehicle.desc}</p>
+                        </div>
+
+                        {/* Specs */}
+                        <div className="flex items-center gap-4 mb-4">
+                          <div className="flex items-center gap-1.5 text-gray-600">
+                            <div className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center">
+                              <span className="material-symbols-outlined text-sm text-gray-500">group</span>
+                            </div>
+                            <span className="text-sm font-medium">{vehicle.passengers}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-gray-600">
+                            <div className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center">
+                              <span className="material-symbols-outlined text-sm text-gray-500">luggage</span>
+                            </div>
+                            <span className="text-sm font-medium">{vehicle.luggage}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-gray-600">
+                            <div className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center">
+                              <span className="material-symbols-outlined text-sm text-gray-500">settings</span>
+                            </div>
+                            <span className="text-sm font-medium">{vehicle.transmission}</span>
+                          </div>
+                        </div>
+
+                        {/* Divider */}
+                        <div className="border-t border-gray-100 pt-4">
+                          {/* Price */}
+                          <div className="flex items-end justify-between mb-4">
+                            <div>
+                              <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">
+                                {routePrices ? (language === 'th' ? 'ราคาเส้นทาง' : 'Route Price') : (language === 'th' ? 'เริ่มต้น' : 'Starting')}
+                              </p>
+                              <p className="text-2xl font-bold text-gray-800">
+                                {formatPrice(dynamicPrice, vehicle.priceUSD)}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1 text-emerald-600 text-xs font-semibold bg-emerald-50 px-2 py-1 rounded-full">
+                              <span className="material-symbols-outlined text-sm">verified</span>
+                              {language === 'th' ? 'รวมคนขับ' : 'Driver Included'}
+                            </div>
+                          </div>
+
+                          {/* Book Button */}
+                          <button
+                            onClick={() => handleVehicleSelect({
+                              ...vehicle,
+                              price: dynamicPrice,
+                              isFixedPrice: !!routePrices
+                            })}
+                            className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 transition-all active:scale-[0.98] flex items-center justify-center gap-2 group/btn"
+                          >
+                            <span>{language === 'th' ? 'จองเลย' : 'Book Now'}</span>
+                            <span className="material-symbols-outlined text-lg group-hover/btn:translate-x-1 transition-transform">arrow_forward</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Trip Details Modal - Modern Glass Design */}
+        {isDetailsModalOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
+            onClick={(e) => e.target === e.currentTarget && setIsDetailsModalOpen(false)}
+          >
+            <div className="bg-white dark:bg-gray-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
+
+              {/* Drag Handle - Mobile */}
+              <div className="sm:hidden flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
+              </div>
+
+              {/* Vehicle Preview Header */}
+              <div className="relative p-4 sm:p-5">
+                <button
+                  onClick={() => setIsDetailsModalOpen(false)}
+                  className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-500 transition-colors z-10"
+                >
+                  <span className="material-symbols-outlined text-xl">close</span>
+                </button>
+
+                {/* Vehicle Card */}
+                <div className="flex items-center gap-3 pr-10">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 overflow-hidden flex-shrink-0">
+                    {pendingVehicle?.image ? (
+                      <img src={pendingVehicle.image} alt={pendingVehicle.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <span className="material-symbols-outlined text-gray-400 text-3xl">directions_car</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                      {language === 'th' ? 'รถที่เลือก' : 'Selected Vehicle'}
+                    </p>
+                    <h3 className="font-bold text-gray-900 dark:text-white text-lg truncate">{pendingVehicle?.name}</h3>
+                    <p className="text-blue-600 font-bold text-lg">
+                      ฿{pendingVehicle?.price?.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleConfirmDetails} className="p-4 sm:p-5 pt-0 space-y-4">
+
+                {/* Route Section */}
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl p-4">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-base">route</span>
+                    {language === 'th' ? 'เส้นทาง' : 'Route'}
+                  </p>
+
+                  {/* Visual Route */}
+                  <div className="relative space-y-3">
+                    {/* Connecting Line */}
+                    <div className="absolute left-[18px] top-[28px] bottom-[28px] w-0.5 bg-gradient-to-b from-emerald-400 to-red-400"></div>
+
+                    {/* Pickup */}
+                    <div className="relative">
+                      <div
+                        onClick={() => setActiveDropdown(activeDropdown === 'pickup' ? null : 'pickup')}
+                        className={`flex items-center gap-3 p-3 bg-white dark:bg-gray-900 rounded-xl border-2 cursor-pointer transition-all ${activeDropdown === 'pickup' ? 'border-emerald-400 shadow-lg shadow-emerald-500/10' : 'border-transparent hover:border-gray-200'}`}
+                      >
+                        <div className="w-9 h-9 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/30">
+                          <span className="material-symbols-outlined text-white text-lg">trip_origin</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] text-gray-400 uppercase font-bold">{language === 'th' ? 'จุดรับ' : 'Pickup'}</p>
+                          <p className={`font-semibold truncate ${tripDetails.pickupLocation ? 'text-gray-800 dark:text-white' : 'text-gray-400'}`}>
+                            {tripDetails.pickupLocation || (language === 'th' ? 'เลือกจุดรับ' : 'Select pickup')}
+                          </p>
+                        </div>
+                        <span className="material-symbols-outlined text-gray-400">expand_more</span>
+                      </div>
+
+                      {/* Pickup Dropdown */}
+                      {activeDropdown === 'pickup' && (
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-xl max-h-48 overflow-y-auto z-30">
+                          {locations.map((location) => (
+                            <button
+                              key={location.id}
+                              type="button"
+                              onClick={() => {
+                                setTripDetails({ ...tripDetails, pickupLocation: location.name[language] });
+                                setActiveDropdown(null);
+                              }}
+                              className={`w-full text-left px-4 py-3 text-sm font-medium transition-colors flex items-center gap-3 border-b border-gray-50 dark:border-gray-700 last:border-0 ${tripDetails.pickupLocation === location.name[language] ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                            >
+                              <span className="material-symbols-outlined text-emerald-500 text-lg">location_on</span>
+                              {location.name[language]}
+                              {tripDetails.pickupLocation === location.name[language] && (
+                                <span className="material-symbols-outlined text-emerald-500 ml-auto">check_circle</span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Dropoff */}
+                    <div className="relative">
+                      <div
+                        onClick={() => setActiveDropdown(activeDropdown === 'dropoff' ? null : 'dropoff')}
+                        className={`flex items-center gap-3 p-3 bg-white dark:bg-gray-900 rounded-xl border-2 cursor-pointer transition-all ${activeDropdown === 'dropoff' ? 'border-red-400 shadow-lg shadow-red-500/10' : 'border-transparent hover:border-gray-200'}`}
+                      >
+                        <div className="w-9 h-9 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg shadow-red-500/30">
+                          <span className="material-symbols-outlined text-white text-lg">location_on</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] text-gray-400 uppercase font-bold">{language === 'th' ? 'จุดส่ง' : 'Dropoff'}</p>
+                          <p className={`font-semibold truncate ${tripDetails.dropoffLocation ? 'text-gray-800 dark:text-white' : 'text-gray-400'}`}>
+                            {tripDetails.dropoffLocation || (language === 'th' ? 'เลือกจุดส่ง' : 'Select dropoff')}
+                          </p>
+                        </div>
+                        <span className="material-symbols-outlined text-gray-400">expand_more</span>
+                      </div>
+
+                      {/* Dropoff Dropdown */}
+                      {activeDropdown === 'dropoff' && (
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-xl max-h-48 overflow-y-auto z-30">
+                          {locations.map((location) => (
+                            <button
+                              key={location.id}
+                              type="button"
+                              onClick={() => {
+                                setTripDetails({ ...tripDetails, dropoffLocation: location.name[language] });
+                                setActiveDropdown(null);
+                              }}
+                              className={`w-full text-left px-4 py-3 text-sm font-medium transition-colors flex items-center gap-3 border-b border-gray-50 dark:border-gray-700 last:border-0 ${tripDetails.dropoffLocation === location.name[language] ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                            >
+                              <span className="material-symbols-outlined text-red-500 text-lg">flag</span>
+                              {location.name[language]}
+                              {tripDetails.dropoffLocation === location.name[language] && (
+                                <span className="material-symbols-outlined text-red-500 ml-auto">check_circle</span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Date & Time Section */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1 mb-2">
+                      <span className="material-symbols-outlined text-sm">calendar_month</span>
+                      {language === 'th' ? 'วันที่' : 'Date'}
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full px-0 py-1 bg-transparent border-0 font-bold text-gray-800 dark:text-white outline-none text-sm"
+                      value={tripDetails.pickupDate}
+                      onChange={(e) => setTripDetails({ ...tripDetails, pickupDate: e.target.value })}
+                    />
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1 mb-2">
+                      <span className="material-symbols-outlined text-sm">schedule</span>
+                      {language === 'th' ? 'เวลา' : 'Time'}
+                    </label>
+                    <input
+                      type="time"
+                      required
+                      className="w-full px-0 py-1 bg-transparent border-0 font-bold text-gray-800 dark:text-white outline-none text-sm"
+                      value={tripDetails.pickupTime}
+                      onChange={(e) => setTripDetails({ ...tripDetails, pickupTime: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsDetailsModalOpen(false)}
+                    className="flex-1 py-3.5 rounded-xl font-semibold text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    {language === 'th' ? 'ยกเลิก' : 'Cancel'}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!tripDetails.pickupLocation || !tripDetails.dropoffLocation}
+                    className="flex-1 py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30"
+                  >
+                    <span>{language === 'th' ? 'จองเลย' : 'Book Now'}</span>
+                    <span className="material-symbols-outlined text-lg">arrow_forward</span>
+                  </button>
+                </div>
+
+                {/* Trust Badges */}
+                <div className="flex items-center justify-center gap-4 pt-2 text-xs text-gray-400">
+                  <span className="flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm text-emerald-500">verified</span>
+                    {language === 'th' ? 'คนขับมืออาชีพ' : 'Pro Driver'}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm text-blue-500">security</span>
+                    {language === 'th' ? 'ชำระเงินปลอดภัย' : 'Secure Pay'}
+                  </span>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
-    </main>
+    </div>
   );
 }

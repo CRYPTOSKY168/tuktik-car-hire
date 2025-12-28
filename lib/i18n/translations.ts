@@ -7,6 +7,9 @@ export const translations = {
       aboutUs: 'About Us',
       contact: 'Contact',
       language: 'Language',
+      back: 'Back',
+      backToVehicles: 'Back to Vehicles',
+      backToHome: 'Back to Home',
     },
     home: {
       hero: {
@@ -105,14 +108,16 @@ export const translations = {
         alphard: { name: 'Toyota Alphard', desc: 'Ultimate luxury and space for groups.', tag: 'Luxury Van' },
         bmw5: { name: 'BMW 5 Series', desc: 'Dynamic performance meets executive class.', tag: 'Business' },
         teslaS: { name: 'Tesla Model S', desc: 'Silent, smooth, and sustainable luxury.', tag: 'Electric' },
-        mercedesV: { name: 'Mercedes-Benz V-Class', desc: 'Spacious executive travel for teams.', tag: 'Executive Van' },
+        mercedesV: { name: 'Mercedes V-Class', desc: 'Luxury MPV for group travel', tag: 'Luxury Van' },
         audiA6: { name: 'Audi A6', desc: 'Refined technology and comfort.', tag: 'Business' },
         lexusES: { name: 'Lexus ES', desc: 'Quiet elegance and superior ride quality.', tag: 'Premium' },
         escalade: { name: 'Cadillac Escalade', desc: 'Commanding presence and maximum space.', tag: 'Luxury SUV' },
         suburban: { name: 'Chevrolet Suburban', desc: 'Rugged reliability with room for everyone.', tag: 'Large SUV' },
-        odyssey: { name: 'Honda Odyssey', desc: 'Perfect for family trips with extra cargo.', tag: 'Family Van' },
-        transit: { name: 'Ford Transit', desc: 'Maximum capacity for large touring groups.', tag: 'Group Bus' },
-      }
+        transit: { name: 'Ford Transit', desc: 'Spacious van for large groups', tag: 'Max Capacity' },
+        odyssey: { name: 'Honda Odyssey', desc: 'Perfect for family trips with extra luggage.', tag: 'Family Van' },
+      },
+      startingFrom: 'Starting from',
+      bookNow: 'Book Now',
     },
     routes: {
       title: 'Confirm Your Trip',
@@ -157,6 +162,13 @@ export const translations = {
       paymentMethod: 'Payment Method',
       creditCard: 'Credit/Debit Card',
       promptpay: 'PromptPay',
+      bankTransfer: 'Bank Transfer',
+      bankDetails: {
+        bankName: 'Kasikorn Bank (K-Bank)',
+        accountName: 'ThaiDriver Co., Ltd.',
+        accountNumber: '123-4-56789-0',
+        uploadSlip: 'Upload Payment Slip',
+      },
       cardNumber: 'Card Number',
       expiryDate: 'Expiry Date',
       cvv: 'CVV',
@@ -186,6 +198,9 @@ export const translations = {
       },
       scanQr: 'Scan QR to Pay',
       generateQr: 'Generate QR Code',
+      errors: {
+        missingSlip: 'Please upload a transfer slip to continue.'
+      }
     },
     confirmation: {
       title: 'Booking Confirmed!',
@@ -240,7 +255,97 @@ export const translations = {
       required: 'This field is required',
       copy: 'Copy',
       copied: 'Copied!',
+      yes: 'Yes',
+      no: 'No',
+      cancel: 'Cancel',
+      confirm: 'Confirm',
+      save: 'Save',
+      delete: 'Delete',
+      edit: 'Edit',
+      status: 'Status',
+      actions: 'Actions',
     },
+    auth: {
+      login: 'Log In',
+      register: 'Register',
+      logout: 'Log Out',
+      email: 'Email',
+      password: 'Password',
+      phone: 'Phone Number',
+      or: 'Or sign up with',
+      forgotPassword: 'Forgot Password?',
+      noAccount: 'Don\'t have an account?',
+      haveAccount: 'Already have an account?',
+      signUp: 'Sign up',
+      signIn: 'Sign in',
+      sendOtp: 'Send OTP',
+      verifyRegister: 'Verify & Register',
+      enterOtp: 'Enter OTP Code',
+      changeNumber: 'Change Number',
+      errors: {
+        weakPassword: 'Password should be at least 6 characters',
+        emailInUse: 'Email is already registered',
+        userNotFound: 'User not found',
+        wrongPassword: 'Incorrect password',
+        tooManyRequests: 'Too many requests. Please wait.',
+        billingNotEnabled: 'System limit reached (Billing).',
+        quotaExceeded: 'SMS Quota Exceeded.',
+        invalidOtp: 'Invalid OTP code.',
+      }
+    },
+    dashboard: {
+      title: 'My Dashboard',
+      welcome: 'Welcome back,',
+      tabs: {
+        overview: 'Overview',
+        bookings: 'My Bookings',
+        profile: 'Profile',
+      },
+      stats: {
+        totalTrips: 'Total Trips',
+        totalSpent: 'Total Spent',
+        memberStatus: 'Member Status',
+      },
+      status: {
+        pending: 'Pending',
+        confirmed: 'Confirmed',
+        completed: 'Completed',
+        cancelled: 'Cancelled',
+      },
+      columns: {
+        id: 'Booking ID',
+        vehicle: 'Vehicle',
+        route: 'Route',
+        date: 'Date',
+        price: 'Price',
+        status: 'Status',
+      }
+    },
+    admin: {
+      title: 'Admin Dashboard',
+      menu: {
+        dashboard: 'Dashboard',
+        bookings: 'Bookings',
+        vehicles: 'Vehicles',
+        settings: 'Settings',
+      },
+      vehicles: {
+        add: 'Add Vehicle',
+        edit: 'Edit Vehicle',
+        name: 'Vehicle Name',
+        price: 'Price (THB)',
+        type: 'Type',
+        capacity: 'Capacity',
+        image: 'Image URL',
+        features: 'Features (comma separated)',
+        isActive: 'Active',
+      },
+      bookings: {
+        markPaid: 'Mark Paid',
+        markComplete: 'Mark Complete',
+        cancel: 'Cancel Booking',
+      }
+    }
   },
   th: {
     nav: {
@@ -250,6 +355,9 @@ export const translations = {
       aboutUs: 'เกี่ยวกับเรา',
       contact: 'ติดต่อ',
       language: 'ภาษา',
+      back: 'กลับ',
+      backToVehicles: 'กลับไปเลือกรถ',
+      backToHome: 'กลับหน้าแรก',
     },
     home: {
       hero: {
@@ -354,8 +462,10 @@ export const translations = {
         escalade: { name: 'คาดิลแลค เอสคาเลด', desc: 'รูปลักษณ์ที่โดดเด่นและพื้นที่กว้างขวางที่สุด', tag: 'เอสยูวีหรู' },
         suburban: { name: 'เชฟโรเลต ซับเบอร์แบน', desc: 'ความแข็งแกร่งที่ไว้ใจได้พร้อมพื้นที่สำหรับทุกคน', tag: 'เอสยูวีขนาดใหญ่' },
         odyssey: { name: 'ฮอนด้า โอดิสซีย์', desc: 'เหมาะสำหรับทริปครอบครัวที่มีสัมภาระเยอะ', tag: 'รถตู้ครอบครัว' },
-        transit: { name: 'ฟอร์ด ทรานสิต', desc: 'ความจุสูงสุดสำหรับกลุ่มทัวร์ขนาดใหญ่', tag: 'รถบัสกลุ่ม' },
-      }
+        transit: { name: 'ฟอร์ด ทรานสิต', desc: 'รถตู้กว้างขวางสำหรับกลุ่มใหญ่', tag: 'ความจุสูงสุด' },
+      },
+      startingFrom: 'เริ่มต้นที่',
+      bookNow: 'จองทันที',
     },
     routes: {
       title: 'ยืนยันการเดินทาง',
@@ -400,6 +510,13 @@ export const translations = {
       paymentMethod: 'วิธีการชำระเงิน',
       creditCard: 'บัตรเครดิต/เดบิต',
       promptpay: 'พร้อมเพย์',
+      bankTransfer: 'โอนเงินธนาคาร',
+      bankDetails: {
+        bankName: 'ธนาคารกสิกรไทย (K-Bank)',
+        accountName: 'บจก. ไทยไดรเวอร์',
+        accountNumber: '123-4-56789-0',
+        uploadSlip: 'อัปโหลดสลิปโอนเงิน',
+      },
       cardNumber: 'หมายเลขบัตร',
       expiryDate: 'วันหมดอายุ',
       cvv: 'รหัส CVV',
@@ -429,6 +546,9 @@ export const translations = {
       },
       scanQr: 'สแกน QR เพื่อชำระเงิน',
       generateQr: 'สร้าง QR Code',
+      errors: {
+        missingSlip: 'กรุณาอัปโหลดสลิปโอนเงินเพื่อดำเนินการต่อ'
+      }
     },
     confirmation: {
       title: 'จองสำเร็จ!',
@@ -483,9 +603,100 @@ export const translations = {
       required: 'กรุณากรอกข้อมูลในช่องนี้',
       copy: 'คัดลอก',
       copied: 'คัดลอกแล้ว!',
+      yes: 'ใช่',
+      no: 'ไม่',
+      cancel: 'ยกเลิก',
+      confirm: 'ยืนยัน',
+      save: 'บันทึก',
+      delete: 'ลบ',
+      edit: 'แก้ไข',
+      status: 'สถานะ',
+      actions: 'จัดการ',
     },
+    auth: {
+      login: 'เข้าสู่ระบบ',
+      register: 'ลงทะเบียน',
+      logout: 'ออกจากระบบ',
+      email: 'อีเมล',
+      password: 'รหัสผ่าน',
+      phone: 'เบอร์โทรศัพท์',
+      or: 'หรือลงทะเบียนด้วย',
+      forgotPassword: 'ลืมรหัสผ่าน?',
+      noAccount: 'ยังไม่มีบัญชี?',
+      haveAccount: 'มีบัญชีอยู่แล้ว?',
+      signUp: 'สมัครสมาชิก',
+      signIn: 'เข้าสู่ระบบ',
+      sendOtp: 'ส่งรหัส OTP',
+      verifyRegister: 'ยืนยันและลงทะเบียน',
+      enterOtp: 'กรอกรหัส OTP',
+      changeNumber: 'เปลี่ยนเบอร์',
+      errors: {
+        weakPassword: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร',
+        emailInUse: 'อีเมลนี้ถูกลงทะเบียนแล้ว',
+        userNotFound: 'ไม่พบผู้ใช้งาน',
+        wrongPassword: 'รหัสผ่านไม่ถูกต้อง',
+        tooManyRequests: 'ส่งคำขอมากเกินไป กรุณารอสักครู่',
+        billingNotEnabled: 'ระบบ SMS เต็ม (Billing)',
+        quotaExceeded: 'โควต้า SMS เต็มแล้ว',
+        invalidOtp: 'รหัส OTP ไม่ถูกต้อง',
+      }
+    },
+    dashboard: {
+      title: 'แดชบอร์ดของฉัน',
+      welcome: 'ยินดีต้อนรับกลับ,',
+      tabs: {
+        overview: 'ภาพรวม',
+        bookings: 'การจองของฉัน',
+        profile: 'โปรไฟล์',
+      },
+      stats: {
+        totalTrips: 'การเดินทางทั้งหมด',
+        totalSpent: 'ยอดใช้จ่ายรวม',
+        memberStatus: 'สถานะสมาชิก',
+      },
+      status: {
+        pending: 'รอการยืนยัน',
+        confirmed: 'ยืนยันแล้ว',
+        completed: 'เสร็จสิ้น',
+        cancelled: 'ยกเลิก',
+      },
+      columns: {
+        id: 'รหัสการจอง',
+        vehicle: 'รถยนต์',
+        route: 'เส้นทาง',
+        date: 'วันที่',
+        price: 'ราคา',
+        status: 'สถานะ',
+      }
+    },
+    admin: {
+      title: 'ระบบจัดการหลังบ้าน',
+      menu: {
+        dashboard: 'แดชบอร์ด',
+        bookings: 'จัดการการจอง',
+        vehicles: 'จัดการรถยนต์',
+        settings: 'ตั้งค่า',
+      },
+      vehicles: {
+        add: 'เพิ่มรถใหม่',
+        edit: 'แก้ไขรถยนต์',
+        name: 'ชื่อรถยนต์',
+        price: 'ราคา (บาท)',
+        type: 'ประเภท',
+        capacity: 'ความจุคน',
+        image: 'ลิงก์รูปภาพ',
+        features: 'คุณสมบัติ (คั่นด้วยจุลภาค)',
+        isActive: 'เปิดใช้งาน',
+      },
+      bookings: {
+        markPaid: 'ระบุว่าจ่ายแล้ว',
+        markComplete: 'ระบุว่างานจบแล้ว',
+        cancel: 'ยกเลิกการจอง',
+      }
+    }
   },
 };
 
 export type Language = keyof typeof translations;
 export type TranslationKey = typeof translations.en;
+

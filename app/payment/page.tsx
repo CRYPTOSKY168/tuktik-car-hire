@@ -1,309 +1,771 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useBooking } from '@/lib/contexts/BookingContext';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
+import { useAuth } from '@/lib/contexts/AuthContext';
+import { FirestoreService } from '@/lib/firebase/firestore';
+import { StorageService } from '@/lib/firebase/storage';
+import { StripeService } from '@/lib/firebase/stripe';
+import { sendOTP, verifyOTP, initRecaptcha, resetRecaptcha } from '@/lib/firebase/phoneAuth';
+import { QRCodeSVG } from 'qrcode.react';
+import { generatePromptPayPayload } from '@/lib/utils/payment';
 
 export default function PaymentPage() {
   const router = useRouter();
-  const { bookingData, updateBooking } = useBooking();
-  const { t } = useLanguage();
+  const { bookingData, updateBooking, calculateTotal } = useBooking();
+  const { language } = useLanguage();
+  const { user, loading } = useAuth();
 
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'promptpay'>('card');
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'promptpay' | 'cash' | null>(null);
+  const [expandedSection, setExpandedSection] = useState<'info' | 'payment' | null>('info');
+
+  // Form States
   const [formData, setFormData] = useState({
-    firstName: bookingData.firstName || '',
-    lastName: bookingData.lastName || '',
-    email: bookingData.email || '',
-    phone: bookingData.phone || '',
-    cardNumber: '',
-    expiryDate: '',
-    cvv: '',
-    cardName: '',
-    saveCard: true
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    flightNumber: '',
+    passengerCount: 1,
+    luggageCount: 1,
+    specialRequests: '',
   });
 
-  const [processing, setProcessing] = useState(false);
+  // OTP States
+  const [cashPhoneNumber, setCashPhoneNumber] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpError, setOtpError] = useState('');
 
-  // Redirect if no vehicle selected
-  if (!bookingData.vehicle) {
-    // In a real app we might redirect, but for dev flow let's stay or mock
-    // router.push('/vehicles');
+  // Payment States
+  const [processing, setProcessing] = useState(false);
+  const [stripeLoading, setStripeLoading] = useState(false);
+  const [stripeError, setStripeError] = useState('');
+  const [isValidating, setIsValidating] = useState(true);
+  const [hasActiveBooking, setHasActiveBooking] = useState(false);
+  const [activeBookingData, setActiveBookingData] = useState<any>(null);
+
+  // PromptPay States
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+
+  // Validate access
+  useEffect(() => {
+    const validateAccess = async () => {
+      if (loading) return;
+      if (!user) {
+        router.push('/login?redirect=/payment');
+        return;
+      }
+
+      try {
+        const { hasActive, activeBooking } = await FirestoreService.hasActiveBooking(user.uid);
+        if (hasActive && activeBooking) {
+          setHasActiveBooking(true);
+          setActiveBookingData(activeBooking);
+
+          // If awaiting_payment, populate bookingData from activeBooking
+          if (activeBooking.status === 'awaiting_payment') {
+            updateBooking({
+              vehicle: activeBooking.vehicle as any || { name: activeBooking.vehicleName, price: activeBooking.vehiclePrice || 0, id: activeBooking.vehicleId, type: '', image: '', passengers: 0, luggage: 0, transmission: '', features: [] },
+              pickupLocation: activeBooking.pickupLocation,
+              dropoffLocation: activeBooking.dropoffLocation,
+              pickupDate: activeBooking.pickupDate,
+              pickupTime: activeBooking.pickupTime,
+              firstName: activeBooking.firstName,
+              lastName: activeBooking.lastName,
+              email: activeBooking.email,
+              phone: activeBooking.phone,
+            });
+          }
+
+          setIsValidating(false);
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking active booking:', error);
+      }
+
+      if (!bookingData.vehicle || !bookingData.pickupLocation || !bookingData.dropoffLocation || !bookingData.pickupDate) {
+        router.push('/vehicles?error=incomplete_booking');
+        return;
+      }
+
+      setIsValidating(false);
+    };
+
+    const timer = setTimeout(validateAccess, 100);
+    return () => clearTimeout(timer);
+  }, [bookingData, router, user, loading, updateBooking]);
+
+  // Pre-fill form from auth
+  useEffect(() => {
+    if (user && !formData.firstName) {
+      const names = user.displayName ? user.displayName.split(' ') : ['', ''];
+      setFormData(prev => ({
+        ...prev,
+        firstName: names[0] || bookingData.firstName || '',
+        lastName: names.slice(1).join(' ') || bookingData.lastName || '',
+        email: user.email || bookingData.email || '',
+        phone: bookingData.phone || ''
+      }));
+    }
+  }, [user, bookingData]);
+
+  // Initialize reCAPTCHA for cash payment
+  useEffect(() => {
+    if (paymentMethod === 'cash' && !otpVerified) {
+      const timer = setTimeout(() => {
+        initRecaptcha('send-otp-button');
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [paymentMethod, otpVerified]);
+
+  useEffect(() => {
+    return () => resetRecaptcha();
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'number' ? parseInt(value) || 0 : value
+    }));
+  };
+
+  // OTP Handlers
+  const handleSendOtp = async () => {
+    if (!cashPhoneNumber || cashPhoneNumber.length < 10) {
+      setOtpError('กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง');
+      return;
+    }
+    setOtpSending(true);
+    setOtpError('');
+    try {
+      const result = await sendOTP(cashPhoneNumber);
+      if (result.success) setOtpSent(true);
+      else setOtpError(result.error || 'ไม่สามารถส่ง OTP ได้');
+    } catch (error: any) {
+      setOtpError(error.message || 'ไม่สามารถส่ง OTP ได้');
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpCode || otpCode.length !== 6) {
+      setOtpError('กรุณากรอกรหัส OTP 6 หลัก');
+      return;
+    }
+    setOtpVerifying(true);
+    setOtpError('');
+    try {
+      const result = await verifyOTP(otpCode);
+      if (result.success) {
+        setOtpVerified(true);
+        setFormData(prev => ({ ...prev, phone: cashPhoneNumber }));
+      } else {
+        setOtpError(result.error || 'รหัส OTP ไม่ถูกต้อง');
+      }
+    } catch (error: any) {
+      setOtpError(error.message || 'เกิดข้อผิดพลาด');
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
+
+  // Stripe Payment
+  const handleStripePayment = async () => {
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone) {
+      alert('กรุณากรอกข้อมูลผู้จองให้ครบถ้วน');
+      return;
+    }
+    if (!user || !bookingData.vehicle) return;
+
+    setStripeLoading(true);
+    setStripeError('');
+
+    try {
+      const updatedBookingData = {
+        ...bookingData, ...formData,
+        paymentMethod: 'card' as const,
+      };
+      updateBooking(updatedBookingData);
+
+      const totalAmount = calculateTotal();
+
+      // If continuing payment for existing awaiting_payment booking with real ID
+      let bookingId: string;
+      const isLocalBooking = activeBookingData?.id?.startsWith('local-');
+
+      if (activeBookingData && activeBookingData.status === 'awaiting_payment' && !isLocalBooking) {
+        // Use existing booking ID
+        bookingId = activeBookingData.id;
+      } else {
+        // Create new booking
+        bookingId = await FirestoreService.addBooking(updatedBookingData, totalAmount, user.uid);
+      }
+
+      // Check if booking was saved to Firestore (not localStorage fallback)
+      if (bookingId.startsWith('local-')) {
+        setStripeError('ไม่สามารถบันทึกข้อมูลการจองได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่');
+        setStripeLoading(false);
+        return;
+      }
+
+      const sessionId = await StripeService.createCheckoutSession(user.uid, {
+        bookingId,
+        vehicleName: bookingData.vehicle.name,
+        pickupLocation: bookingData.pickupLocation,
+        dropoffLocation: bookingData.dropoffLocation,
+        pickupDate: bookingData.pickupDate,
+        pickupTime: bookingData.pickupTime,
+        tripType: bookingData.tripType,
+        totalAmount,
+        customerName: `${formData.firstName} ${formData.lastName}`,
+        customerEmail: formData.email,
+        customerPhone: formData.phone,
+      });
+
+      await StripeService.linkPaymentToBooking(bookingId, sessionId);
+
+      const unsubscribe = StripeService.subscribeToCheckoutSession(
+        user.uid, sessionId,
+        (session, error) => {
+          if (error) {
+            setStripeError(error);
+            setStripeLoading(false);
+            unsubscribe();
+            return;
+          }
+          if (session?.url) {
+            window.location.href = session.url;
+            unsubscribe();
+          }
+        }
+      );
+
+      setTimeout(() => {
+        if (stripeLoading) {
+          setStripeError('การเชื่อมต่อใช้เวลานานเกินไป กรุณาลองใหม่');
+          setStripeLoading(false);
+        }
+      }, 30000);
+
+    } catch (error: any) {
+      setStripeError(error.message || 'ไม่สามารถเริ่มการชำระเงินได้');
+      setStripeLoading(false);
+    }
+  };
+
+  // PromptPay Check
+  const handleCheckPayment = () => {
+    setIsVerifying(true);
+    setTimeout(() => {
+      setIsVerifying(false);
+      setPaymentSuccess(true);
+      setTimeout(() => handleSubmit(), 1500);
+    }, 3000);
+  };
+
+  // Cash/PromptPay Submit
+  const handleSubmit = async () => {
+    if (!formData.firstName || !formData.lastName || !formData.email) {
+      alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+      return;
+    }
+    if (paymentMethod === 'cash' && !otpVerified) {
+      alert('กรุณายืนยันเบอร์โทรศัพท์ด้วย OTP');
+      return;
+    }
+    if (!user) return;
+
+    setProcessing(true);
+    try {
+      const updatedBookingData = {
+        ...bookingData, ...formData,
+        phone: paymentMethod === 'cash' ? cashPhoneNumber : formData.phone,
+        paymentMethod: paymentMethod!,
+        phoneVerified: paymentMethod === 'cash',
+      };
+      updateBooking(updatedBookingData);
+
+      const total = calculateTotal();
+
+      // If continuing payment for existing booking, update it instead of creating new
+      // But if ID starts with 'local-', it's not a real Firestore document, so create new
+      const isLocalBooking = activeBookingData?.id?.startsWith('local-');
+
+      if (activeBookingData && activeBookingData.status === 'awaiting_payment' && !isLocalBooking) {
+        // Update booking status to pending (payment completed)
+        await FirestoreService.updateBookingStatus(activeBookingData.id, 'pending', 'Payment completed');
+        await FirestoreService.updatePaymentStatus(activeBookingData.id, 'paid');
+        router.push(`/confirmation?bookingId=${activeBookingData.id}`);
+      } else {
+        // Create new booking (either no active booking or local booking that needs to be saved)
+        const bookingId = await FirestoreService.addBooking(updatedBookingData, total, user.uid);
+        router.push(`/confirmation?bookingId=${bookingId}`);
+      }
+    } catch (error) {
+      console.error('Booking failed:', error);
+      alert('การจองไม่สำเร็จ กรุณาลองใหม่');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const isFormComplete = formData.firstName && formData.lastName && formData.email && formData.phone;
+  const total = calculateTotal();
+
+  // Loading
+  if (isValidating || loading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin"></div>
+          <p className="text-gray-500">กำลังโหลด...</p>
+        </div>
+      </main>
+    );
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-    setFormData({
-      ...formData,
-      [name]: type === 'checkbox' ? checked : value,
-    });
-  };
-
-  const handleSubmit = async () => {
-    setProcessing(true);
-
-    // Simulate API call
-    setTimeout(() => {
-      updateBooking({
-        paymentMethod: paymentMethod,
-        // In a real app we'd save the form data too
-      });
-      setProcessing(false);
-      router.push('/confirmation');
-    }, 2000);
-  };
+  // Active Booking Block - only block if NOT awaiting_payment
+  // If awaiting_payment, let them continue to payment
+  if (hasActiveBooking && activeBookingData && activeBookingData.status !== 'awaiting_payment') {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="material-symbols-outlined text-amber-500 text-3xl">warning</span>
+          </div>
+          <h1 className="text-xl font-bold text-gray-800 dark:text-white mb-2">คุณมีงานจองอยู่แล้ว</h1>
+          <p className="text-sm text-gray-500 mb-4">กรุณารอให้งานจองปัจจุบันเสร็จสิ้นหรือยกเลิกก่อน</p>
+          <div className="flex gap-2">
+            <button onClick={() => router.push('/dashboard')} className="flex-1 py-3 bg-blue-600 text-white font-semibold rounded-xl">
+              ดูสถานะงานจอง
+            </button>
+            <button onClick={() => router.push('/')} className="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold rounded-xl">
+              หน้าหลัก
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-10 py-8 md:py-12 min-h-screen">
-      <div className="flex flex-col gap-2 mb-8">
-        <h1 className="text-3xl md:text-4xl font-black leading-tight tracking-tight text-[#111418] dark:text-white">{t.payment.secureCheckout}</h1>
-        <p className="text-[#617589] dark:text-gray-400 text-base">{t.payment.subtitle}</p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        {/* Left Column: Payment Methods */}
-        <div className="lg:col-span-2 flex flex-col gap-6">
-          {/* Payment Method Selector (Tabs) */}
-          <div className="bg-white dark:bg-[#111a22] rounded-xl border border-[#dbe0e6] dark:border-gray-800 shadow-sm overflow-hidden">
-            <div className="flex border-b border-[#dbe0e6] dark:border-gray-800">
-              <button
-                onClick={() => setPaymentMethod('card')}
-                className={`flex-1 flex items-center justify-center gap-2 py-4 px-4 border-b-[3px] transition-colors group ${paymentMethod === 'card' ? 'bg-white dark:bg-[#111a22] border-brand-primary text-brand-primary' : 'bg-[#f9fafb] dark:bg-[#16212b] border-transparent text-[#617589] dark:text-gray-400 hover:text-[#111418] dark:hover:text-gray-200'}`}
-              >
-                <span className="material-symbols-outlined filled" style={{ fontVariationSettings: "'FILL' 1" }}>credit_card</span>
-                <span className="text-sm font-bold">{t.payment.creditCard}</span>
+    <main className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Compact Trip Summary Header */}
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 sticky top-0 z-40">
+        <div className="max-w-3xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between gap-4">
+            {/* Back + Trip Info */}
+            <div className="flex items-center gap-3 min-w-0">
+              <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors flex-shrink-0">
+                <span className="material-symbols-outlined text-gray-600 dark:text-gray-400">arrow_back</span>
               </button>
-              <button
-                onClick={() => setPaymentMethod('promptpay')}
-                className={`flex-1 flex items-center justify-center gap-2 py-4 px-4 border-b-[3px] transition-colors group ${paymentMethod === 'promptpay' ? 'bg-white dark:bg-[#111a22] border-brand-primary text-brand-primary' : 'bg-[#f9fafb] dark:bg-[#16212b] border-transparent text-[#617589] dark:text-gray-400 hover:text-[#111418] dark:hover:text-gray-200'}`}
-              >
-                <span className="material-symbols-outlined">qr_code_scanner</span>
-                <span className="text-sm font-bold">{t.payment.promptpay}</span>
-              </button>
+              <div className="min-w-0">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {bookingData.vehicle?.name} • {new Date(bookingData.pickupDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}
+                </p>
+                <p className="font-semibold text-gray-800 dark:text-white text-sm truncate">
+                  {bookingData.pickupLocation} → {bookingData.dropoffLocation}
+                </p>
+              </div>
             </div>
-
-            {/* Credit Card Form */}
-            {paymentMethod === 'card' && (
-              <div className="p-6 md:p-8 flex flex-col gap-6">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-lg font-bold text-[#111418] dark:text-white">{t.payment.creditCard}</h3>
-                  <div className="flex gap-2 opacity-70">
-                    <div className="h-6 w-10 bg-[#1a1f71] rounded flex items-center justify-center text-[8px] text-white font-bold italic tracking-wider">VISA</div>
-                    <div className="h-6 w-10 bg-[#eb001b] rounded flex items-center justify-center text-[8px] text-white font-bold italic tracking-wider">MC</div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-4">
-                  {/* Card Number */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-semibold text-[#111418] dark:text-gray-200">{t.payment.cardNumber}</label>
-                    <div className="relative">
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                        <span className="material-symbols-outlined text-[20px]">credit_card</span>
-                      </div>
-                      <input
-                        type="text"
-                        name="cardNumber"
-                        value={formData.cardNumber}
-                        onChange={handleChange}
-                        className="w-full rounded-lg border border-[#dbe0e6] dark:border-gray-700 bg-white dark:bg-[#16212b] pl-10 pr-4 py-3 text-sm placeholder:text-gray-400 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary outline-none transition-all dark:text-white"
-                        placeholder={t.payment.placeholders.cardNumber}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Expiry & CVC */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-[#111418] dark:text-gray-200">{t.payment.expiryDate}</label>
-                      <div className="relative">
-                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                          <span className="material-symbols-outlined text-[20px]">calendar_month</span>
-                        </div>
-                        <input
-                          type="text"
-                          name="expiryDate"
-                          value={formData.expiryDate}
-                          onChange={handleChange}
-                          className="w-full rounded-lg border border-[#dbe0e6] dark:border-gray-700 bg-white dark:bg-[#16212b] pl-10 pr-4 py-3 text-sm placeholder:text-gray-400 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary outline-none transition-all dark:text-white"
-                          placeholder={t.payment.placeholders.expiryDate}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-[#111418] dark:text-gray-200 flex items-center gap-1">
-                        {t.payment.cvv}
-                        <span className="material-symbols-outlined text-gray-400 text-[16px] cursor-help" title="3 digits on back of card">help</span>
-                      </label>
-                      <div className="relative">
-                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                          <span className="material-symbols-outlined text-[20px]">lock</span>
-                        </div>
-                        <input
-                          type="text"
-                          name="cvv"
-                          value={formData.cvv}
-                          onChange={handleChange}
-                          className="w-full rounded-lg border border-[#dbe0e6] dark:border-gray-700 bg-white dark:bg-[#16212b] pl-10 pr-4 py-3 text-sm placeholder:text-gray-400 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary outline-none transition-all dark:text-white"
-                          placeholder={t.payment.placeholders.cvv}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Cardholder Name */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-semibold text-[#111418] dark:text-gray-200">{t.payment.cardHolder}</label>
-                    <div className="relative">
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                        <span className="material-symbols-outlined text-[20px]">person</span>
-                      </div>
-                      <input
-                        type="text"
-                        name="cardName"
-                        value={formData.cardName}
-                        onChange={handleChange}
-                        className="w-full rounded-lg border border-[#dbe0e6] dark:border-gray-700 bg-white dark:bg-[#16212b] pl-10 pr-4 py-3 text-sm placeholder:text-gray-400 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary outline-none transition-all dark:text-white"
-                        placeholder={t.payment.placeholders.cardHolder}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Save Card Checkbox */}
-                  <div className="flex items-center gap-3 mt-2">
-                    <input
-                      type="checkbox"
-                      id="save-card"
-                      name="saveCard"
-                      checked={formData.saveCard}
-                      onChange={handleChange}
-                      className="h-5 w-5 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
-                    />
-                    <label className="text-sm font-medium text-[#111418] dark:text-gray-300" htmlFor="save-card">{t.payment.saveCard}</label>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* PromptPay Content (Placeholder) */}
-            {paymentMethod === 'promptpay' && (
-              <div className="p-6 md:p-8 flex flex-col items-center justify-center gap-6 min-h-[300px]">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg" alt="Mock QR" className="w-48 h-48 opacity-20" />
-                <p className="text-gray-500">{t.payment.promptpayIntegration}</p>
-              </div>
-            )}
-
-            <hr className="border-[#f0f2f4] dark:border-gray-800 my-2" />
-
-            {/* Action Button */}
-            <div className="p-6 md:p-8 pt-0 flex flex-col gap-4">
-              <button
-                onClick={handleSubmit}
-                disabled={processing}
-                className="w-full bg-brand-primary hover:bg-blue-700 text-white font-bold text-lg py-4 rounded-xl shadow-lg shadow-blue-500/30 transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
-              >
-                {processing ? (
-                  <span>{t.payment.processing}</span>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined group-hover:scale-110 transition-transform">lock_person</span>
-                    {t.payment.confirmPayment}
-                  </>
-                )}
-              </button>
-              <div className="flex items-center justify-center gap-2 text-[#617589] dark:text-gray-500 text-xs text-center">
-                <span className="material-symbols-outlined text-[14px]">lock</span>
-                {t.payment.encryptedMessage}
-              </div>
+            {/* Total */}
+            <div className="text-right flex-shrink-0">
+              <p className="text-xs text-gray-500">ยอดรวม</p>
+              <p className="text-xl font-bold text-blue-600">฿{total.toLocaleString()}</p>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Right Column: Order Summary */}
-        <div className="lg:col-span-1 sticky top-24">
-          <div className="flex flex-col bg-white dark:bg-[#111a22] rounded-xl border border-[#dbe0e6] dark:border-gray-800 shadow-sm overflow-hidden">
-            {/* Map Preview Header */}
-            <div className="h-32 w-full bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
-              <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/images/map-preview.jpg')" }}></div>
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 to-indigo-100/20 dark:from-gray-800/20 dark:to-gray-900/20"></div>
-              <div className="absolute bottom-3 left-4 bg-white/90 dark:bg-black/70 backdrop-blur-sm px-2 py-1 rounded text-xs font-bold shadow-sm">
-                {t.payment.mapPreview}
+      <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+
+        {/* Section 1: Customer Info */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
+          <button
+            onClick={() => setExpandedSection(expandedSection === 'info' ? null : 'info')}
+            className="w-full flex items-center justify-between p-4 text-left"
+          >
+            <div className="flex items-center gap-3">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isFormComplete ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}>
+                {isFormComplete ? (
+                  <span className="material-symbols-outlined text-lg">check</span>
+                ) : (
+                  <span className="text-sm font-bold">1</span>
+                )}
+              </div>
+              <div>
+                <p className="font-semibold text-gray-800 dark:text-white">ข้อมูลผู้จอง</p>
+                {isFormComplete && expandedSection !== 'info' && (
+                  <p className="text-xs text-gray-500">{formData.firstName} {formData.lastName} • {formData.phone}</p>
+                )}
               </div>
             </div>
+            <span className={`material-symbols-outlined text-gray-400 transition-transform ${expandedSection === 'info' ? 'rotate-180' : ''}`}>
+              expand_more
+            </span>
+          </button>
 
-            <div className="p-6 flex flex-col gap-6">
-              <h2 className="text-xl font-bold text-[#111418] dark:text-white">{t.booking.title}</h2>
-
-              {/* Route */}
-              <div className="flex gap-4">
-                <div className="mt-1 flex flex-col items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-brand-primary"></div>
-                  <div className="w-0.5 h-8 bg-gray-200 dark:bg-gray-700"></div>
-                  <div className="w-2 h-2 rounded-full bg-red-500"></div>
+          {expandedSection === 'info' && (
+            <div className="px-4 pb-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">ชื่อ *</label>
+                  <input
+                    type="text" name="firstName" value={formData.firstName} onChange={handleChange}
+                    className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500 dark:text-white"
+                    placeholder="ชื่อจริง"
+                  />
                 </div>
-                <div className="flex flex-col gap-4 flex-1">
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{t.booking.pickup}</p>
-                    <p className="text-sm font-bold text-[#111418] dark:text-white">{t.demo.pickupLocation}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{t.demo.date}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{t.booking.dropoff}</p>
-                    <p className="text-sm font-bold text-[#111418] dark:text-white">{t.demo.dropoffLocation}</p>
-                  </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">นามสกุล *</label>
+                  <input
+                    type="text" name="lastName" value={formData.lastName} onChange={handleChange}
+                    className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500 dark:text-white"
+                    placeholder="นามสกุล"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">เบอร์โทร *</label>
+                <input
+                  type="tel" name="phone" value={formData.phone} onChange={handleChange}
+                  className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500 dark:text-white"
+                  placeholder="08X-XXX-XXXX"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">อีเมล *</label>
+                <input
+                  type="email" name="email" value={formData.email} onChange={handleChange}
+                  className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500 dark:text-white"
+                  placeholder="email@example.com"
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">เที่ยวบิน</label>
+                  <input
+                    type="text" name="flightNumber" value={formData.flightNumber} onChange={handleChange}
+                    className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500 dark:text-white"
+                    placeholder="TG123"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">ผู้โดยสาร</label>
+                  <input
+                    type="number" name="passengerCount" value={formData.passengerCount} onChange={handleChange} min="1"
+                    className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">กระเป๋า</label>
+                  <input
+                    type="number" name="luggageCount" value={formData.luggageCount} onChange={handleChange} min="0"
+                    className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500 dark:text-white"
+                  />
                 </div>
               </div>
 
-              {/* Vehicle Info */}
-              {bookingData.vehicle && (
-                <div className="flex gap-3 items-start p-3 rounded-lg bg-background-light dark:bg-[#16212b] border border-[#dbe0e6] dark:border-gray-800">
-                  <div className="bg-white dark:bg-gray-800 p-2 rounded text-[#111418] dark:text-white shadow-sm">
-                    <span className="material-symbols-outlined">directions_car</span>
+              {isFormComplete && (
+                <button
+                  onClick={() => setExpandedSection('payment')}
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  ถัดไป: เลือกวิธีชำระเงิน
+                  <span className="material-symbols-outlined">arrow_forward</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Section 2: Payment Method */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
+          <button
+            onClick={() => isFormComplete && setExpandedSection(expandedSection === 'payment' ? null : 'payment')}
+            className={`w-full flex items-center justify-between p-4 text-left ${!isFormComplete ? 'opacity-50' : ''}`}
+            disabled={!isFormComplete}
+          >
+            <div className="flex items-center gap-3">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${paymentMethod ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-500'}`}>
+                {paymentMethod ? (
+                  <span className="material-symbols-outlined text-lg">check</span>
+                ) : (
+                  <span className="text-sm font-bold">2</span>
+                )}
+              </div>
+              <div>
+                <p className="font-semibold text-gray-800 dark:text-white">วิธีชำระเงิน</p>
+                {paymentMethod && expandedSection !== 'payment' && (
+                  <p className="text-xs text-gray-500">
+                    {paymentMethod === 'card' ? 'บัตรเครดิต/เดบิต' : paymentMethod === 'promptpay' ? 'PromptPay QR' : 'เงินสดปลายทาง'}
+                  </p>
+                )}
+              </div>
+            </div>
+            <span className={`material-symbols-outlined text-gray-400 transition-transform ${expandedSection === 'payment' ? 'rotate-180' : ''}`}>
+              expand_more
+            </span>
+          </button>
+
+          {expandedSection === 'payment' && isFormComplete && (
+            <div className="px-4 pb-4 space-y-3">
+              {/* Payment Method Cards */}
+              <div className="grid grid-cols-1 gap-2">
+                {/* Card Payment */}
+                <button
+                  onClick={() => setPaymentMethod('card')}
+                  className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all text-left ${paymentMethod === 'card' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'}`}
+                >
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${paymentMethod === 'card' ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>
+                    <span className="material-symbols-outlined">credit_card</span>
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-bold text-[#111418] dark:text-white">{bookingData.vehicle.name}</span>
-                    <span className="text-xs text-[#617589] dark:text-gray-400">{t.vehicles.driverIncluded}</span>
-                    <div className="flex items-center gap-1 mt-1 text-[10px] text-green-600 bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 rounded w-fit font-bold">
-                      <span className="material-symbols-outlined text-[10px]">check</span> Free Cancellation
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-800 dark:text-white">บัตรเครดิต/เดบิต</p>
+                    <p className="text-xs text-gray-500">Visa, Mastercard, JCB</p>
+                  </div>
+                  <div className="flex gap-1">
+                    <div className="w-8 h-5 bg-[#1a1f71] rounded text-[6px] text-white flex items-center justify-center font-bold">VISA</div>
+                    <div className="w-8 h-5 bg-gradient-to-r from-red-500 to-yellow-500 rounded"></div>
+                  </div>
+                </button>
+
+                {/* PromptPay */}
+                <button
+                  onClick={() => setPaymentMethod('promptpay')}
+                  className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all text-left ${paymentMethod === 'promptpay' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'}`}
+                >
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${paymentMethod === 'promptpay' ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>
+                    <span className="material-symbols-outlined">qr_code_2</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-800 dark:text-white">PromptPay QR</p>
+                    <p className="text-xs text-gray-500">สแกนจ่ายผ่านแอปธนาคาร</p>
+                  </div>
+                </button>
+
+                {/* Cash */}
+                <button
+                  onClick={() => setPaymentMethod('cash')}
+                  className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all text-left ${paymentMethod === 'cash' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'}`}
+                >
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${paymentMethod === 'cash' ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>
+                    <span className="material-symbols-outlined">payments</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-800 dark:text-white">เงินสดปลายทาง</p>
+                    <p className="text-xs text-gray-500">ชำระเมื่อถึงจุดหมาย</p>
+                  </div>
+                </button>
+              </div>
+
+              {/* Payment Content */}
+              {paymentMethod === 'card' && (
+                <div className="mt-4 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="material-symbols-outlined text-indigo-600">lock</span>
+                    <div>
+                      <p className="font-semibold text-indigo-800 dark:text-indigo-300">Secure by Stripe</p>
+                      <p className="text-xs text-indigo-600 dark:text-indigo-400">ข้อมูลบัตรของคุณปลอดภัย</p>
                     </div>
                   </div>
+                  {stripeError && (
+                    <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm rounded-lg">
+                      {stripeError}
+                    </div>
+                  )}
+                  <button
+                    onClick={handleStripePayment}
+                    disabled={stripeLoading}
+                    className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+                  >
+                    {stripeLoading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        กำลังเชื่อมต่อ...
+                      </>
+                    ) : (
+                      <>
+                        <span className="material-symbols-outlined">credit_card</span>
+                        ชำระเงิน ฿{total.toLocaleString()}
+                      </>
+                    )}
+                  </button>
                 </div>
               )}
 
-              <div className="h-px bg-[#f0f2f4] dark:bg-gray-700 w-full"></div>
+              {paymentMethod === 'promptpay' && (
+                <div className="mt-4 flex flex-col items-center">
+                  <div className="bg-white p-4 rounded-xl shadow-lg mb-4">
+                    <QRCodeSVG value={generatePromptPayPayload(total)} size={180} level="M" />
+                  </div>
+                  <p className="text-2xl font-bold text-blue-600 mb-1">฿{total.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 mb-4">สแกน QR แล้วกดตรวจสอบ</p>
+                  <button
+                    onClick={handleCheckPayment}
+                    disabled={isVerifying}
+                    className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+                  >
+                    {isVerifying ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        กำลังตรวจสอบ...
+                      </>
+                    ) : (
+                      <>
+                        <span className="material-symbols-outlined">verified</span>
+                        ตรวจสอบการชำระเงิน
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
 
-              {/* Price Breakdown */}
-              <div className="flex flex-col gap-2 text-sm text-[#617589] dark:text-gray-400">
-                <div className="flex justify-between">
-                  <span>{t.booking.vehicleHire}</span>
-                  <span className="text-[#111418] dark:text-gray-200">฿{bookingData.vehicle?.price || 0}</span>
+              {paymentMethod === 'cash' && (
+                <div className="mt-4">
+                  {!otpVerified ? (
+                    <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl">
+                      <p className="text-sm text-amber-800 dark:text-amber-300 mb-4">
+                        กรุณายืนยันเบอร์โทรศัพท์เพื่อให้เราติดต่อคุณได้
+                      </p>
+                      {!otpSent ? (
+                        <div className="space-y-3">
+                          <input
+                            type="tel"
+                            value={cashPhoneNumber}
+                            onChange={(e) => setCashPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                            className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-center text-lg font-mono outline-none"
+                            placeholder="08X-XXX-XXXX"
+                          />
+                          {otpError && <p className="text-red-500 text-sm">{otpError}</p>}
+                          <button
+                            id="send-otp-button"
+                            onClick={handleSendOtp}
+                            disabled={otpSending || cashPhoneNumber.length < 10}
+                            className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold rounded-xl"
+                          >
+                            {otpSending ? 'กำลังส่ง...' : 'ส่งรหัส OTP'}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <input
+                            type="text"
+                            value={otpCode}
+                            onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                            className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-center text-2xl font-mono tracking-widest outline-none"
+                            placeholder="● ● ● ● ● ●"
+                            maxLength={6}
+                          />
+                          {otpError && <p className="text-red-500 text-sm">{otpError}</p>}
+                          <button
+                            onClick={handleVerifyOtp}
+                            disabled={otpVerifying || otpCode.length !== 6}
+                            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white font-semibold rounded-xl"
+                          >
+                            {otpVerifying ? 'กำลังตรวจสอบ...' : 'ยืนยัน OTP'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
+                      <div className="flex items-center gap-3 mb-4">
+                        <span className="material-symbols-outlined text-emerald-600 text-2xl">verified</span>
+                        <div>
+                          <p className="font-semibold text-emerald-800 dark:text-emerald-300">ยืนยันเบอร์โทรสำเร็จ</p>
+                          <p className="text-xs text-emerald-600">{cashPhoneNumber}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleSubmit}
+                        disabled={processing}
+                        className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors"
+                      >
+                        {processing ? 'กำลังดำเนินการ...' : `ยืนยันการจอง (ชำระเงินสด ฿${total.toLocaleString()})`}
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-between">
-                  <span>{t.payment.driverFeeIncluded}</span>
-                  <span className="text-[#111418] dark:text-gray-200 text-xs bg-gray-100 dark:bg-gray-700 px-1 rounded">{t.payment.included}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>{t.booking.tax}</span>
-                  <span className="text-[#111418] dark:text-gray-200">฿{Math.round((bookingData.vehicle?.price || 0) * 0.07)}</span>
-                </div>
-              </div>
+              )}
+            </div>
+          )}
+        </div>
 
-              <div className="h-px bg-[#f0f2f4] dark:bg-gray-700 w-full"></div>
-
-              {/* Total */}
-              <div className="flex justify-between items-end">
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-[#617589] dark:text-gray-400">{t.booking.total}</span>
-                  <span className="text-xs text-green-600 dark:text-green-400 font-medium">{t.payment.noHiddenFees}</span>
-                </div>
-                <span className="text-2xl font-black text-[#111418] dark:text-white tracking-tight">
-                  ฿{Math.round((bookingData.vehicle?.price || 0) * 1.07)}
-                </span>
-              </div>
+        {/* Trip Details Card */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <img
+              src={bookingData.vehicle?.image || ''}
+              alt={bookingData.vehicle?.name}
+              className="w-16 h-12 object-cover rounded-lg bg-gray-100"
+              onError={(e) => e.currentTarget.style.display = 'none'}
+            />
+            <div>
+              <p className="font-semibold text-gray-800 dark:text-white">{bookingData.vehicle?.name}</p>
+              <p className="text-xs text-gray-500">{bookingData.vehicle?.passengers} ที่นั่ง • รวมคนขับ</p>
+            </div>
+          </div>
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+              <span className="material-symbols-outlined text-emerald-500 text-lg">trip_origin</span>
+              <span>{bookingData.pickupLocation}</span>
+            </div>
+            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+              <span className="material-symbols-outlined text-red-500 text-lg">location_on</span>
+              <span>{bookingData.dropoffLocation}</span>
+            </div>
+            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+              <span className="material-symbols-outlined text-blue-500 text-lg">event</span>
+              <span>
+                {new Date(bookingData.pickupDate).toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })} • {bookingData.pickupTime}
+              </span>
             </div>
           </div>
         </div>
+
+        {/* Trust Badges */}
+        <div className="flex items-center justify-center gap-6 py-4 text-xs text-gray-400">
+          <span className="flex items-center gap-1">
+            <span className="material-symbols-outlined text-sm text-emerald-500">verified</span>
+            คนขับมืออาชีพ
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="material-symbols-outlined text-sm text-blue-500">security</span>
+            ชำระเงินปลอดภัย
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="material-symbols-outlined text-sm text-purple-500">support_agent</span>
+            บริการ 24 ชม.
+          </span>
+        </div>
       </div>
+
+      {/* Payment Success Modal */}
+      {paymentSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 max-w-sm w-full mx-4 text-center">
+            <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="material-symbols-outlined text-emerald-500 text-4xl">check_circle</span>
+            </div>
+            <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">ชำระเงินสำเร็จ!</h3>
+            <p className="text-gray-500">กำลังพาไปหน้ายืนยัน...</p>
+          </div>
+        </div>
+      )}
+
+      <div id="recaptcha-container"></div>
     </main>
   );
 }

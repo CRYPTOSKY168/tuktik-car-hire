@@ -1,0 +1,159 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Check if user is an approved driver
+    function isApprovedDriver() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isApprovedDriver == true;
+    }
+
+    // Get user's driverId
+    function getUserDriverId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.driverId;
+    }
+
+    // Vehicles: Public read (guests can view), Auth write (likes/ratings)
+    match /vehicles/{vehicleId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Bookings: Auth create, Owner/Driver read/update OR Admin
+    match /bookings/{bookingId} {
+      allow create: if request.auth != null;
+      // Allow read if: owner, assigned driver, or admin
+      allow read: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
+        isApprovedDriver() ||
+        isAdmin()
+      );
+      // Allow update if: owner, assigned driver (check driver.driverId exists), or admin
+      allow update: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
+        (isApprovedDriver() &&
+         resource.data.keys().hasAny(['driver']) &&
+         resource.data.driver != null &&
+         resource.data.driver.driverId == getUserDriverId()) ||
+        isAdmin()
+      );
+      // Allow list query for drivers (they need to query their bookings)
+      allow list: if request.auth != null && (isApprovedDriver() || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // Users: Owner read/write OR Admin
+    match /users/{userId} {
+      allow read, write: if request.auth != null && (
+        request.auth.uid == userId || isAdmin()
+      );
+
+      // User Saved Locations subcollection
+      match /savedLocations/{locationId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // User Notifications subcollection
+      match /notifications/{notificationId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // User Vouchers subcollection
+      match /vouchers/{voucherId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // User Preferences subcollection (or document)
+      match /preferences/{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Locations: Public read, Admin write
+    match /locations/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Routes: Public read, Admin write
+    match /routes/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Global Vouchers (for promo codes): Public read, Admin write
+    match /vouchers/{voucherId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Drivers: Any authenticated user can read, Driver can update own status, Admin can write all
+    match /drivers/{driverId} {
+      allow read: if request.auth != null;
+      // Allow driver to update their own document (status, location, etc.)
+      allow update: if request.auth != null && (
+        (isApprovedDriver() && getUserDriverId() == driverId) ||
+        isAdmin()
+      );
+      // Only admin can create or delete drivers
+      allow create, delete: if isAdmin();
+    }
+
+    // Settings: Admin only
+    match /settings/{document=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // User Notifications: Owner read, Admin can create/manage for any user
+    match /notifications/{notificationId} {
+      // Allow read if user owns the notification or is admin
+      allow read: if request.auth != null && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      // Allow create: user for themselves OR admin for any user
+      allow create: if request.auth != null && (
+        request.resource.data.userId == request.auth.uid || isAdmin()
+      );
+      // Allow update/delete if user owns it or admin
+      allow update, delete: if request.auth != null && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      // Allow list query - user can query own, admin can query all
+      allow list: if request.auth != null;
+    }
+
+    // Admin Notifications: Admin read, Any auth user can create (for booking alerts)
+    match /admin_notifications/{notificationId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if request.auth != null; // Any logged-in user can create admin notification
+      allow list: if isAdmin();
+    }
+
+    // Stripe Customers: Required for Firebase Extension "Run Payments with Stripe"
+    match /customers/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Checkout Sessions - user can create and read their own sessions
+      match /checkout_sessions/{sessionId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Payments - user can read their payment history
+      match /payments/{paymentId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Subscriptions (if needed in future)
+      match /subscriptions/{subscriptionId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+  }
+}
