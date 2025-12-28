@@ -66,6 +66,7 @@ export const NotificationService = {
                 userId,
                 ...notification,
                 read: false,
+                isRead: false, // Add both field names for consistency
                 createdAt: Timestamp.now(),
             });
             return docRef.id;
@@ -131,8 +132,10 @@ export const NotificationService = {
         if (!db) return;
 
         try {
+            // Update both field names to ensure consistency
             await updateDoc(doc(db, NOTIFICATIONS_COLLECTION, notificationId), {
                 read: true,
+                isRead: true,
             });
         } catch (error) {
             console.error('Error marking notification as read:', error);
@@ -149,24 +152,36 @@ export const NotificationService = {
         try {
             console.log('markAllAsRead: Starting for userId:', userId);
 
+            // Get ALL notifications for this user (not filtering by read status)
+            // because the field name might be 'read' or 'isRead'
             const q = query(
                 collection(db, NOTIFICATIONS_COLLECTION),
-                where('userId', '==', userId),
-                where('read', '==', false)
+                where('userId', '==', userId)
             );
             const snapshot = await getDocs(q);
 
-            console.log('markAllAsRead: Found', snapshot.docs.length, 'unread notifications');
+            console.log('markAllAsRead: Found', snapshot.docs.length, 'total notifications for user');
 
-            if (snapshot.empty) {
+            // Filter unread notifications (check both 'read' and 'isRead' fields)
+            const unreadDocs = snapshot.docs.filter((docSnap) => {
+                const data = docSnap.data();
+                console.log('markAllAsRead: Doc', docSnap.id, 'read:', data.read, 'isRead:', data.isRead);
+                // Check both possible field names
+                return data.read === false || data.isRead === false;
+            });
+
+            console.log('markAllAsRead: Found', unreadDocs.length, 'unread notifications');
+
+            if (unreadDocs.length === 0) {
                 console.log('markAllAsRead: No unread notifications to update');
                 return;
             }
 
             const batch = writeBatch(db);
-            snapshot.docs.forEach((docSnap) => {
+            unreadDocs.forEach((docSnap) => {
                 console.log('markAllAsRead: Updating doc:', docSnap.id);
-                batch.update(docSnap.ref, { read: true });
+                // Update both fields to ensure consistency
+                batch.update(docSnap.ref, { read: true, isRead: true });
             });
             await batch.commit();
 

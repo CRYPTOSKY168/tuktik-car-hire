@@ -74,9 +74,18 @@ export default function NotificationBell({ isAdmin = false }: NotificationBellPr
 
         let unsubscribe: () => void;
 
+        // Helper to check if notification is unread (handles both 'read' and 'isRead' fields)
+        const isUnread = (n: any) => {
+            // Check both possible field names
+            if (n.read === false || n.isRead === false) return true;
+            if (n.read === true || n.isRead === true) return false;
+            // If neither field exists, treat as unread
+            return true;
+        };
+
         if (isAdmin) {
             unsubscribe = AdminNotificationService.subscribeToNotifications((data) => {
-                const newUnreadCount = data.filter((n) => !n.read).length;
+                const newUnreadCount = data.filter(isUnread).length;
 
                 // Play sound if unread count increased (new notification arrived)
                 if (newUnreadCount > prevUnreadCountRef.current && prevUnreadCountRef.current > 0) {
@@ -89,7 +98,7 @@ export default function NotificationBell({ isAdmin = false }: NotificationBellPr
             });
         } else {
             unsubscribe = NotificationService.subscribeToNotifications(user.uid, (data) => {
-                const newUnreadCount = data.filter((n) => !n.read).length;
+                const newUnreadCount = data.filter(isUnread).length;
 
                 // Play sound if unread count increased (new notification arrived)
                 if (newUnreadCount > prevUnreadCountRef.current && prevUnreadCountRef.current > 0) {
@@ -123,7 +132,9 @@ export default function NotificationBell({ isAdmin = false }: NotificationBellPr
 
     // Handle notification click
     const handleNotificationClick = async (notification: UserNotification | AdminNotification) => {
-        if (!notification.read) {
+        // Check if unread using both possible field names
+        const unread = (notification as any).read === false || (notification as any).isRead === false;
+        if (unread) {
             if (isAdmin) {
                 await AdminNotificationService.markAsRead(notification.id, user?.uid || '');
             } else {
@@ -186,6 +197,13 @@ export default function NotificationBell({ isAdmin = false }: NotificationBellPr
         if (diff < 3600) return `${Math.floor(diff / 60)} ${language === 'th' ? 'นาที' : 'min'}`;
         if (diff < 86400) return `${Math.floor(diff / 3600)} ${language === 'th' ? 'ชม.' : 'hr'}`;
         return `${Math.floor(diff / 86400)} ${language === 'th' ? 'วัน' : 'd'}`;
+    };
+
+    // Helper to check if notification is unread (handles both 'read' and 'isRead' fields)
+    const isNotificationUnread = (n: UserNotification | AdminNotification | any): boolean => {
+        if (n.read === false || n.isRead === false) return true;
+        if (n.read === true || n.isRead === true) return false;
+        return true; // Default to unread if field doesn't exist
     };
 
     // Get notification link
@@ -276,12 +294,12 @@ export default function NotificationBell({ isAdmin = false }: NotificationBellPr
                                                 setIsOpen(false);
                                             }}
                                             className={`flex items-start gap-3 p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
-                                                !notification.read ? 'bg-blue-50/50 dark:bg-blue-900/20' : ''
+                                                isNotificationUnread(notification) ? 'bg-blue-50/50 dark:bg-blue-900/20' : ''
                                             }`}
                                         >
                                             {/* Icon */}
                                             <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                                                !notification.read ? 'bg-blue-100 dark:bg-blue-900/50' : 'bg-gray-100 dark:bg-gray-700'
+                                                isNotificationUnread(notification) ? 'bg-blue-100 dark:bg-blue-900/50' : 'bg-gray-100 dark:bg-gray-700'
                                             }`}>
                                                 <span className={`material-symbols-outlined ${color}`}>
                                                     {icon}
@@ -291,7 +309,7 @@ export default function NotificationBell({ isAdmin = false }: NotificationBellPr
                                             {/* Content */}
                                             <div className="flex-1 min-w-0">
                                                 <p className={`text-sm font-semibold truncate ${
-                                                    !notification.read ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300'
+                                                    isNotificationUnread(notification) ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300'
                                                 }`}>
                                                     {notification.title}
                                                 </p>
@@ -304,7 +322,7 @@ export default function NotificationBell({ isAdmin = false }: NotificationBellPr
                                             </div>
 
                                             {/* Unread indicator */}
-                                            {!notification.read && (
+                                            {isNotificationUnread(notification) && (
                                                 <div className="w-2.5 h-2.5 bg-blue-500 rounded-full shrink-0 mt-1"></div>
                                             )}
                                         </Link>
