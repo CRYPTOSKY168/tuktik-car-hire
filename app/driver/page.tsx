@@ -239,6 +239,13 @@ export default function DriverDashboard() {
     const handleBookingAction = async (bookingId: string, newStatus: 'driver_en_route' | 'in_progress' | 'completed') => {
         if (!driver) return;
 
+        // Find current booking and check if status is already the same (prevent duplicate calls)
+        const currentBooking = bookings.find(b => b.id === bookingId);
+        if (currentBooking?.status === newStatus) {
+            console.log('Status already updated, skipping...');
+            return;
+        }
+
         setUpdatingStatus(bookingId);
         try {
             const token = await getAuthToken();
@@ -265,7 +272,13 @@ export default function DriverDashboard() {
             if (!result.success) {
                 throw new Error(result.error || 'Failed to update status');
             }
-            // Bookings will update automatically via real-time subscription
+
+            // Optimistic update - update local state immediately for better UX
+            setBookings(prev => prev.map(b =>
+                b.id === bookingId ? { ...b, status: newStatus } : b
+            ));
+
+            // Real-time subscription will also update, but this gives instant feedback
         } catch (error: any) {
             console.error('Error updating booking:', error);
             alert(error.message || 'ไม่สามารถอัปเดตสถานะได้');
