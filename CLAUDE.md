@@ -1,9 +1,9 @@
 # TukTik Car Rental - Project Documentation
 
 > **Last Updated:** 2025-12-29
-> **Version:** 5.8 (Mobile-Friendly Date/Time Picker)
+> **Version:** 5.9 (Driver Status Update Fix)
 > **Status:** Production
-> **Lines:** ~2400+
+> **Lines:** ~2500+
 
 ---
 
@@ -1940,6 +1940,15 @@ STRIPE_WEBHOOK_SECRET=
 
 ## Changelog
 
+### 2025-12-29 v5.9 - Driver Status Update Fix 🔧
+- แก้ไข bug "Cannot change status from X to X" ในหน้าคนขับ
+- **สาเหตุ:** Race condition - คนขับกดปุ่มก่อน real-time update มาถึง
+- **วิธีแก้:**
+  1. เพิ่มการเช็คก่อนเรียก API: ถ้า `currentStatus === newStatus` → skip
+  2. เพิ่ม **Optimistic Update**: อัปเดต local state ทันทีหลัง API สำเร็จ
+- ป้องกันการกดปุ่มซ้ำที่ทำให้เกิด error
+- **ไฟล์ที่แก้:** `app/driver/page.tsx`
+
 ### 2025-12-29 v5.8 - Mobile-Friendly Date/Time Picker 📅
 - แทนที่ native date/time inputs ด้วย **Custom Bottom Sheet Pickers**
 - **Date Picker Features:**
@@ -2428,4 +2437,4 @@ vercel --prod        # Deploy to production
 ---
 
 *Document maintained by development team. Last updated: 2025-12-29*
-*Lines: ~2500 | Version: 5.8 (Mobile-Friendly Date/Time Picker) 📅*
+*Lines: ~2550 | Version: 5.9 (Driver Status Update Fix) 🔧*
