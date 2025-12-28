@@ -1,9 +1,9 @@
 # TukTik Car Rental - Project Documentation
 
 > **Last Updated:** 2025-12-29
-> **Version:** 5.5 (Driver History Auth Fix)
+> **Version:** 5.6 (Notification Sound & Mark All Read Fix)
 > **Status:** Production
-> **Lines:** ~2000+
+> **Lines:** ~2200+
 
 ---
 
@@ -1940,6 +1940,18 @@ STRIPE_WEBHOOK_SECRET=
 
 ## Changelog
 
+### 2025-12-29 v5.6 - Notification Sound & Mark All Read Fix 🔔
+- เพิ่มเสียงแจ้งเตือนเมื่อมี notification ใหม่
+  - ใช้ **Web Audio API** สร้างเสียง chime สองโน้ต (A5 → D6)
+  - เล่นเสียงเฉพาะเมื่อ unread count เพิ่มขึ้น (ไม่เล่นตอน load หน้าแรก)
+  - รองรับ Chrome, Firefox, Safari
+- แก้ไขปุ่ม "อ่านทั้งหมด" ไม่ทำงาน
+  - เพิ่ม loading state (`markingAllRead`) ป้องกันกดซ้ำ
+  - อัปเดต local state ทันที (`setUnreadCount(0)`) ให้ UI ตอบสนองเร็ว
+  - เพิ่ม error handling พร้อมแจ้งเตือนถ้าเกิดข้อผิดพลาด
+  - แสดง spinner animation ขณะกำลังประมวลผล
+- **ไฟล์ที่แก้:** `components/notifications/NotificationBell.tsx`
+
 ### 2025-12-29 v5.5 - Driver History Auth Fix 🔧
 - แก้ไขปัญหา redirect loop ในหน้า `/driver/history`
 - **สาเหตุ:** ใช้ `localStorage.getItem('driver_session')` แทน Firebase Auth
@@ -2386,4 +2398,4 @@ vercel --prod        # Deploy to production
 ---
 
 *Document maintained by development team. Last updated: 2025-12-29*
-*Lines: ~2200 | Version: 5.5 (Driver History Auth Fix) 🔧*
+*Lines: ~2250 | Version: 5.6 (Notification Sound & Mark All Read Fix) 🔔*
