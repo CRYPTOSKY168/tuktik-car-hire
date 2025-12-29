@@ -6,6 +6,7 @@ import { auth, db } from '@/lib/firebase/config';
 import { doc, getDoc, query, collection, where, getDocs } from 'firebase/firestore';
 import { FirestoreService } from '@/lib/firebase/firestore';
 import { DriverStatus } from '@/lib/types';
+import { useLanguage } from '@/lib/contexts/LanguageContext';
 import Link from 'next/link';
 
 interface DriverData {
@@ -33,6 +34,7 @@ interface Booking {
 }
 
 export default function DriverDashboard() {
+    const { t, language } = useLanguage();
     const [driver, setDriver] = useState<DriverData | null>(null);
     const [driverStatus, setDriverStatus] = useState<DriverStatus | string>(DriverStatus.AVAILABLE);
     const [bookings, setBookings] = useState<Booking[]>([]);
@@ -42,6 +44,8 @@ export default function DriverDashboard() {
     // New job alert states
     const [newJobAlert, setNewJobAlert] = useState<Booking | null>(null);
     const [showNewJobModal, setShowNewJobModal] = useState(false);
+    const [countdown, setCountdown] = useState(60); // 60 seconds countdown
+    const countdownRef = useRef<NodeJS.Timeout | null>(null);
     const previousBookingIds = useRef<Set<string>>(new Set());
     const isFirstLoad = useRef(true);
     const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -90,6 +94,7 @@ export default function DriverDashboard() {
             // Show alert for the first new booking
             setNewJobAlert(newAssignedBookings[0]);
             setShowNewJobModal(true);
+            setCountdown(60); // Reset countdown
             playNotificationSound();
 
             // Vibrate if supported
@@ -101,6 +106,25 @@ export default function DriverDashboard() {
         // Update stored IDs
         previousBookingIds.current = new Set(newBookings.map(b => b.id));
     }, [playNotificationSound]);
+
+    // Countdown timer effect
+    useEffect(() => {
+        if (showNewJobModal && countdown > 0) {
+            countdownRef.current = setTimeout(() => {
+                setCountdown(prev => prev - 1);
+            }, 1000);
+        } else if (countdown === 0 && showNewJobModal) {
+            // Auto-close when countdown reaches 0
+            setShowNewJobModal(false);
+            setNewJobAlert(null);
+        }
+
+        return () => {
+            if (countdownRef.current) {
+                clearTimeout(countdownRef.current);
+            }
+        };
+    }, [showNewJobModal, countdown]);
 
     useEffect(() => {
         if (!auth) {
@@ -339,10 +363,10 @@ export default function DriverDashboard() {
 
     const getStatusText = (status: string) => {
         switch (status) {
-            case 'driver_assigned': return 'รอออกเดินทาง';
-            case 'driver_en_route': return 'กำลังไปรับ';
-            case 'in_progress': return 'กำลังเดินทาง';
-            case 'completed': return 'เสร็จสิ้น';
+            case 'driver_assigned': return t.driver.dashboard.status.waitingToStart;
+            case 'driver_en_route': return t.driver.dashboard.status.onTheWay;
+            case 'in_progress': return t.driver.dashboard.status.inProgress;
+            case 'completed': return t.driver.dashboard.status.completed;
             default: return status;
         }
     };
@@ -350,11 +374,11 @@ export default function DriverDashboard() {
     const getNextAction = (status: string): { label: string; nextStatus: 'driver_en_route' | 'in_progress' | 'completed'; icon: string; color: string } | null => {
         switch (status) {
             case 'driver_assigned':
-                return { label: 'ออกเดินทาง', nextStatus: 'driver_en_route', icon: 'directions_car', color: 'from-orange-500 to-orange-600' };
+                return { label: t.driver.dashboard.actions.startTrip, nextStatus: 'driver_en_route', icon: 'directions_car', color: 'from-orange-500 to-orange-600' };
             case 'driver_en_route':
-                return { label: 'รับลูกค้าแล้ว', nextStatus: 'in_progress', icon: 'person_add', color: 'from-purple-500 to-purple-600' };
+                return { label: t.driver.dashboard.actions.pickedUp, nextStatus: 'in_progress', icon: 'person_add', color: 'from-purple-500 to-purple-600' };
             case 'in_progress':
-                return { label: 'ถึงปลายทาง', nextStatus: 'completed', icon: 'check_circle', color: 'from-green-500 to-green-600' };
+                return { label: t.driver.dashboard.actions.arrived, nextStatus: 'completed', icon: 'check_circle', color: 'from-green-500 to-green-600' };
             default:
                 return null;
         }
@@ -382,7 +406,7 @@ export default function DriverDashboard() {
             <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="flex flex-col items-center gap-4">
                     <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                    <p className="text-gray-500">กำลังโหลด...</p>
+                    <p className="text-gray-500">{t.driver.dashboard.loading}</p>
                 </div>
             </div>
         );
@@ -393,7 +417,7 @@ export default function DriverDashboard() {
             <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="text-center">
                     <span className="material-symbols-outlined text-5xl text-gray-300 mb-3">error</span>
-                    <p className="text-gray-500">ไม่พบข้อมูลคนขับ</p>
+                    <p className="text-gray-500">{t.driver.dashboard.notFound}</p>
                 </div>
             </div>
         );
@@ -427,18 +451,18 @@ export default function DriverDashboard() {
             }`}>
                 <div className="flex items-center justify-between">
                     <div className="text-white">
-                        <p className="text-sm opacity-80">สถานะของคุณ</p>
+                        <p className="text-sm opacity-80">{t.driver.dashboard.yourStatus}</p>
                         <p className="text-2xl font-bold">
                             {isOnline ? (
-                                displayBusy ? 'กำลังวิ่งงาน' : 'พร้อมรับงาน'
-                            ) : 'ออฟไลน์'}
+                                displayBusy ? t.driver.dashboard.busy : t.driver.dashboard.online
+                            ) : t.driver.dashboard.offline}
                         </p>
                         <p className="text-xs opacity-70 mt-1">
                             {isOnline
                                 ? displayBusy
-                                    ? `คุณมี ${activeBookings.length} งานอยู่`
-                                    : 'คุณจะได้รับการแจ้งเตือนงานใหม่'
-                                : 'คุณจะไม่ได้รับงานใหม่'}
+                                    ? t.driver.dashboard.youHaveJobs.replace('{count}', activeBookings.length.toString())
+                                    : t.driver.dashboard.willReceiveNotifications
+                                : t.driver.dashboard.wontReceiveJobs}
                         </p>
                     </div>
 
@@ -486,7 +510,7 @@ export default function DriverDashboard() {
                     <div className="mt-3 pt-3 border-t border-white/20">
                         <p className="text-white/80 text-xs flex items-center gap-1">
                             <span className="material-symbols-outlined text-sm animate-pulse">info</span>
-                            คุณมีงานอยู่ ต้องเสร็จงานก่อนถึงจะปิดสถานะได้
+                            {t.driver.dashboard.mustFinishFirst}
                         </p>
                     </div>
                 )}
@@ -497,14 +521,14 @@ export default function DriverDashboard() {
                 <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-4 text-white">
                     <div className="flex items-center gap-2 mb-2">
                         <span className="material-symbols-outlined">pending_actions</span>
-                        <span className="text-sm opacity-80">งานที่รอ</span>
+                        <span className="text-sm opacity-80">{t.driver.dashboard.pendingJobs}</span>
                     </div>
                     <p className="text-3xl font-bold">{activeBookings.length}</p>
                 </div>
                 <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-4 text-white">
                     <div className="flex items-center gap-2 mb-2">
                         <span className="material-symbols-outlined">today</span>
-                        <span className="text-sm opacity-80">วันนี้</span>
+                        <span className="text-sm opacity-80">{t.driver.dashboard.today}</span>
                     </div>
                     <p className="text-3xl font-bold">{todayBookings.length}</p>
                 </div>
@@ -512,11 +536,11 @@ export default function DriverDashboard() {
 
             {/* Active Bookings */}
             <div>
-                <h3 className="font-semibold text-gray-800 mb-3">งานที่กำลังดำเนินการ</h3>
+                <h3 className="font-semibold text-gray-800 mb-3">{t.driver.dashboard.activeJobs}</h3>
                 {activeBookings.length === 0 ? (
                     <div className="bg-white rounded-2xl p-8 text-center">
                         <span className="material-symbols-outlined text-5xl text-gray-300 mb-3">inbox</span>
-                        <p className="text-gray-500">ไม่มีงานที่กำลังดำเนินการ</p>
+                        <p className="text-gray-500">{t.driver.dashboard.noActiveJobs}</p>
                     </div>
                 ) : (
                     <div className="space-y-4">
@@ -561,11 +585,11 @@ export default function DriverDashboard() {
                                                 </div>
                                                 <div className="flex-1 space-y-4">
                                                     <div>
-                                                        <p className="text-xs text-gray-500">รับ</p>
+                                                        <p className="text-xs text-gray-500">{t.driver.dashboard.pickup}</p>
                                                         <p className="text-sm font-medium text-gray-800">{booking.pickupLocation}</p>
                                                     </div>
                                                     <div>
-                                                        <p className="text-xs text-gray-500">ส่ง</p>
+                                                        <p className="text-xs text-gray-500">{t.driver.dashboard.dropoff}</p>
                                                         <p className="text-sm font-medium text-gray-800">{booking.dropoffLocation}</p>
                                                     </div>
                                                 </div>
@@ -574,7 +598,7 @@ export default function DriverDashboard() {
 
                                         {/* Price */}
                                         <div className="flex items-center justify-between mb-4">
-                                            <span className="text-gray-500">ค่าบริการ</span>
+                                            <span className="text-gray-500">{t.driver.dashboard.serviceFee}</span>
                                             <span className="text-xl font-bold text-gray-800">฿{booking.totalCost.toLocaleString()}</span>
                                         </div>
 
@@ -590,7 +614,7 @@ export default function DriverDashboard() {
                                                     {updatingStatus === booking.id ? (
                                                         <>
                                                             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                                            กำลังอัพเดท...
+                                                            {t.driver.dashboard.actions.updating}
                                                         </>
                                                     ) : (
                                                         <>
@@ -608,7 +632,7 @@ export default function DriverDashboard() {
                                                         className="w-full py-2.5 bg-red-50 text-red-600 font-medium rounded-xl flex items-center justify-center gap-2 hover:bg-red-100 transition-all disabled:opacity-50"
                                                     >
                                                         <span className="material-symbols-outlined text-lg">cancel</span>
-                                                        ปฏิเสธงานนี้
+                                                        {t.driver.dashboard.actions.rejectJob}
                                                     </button>
                                                 )}
                                             </div>
@@ -624,7 +648,7 @@ export default function DriverDashboard() {
             {/* Today's Schedule */}
             {todayBookings.length > 0 && (
                 <div>
-                    <h3 className="font-semibold text-gray-800 mb-3">ตารางงานวันนี้</h3>
+                    <h3 className="font-semibold text-gray-800 mb-3">{t.driver.dashboard.todaySchedule}</h3>
                     <div className="bg-white rounded-2xl shadow-sm divide-y divide-gray-100">
                         {todayBookings.map((booking) => (
                             <div key={booking.id} className="p-4">
@@ -675,19 +699,27 @@ export default function DriverDashboard() {
                                     <span className="material-symbols-outlined text-5xl">notifications_active</span>
                                 </div>
 
-                                <h2 className="text-2xl font-bold mb-1 animate-pulse">งานใหม่เข้ามาแล้ว!</h2>
-                                <p className="text-white/80 text-sm">มีลูกค้ารอคุณอยู่</p>
+                                <h2 className="text-2xl font-bold mb-1 animate-pulse">{t.driver.newJobAlert.title}</h2>
+                                <p className="text-white/80 text-sm">{t.driver.newJobAlert.subtitle}</p>
+
+                                {/* Countdown Timer */}
+                                <div className="mt-3 flex items-center justify-center gap-2">
+                                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${countdown <= 10 ? 'bg-red-500/30 text-white animate-pulse' : 'bg-white/20'}`}>
+                                        <span className="material-symbols-outlined text-sm align-middle mr-1">timer</span>
+                                        {t.driver.newJobAlert.countdown} {countdown}{t.driver.newJobAlert.seconds}
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Job details */}
                             <div className="p-5 space-y-4">
                                 {/* Customer info */}
-                                <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl">
-                                    <div className="w-14 h-14 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white shadow-lg">
+                                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                                    <div className="w-14 h-14 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white shadow-lg flex-shrink-0">
                                         <span className="material-symbols-outlined text-2xl">person</span>
                                     </div>
-                                    <div>
-                                        <p className="font-bold text-gray-800 text-lg">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-bold text-gray-800 text-lg truncate">
                                             {newJobAlert.firstName} {newJobAlert.lastName}
                                         </p>
                                         <p className="text-sm text-gray-500 flex items-center gap-1">
@@ -695,6 +727,13 @@ export default function DriverDashboard() {
                                             {newJobAlert.phone}
                                         </p>
                                     </div>
+                                    {/* Call Button */}
+                                    <a
+                                        href={`tel:${newJobAlert.phone}`}
+                                        className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-green-500/30 hover:shadow-xl hover:shadow-green-500/40 transition-all flex-shrink-0"
+                                    >
+                                        <span className="material-symbols-outlined text-xl">call</span>
+                                    </a>
                                 </div>
 
                                 {/* Route */}
@@ -707,11 +746,11 @@ export default function DriverDashboard() {
                                         </div>
                                         <div className="flex-1 space-y-5">
                                             <div>
-                                                <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">จุดรับ</p>
+                                                <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">{t.driver.newJobAlert.pickupPoint}</p>
                                                 <p className="text-sm font-medium text-gray-800">{newJobAlert.pickupLocation}</p>
                                             </div>
                                             <div>
-                                                <p className="text-xs text-red-600 font-semibold uppercase tracking-wide">จุดส่ง</p>
+                                                <p className="text-xs text-red-600 font-semibold uppercase tracking-wide">{t.driver.newJobAlert.dropoffPoint}</p>
                                                 <p className="text-sm font-medium text-gray-800">{newJobAlert.dropoffLocation}</p>
                                             </div>
                                         </div>
@@ -722,17 +761,17 @@ export default function DriverDashboard() {
                                 <div className="flex gap-3">
                                     <div className="flex-1 bg-blue-50 rounded-xl p-3 text-center">
                                         <span className="material-symbols-outlined text-blue-500 text-2xl">schedule</span>
-                                        <p className="text-xs text-blue-600 mt-1">เวลารับ</p>
+                                        <p className="text-xs text-blue-600 mt-1">{t.driver.newJobAlert.pickupTime}</p>
                                         <p className="font-bold text-blue-800">{newJobAlert.pickupTime}</p>
                                     </div>
                                     <div className="flex-1 bg-amber-50 rounded-xl p-3 text-center">
                                         <span className="material-symbols-outlined text-amber-500 text-2xl">calendar_today</span>
-                                        <p className="text-xs text-amber-600 mt-1">วันที่</p>
+                                        <p className="text-xs text-amber-600 mt-1">{t.driver.newJobAlert.date}</p>
                                         <p className="font-bold text-amber-800">{newJobAlert.pickupDate}</p>
                                     </div>
                                     <div className="flex-1 bg-green-50 rounded-xl p-3 text-center">
                                         <span className="material-symbols-outlined text-green-500 text-2xl">payments</span>
-                                        <p className="text-xs text-green-600 mt-1">ค่าบริการ</p>
+                                        <p className="text-xs text-green-600 mt-1">{t.driver.newJobAlert.serviceFee}</p>
                                         <p className="font-bold text-green-800">฿{newJobAlert.totalCost.toLocaleString()}</p>
                                     </div>
                                 </div>
@@ -751,7 +790,7 @@ export default function DriverDashboard() {
                                             ) : (
                                                 <>
                                                     <span className="material-symbols-outlined">cancel</span>
-                                                    ไม่รับงาน
+                                                    {t.driver.newJobAlert.reject}
                                                 </>
                                             )}
                                         </button>
@@ -771,7 +810,7 @@ export default function DriverDashboard() {
                                             className="flex-1 py-3.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-green-500/30 hover:shadow-xl hover:shadow-green-500/40 transition-all flex items-center justify-center gap-2"
                                         >
                                             <span className="material-symbols-outlined">check_circle</span>
-                                            รับงาน
+                                            {t.driver.newJobAlert.accept}
                                         </button>
                                     </div>
                                     {/* View Later button */}
@@ -779,7 +818,7 @@ export default function DriverDashboard() {
                                         onClick={() => setShowNewJobModal(false)}
                                         className="w-full py-2.5 text-gray-500 font-medium text-sm hover:text-gray-700 transition-all"
                                     >
-                                        ดูภายหลัง
+                                        {t.driver.newJobAlert.viewLater}
                                     </button>
                                 </div>
                             </div>

@@ -3,20 +3,24 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useBooking } from '@/lib/contexts/BookingContext';
+import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { FirestoreService } from '@/lib/firebase/firestore';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 
-// Status configuration
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: string; step: number }> = {
-  awaiting_payment: { label: 'รอชำระเงิน', color: 'text-amber-600', bg: 'bg-amber-500', icon: 'hourglass_empty', step: 0 },
-  pending: { label: 'รอยืนยัน', color: 'text-amber-600', bg: 'bg-amber-500', icon: 'schedule', step: 1 },
-  confirmed: { label: 'ยืนยันแล้ว', color: 'text-blue-600', bg: 'bg-blue-500', icon: 'check_circle', step: 2 },
-  driver_assigned: { label: 'มอบหมายคนขับแล้ว', color: 'text-purple-600', bg: 'bg-purple-500', icon: 'person_check', step: 3 },
-  driver_en_route: { label: 'คนขับกำลังมารับ', color: 'text-indigo-600', bg: 'bg-indigo-500', icon: 'directions_car', step: 4 },
-  in_progress: { label: 'กำลังเดินทาง', color: 'text-cyan-600', bg: 'bg-cyan-500', icon: 'route', step: 5 },
-  completed: { label: 'เสร็จสิ้น', color: 'text-emerald-600', bg: 'bg-emerald-500', icon: 'task_alt', step: 6 },
-  cancelled: { label: 'ยกเลิกแล้ว', color: 'text-red-600', bg: 'bg-red-500', icon: 'cancel', step: -1 },
+// Status configuration - labels will be set dynamically based on language
+const getStatusConfig = (status: string, t: any) => {
+  const configs: Record<string, { label: string; color: string; bg: string; icon: string; step: number }> = {
+    awaiting_payment: { label: t.confirmation.status.awaitingPayment, color: 'text-amber-600', bg: 'bg-amber-500', icon: 'hourglass_empty', step: 0 },
+    pending: { label: t.confirmation.status.pending, color: 'text-amber-600', bg: 'bg-amber-500', icon: 'schedule', step: 1 },
+    confirmed: { label: t.confirmation.status.confirmed, color: 'text-blue-600', bg: 'bg-blue-500', icon: 'check_circle', step: 2 },
+    driver_assigned: { label: t.confirmation.status.driverAssigned, color: 'text-purple-600', bg: 'bg-purple-500', icon: 'person_check', step: 3 },
+    driver_en_route: { label: t.confirmation.status.driverEnRoute, color: 'text-indigo-600', bg: 'bg-indigo-500', icon: 'directions_car', step: 4 },
+    in_progress: { label: t.confirmation.status.inProgress, color: 'text-cyan-600', bg: 'bg-cyan-500', icon: 'route', step: 5 },
+    completed: { label: t.confirmation.status.completed, color: 'text-emerald-600', bg: 'bg-emerald-500', icon: 'task_alt', step: 6 },
+    cancelled: { label: t.confirmation.status.cancelled, color: 'text-red-600', bg: 'bg-red-500', icon: 'cancel', step: -1 },
+  };
+  return configs[status] || configs.pending;
 };
 
 function ConfirmationContent() {
@@ -24,6 +28,7 @@ function ConfirmationContent() {
   const searchParams = useSearchParams();
   const bookingId = searchParams.get('bookingId');
   const { bookingData, resetBooking } = useBooking();
+  const { t, language } = useLanguage();
 
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -72,7 +77,7 @@ function ConfirmationContent() {
       catch { navigator.clipboard.writeText(url); }
     } else {
       navigator.clipboard.writeText(url);
-      alert('คัดลอกลิงก์แล้ว!');
+      alert(t.confirmation.linkCopied);
     }
   };
 
@@ -109,10 +114,10 @@ function ConfirmationContent() {
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="material-symbols-outlined text-red-500 text-3xl">search_off</span>
           </div>
-          <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">ไม่พบการจอง</h3>
-          <p className="text-gray-500 text-sm mb-4">การจองนี้ไม่มีอยู่หรือถูกลบไปแล้ว</p>
+          <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">{t.confirmation.notFound}</h3>
+          <p className="text-gray-500 text-sm mb-4">{t.confirmation.notFoundDesc}</p>
           <button onClick={() => router.push('/')} className="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl">
-            กลับหน้าแรก
+            {t.confirmation.backHome}
           </button>
         </div>
       </div>
@@ -120,7 +125,7 @@ function ConfirmationContent() {
   }
 
   const status = data.status || 'pending';
-  const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
+  const config = getStatusConfig(status, t);
   const canCancel = ['pending', 'confirmed', 'awaiting_payment'].includes(status);
   const total = data.totalCost || data.vehicle?.price || 0;
   const bookingRef = bookingId?.slice(-8).toUpperCase() || 'N/A';
@@ -136,7 +141,7 @@ function ConfirmationContent() {
                 <span className="material-symbols-outlined text-gray-600 dark:text-gray-400">arrow_back</span>
               </button>
               <div>
-                <p className="text-xs text-gray-500">หมายเลขการจอง</p>
+                <p className="text-xs text-gray-500">{t.confirmation.bookingNumber}</p>
                 <button onClick={handleCopy} className="flex items-center gap-1 font-mono font-bold text-gray-800 dark:text-white">
                   #{bookingRef}
                   <span className="material-symbols-outlined text-sm text-gray-400">{copied ? 'check' : 'content_copy'}</span>
@@ -166,7 +171,7 @@ function ConfirmationContent() {
               <span className="material-symbols-outlined text-2xl">{config.icon}</span>
             </div>
             <div>
-              <p className="text-white/70 text-xs">สถานะปัจจุบัน</p>
+              <p className="text-white/70 text-xs">{t.confirmation.currentStatus}</p>
               <p className="text-xl font-bold">{config.label}</p>
             </div>
           </div>
@@ -186,7 +191,7 @@ function ConfirmationContent() {
           {data.eta && (status === 'driver_en_route' || status === 'driver_assigned') && (
             <div className="mt-3 flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2">
               <span className="material-symbols-outlined">schedule</span>
-              <span className="text-sm">ถึงโดยประมาณ: <strong>{data.eta}</strong></span>
+              <span className="text-sm">{t.confirmation.estimatedArrival} <strong>{data.eta}</strong></span>
             </div>
           )}
         </div>
@@ -203,14 +208,14 @@ function ConfirmationContent() {
               </div>
               <div className="flex-1 space-y-4">
                 <div>
-                  <p className="text-xs text-gray-400">รับ</p>
+                  <p className="text-xs text-gray-400">{t.confirmation.pickup}</p>
                   <p className="font-semibold text-gray-800 dark:text-white">{data.pickupLocation}</p>
                   <p className="text-sm text-blue-600 font-medium">
-                    {new Date(data.pickupDate).toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' })} • {data.pickupTime || '10:00'}
+                    {new Date(data.pickupDate).toLocaleDateString(language === 'th' ? 'th-TH' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short' })} • {data.pickupTime || '10:00'}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400">ส่ง</p>
+                  <p className="text-xs text-gray-400">{t.confirmation.dropoff}</p>
                   <p className="font-semibold text-gray-800 dark:text-white">{data.dropoffLocation}</p>
                 </div>
               </div>
@@ -225,16 +230,16 @@ function ConfirmationContent() {
                 <div>
                   <p className="font-semibold text-gray-800 dark:text-white text-sm">{data.vehicle?.name}</p>
                   <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span>{data.passengerCount || data.vehicle?.passengers} คน</span>
+                    <span>{data.passengerCount || data.vehicle?.passengers} {t.confirmation.passengers}</span>
                     <span>•</span>
-                    <span>{data.luggageCount || data.vehicle?.luggage} กระเป๋า</span>
+                    <span>{data.luggageCount || data.vehicle?.luggage} {t.confirmation.bags}</span>
                   </div>
                 </div>
               </div>
               <div className="text-right">
                 <p className="text-xl font-bold text-blue-600">฿{total.toLocaleString()}</p>
                 <p className={`text-xs font-medium ${data.paymentStatus === 'paid' ? 'text-emerald-600' : 'text-amber-600'}`}>
-                  {data.paymentStatus === 'paid' ? 'ชำระแล้ว' : 'รอชำระ'}
+                  {data.paymentStatus === 'paid' ? t.confirmation.paidStatus : t.confirmation.awaitingPaymentStatus}
                 </p>
               </div>
             </div>
@@ -268,11 +273,11 @@ function ConfirmationContent() {
             <div className="grid grid-cols-2 gap-2">
               <a href={`tel:${data.driverPhone}`} className="flex items-center justify-center gap-2 py-2.5 bg-white/20 rounded-xl font-semibold hover:bg-white/30">
                 <span className="material-symbols-outlined">call</span>
-                โทร
+                {t.confirmation.call}
               </a>
               <button onClick={() => window.open(`https://line.me/R/ti/p/~${data.driverPhone}`, '_blank')} className="flex items-center justify-center gap-2 py-2.5 bg-white/20 rounded-xl font-semibold hover:bg-white/30">
                 <span className="material-symbols-outlined">chat</span>
-                แชท
+                {t.confirmation.chat}
               </button>
             </div>
           </div>
@@ -284,7 +289,7 @@ function ConfirmationContent() {
             onClick={() => setShowDetails(!showDetails)}
             className="w-full flex items-center justify-between p-4 text-left"
           >
-            <span className="font-semibold text-gray-800 dark:text-white">รายละเอียดเพิ่มเติม</span>
+            <span className="font-semibold text-gray-800 dark:text-white">{t.confirmation.moreDetails}</span>
             <span className={`material-symbols-outlined text-gray-400 transition-transform ${showDetails ? 'rotate-180' : ''}`}>
               expand_more
             </span>
@@ -295,20 +300,20 @@ function ConfirmationContent() {
               {/* Customer Info */}
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
-                  <p className="text-xs text-gray-400">ชื่อ</p>
+                  <p className="text-xs text-gray-400">{t.confirmation.name}</p>
                   <p className="font-medium text-gray-800 dark:text-white">{data.firstName} {data.lastName}</p>
                 </div>
                 <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
-                  <p className="text-xs text-gray-400">เบอร์โทร</p>
+                  <p className="text-xs text-gray-400">{t.confirmation.phone}</p>
                   <p className="font-medium text-gray-800 dark:text-white">{data.phone || '-'}</p>
                 </div>
                 <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-xl col-span-2">
-                  <p className="text-xs text-gray-400">อีเมล</p>
+                  <p className="text-xs text-gray-400">{t.confirmation.email}</p>
                   <p className="font-medium text-gray-800 dark:text-white">{data.email || '-'}</p>
                 </div>
                 {data.flightNumber && (
                   <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-xl col-span-2">
-                    <p className="text-xs text-gray-400">เที่ยวบิน</p>
+                    <p className="text-xs text-gray-400">{t.confirmation.flightNumber}</p>
                     <p className="font-medium text-gray-800 dark:text-white">{data.flightNumber}</p>
                   </div>
                 )}
@@ -322,7 +327,7 @@ function ConfirmationContent() {
                       {data.paymentMethod === 'card' ? 'credit_card' : data.paymentMethod === 'promptpay' ? 'qr_code_2' : 'payments'}
                     </span>
                     <span className="text-sm">
-                      {data.paymentMethod === 'card' ? 'บัตรเครดิต' : data.paymentMethod === 'promptpay' ? 'PromptPay' : 'เงินสด'}
+                      {data.paymentMethod === 'card' ? t.confirmation.creditCard : data.paymentMethod === 'promptpay' ? 'PromptPay' : t.confirmation.cash}
                     </span>
                   </div>
                   <span className="font-bold text-blue-600">฿{total.toLocaleString()}</span>
@@ -331,7 +336,7 @@ function ConfirmationContent() {
 
               {data.specialRequests && (
                 <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl">
-                  <p className="text-xs text-amber-600 font-medium mb-1">หมายเหตุ</p>
+                  <p className="text-xs text-amber-600 font-medium mb-1">{t.confirmation.notes}</p>
                   <p className="text-sm text-amber-800 dark:text-amber-300">{data.specialRequests}</p>
                 </div>
               )}
@@ -346,21 +351,21 @@ function ConfirmationContent() {
             className="flex flex-col items-center gap-1.5 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm"
           >
             <span className="material-symbols-outlined text-blue-600">dashboard</span>
-            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">แดชบอร์ด</span>
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{t.confirmation.dashboard}</span>
           </button>
           <button
             onClick={handleCalendar}
             className="flex flex-col items-center gap-1.5 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm"
           >
             <span className="material-symbols-outlined text-purple-600">calendar_add_on</span>
-            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">เพิ่มปฏิทิน</span>
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{t.confirmation.addToCalendar}</span>
           </button>
           <a
             href="/contact"
             className="flex flex-col items-center gap-1.5 p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm"
           >
             <span className="material-symbols-outlined text-amber-600">support_agent</span>
-            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">ช่วยเหลือ</span>
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{t.confirmation.help}</span>
           </a>
         </div>
 
@@ -368,11 +373,11 @@ function ConfirmationContent() {
         <div className="flex items-center justify-center gap-4 py-2 text-xs text-gray-400">
           <span className="flex items-center gap-1">
             <span className="material-symbols-outlined text-sm text-emerald-500">verified</span>
-            คนขับมืออาชีพ
+            {t.confirmation.professionalDriver}
           </span>
           <span className="flex items-center gap-1">
             <span className="material-symbols-outlined text-sm text-blue-500">security</span>
-            ปลอดภัย
+            {t.confirmation.safe}
           </span>
         </div>
       </div>
@@ -384,14 +389,14 @@ function ConfirmationContent() {
             <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="material-symbols-outlined text-red-500 text-3xl">warning</span>
             </div>
-            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2">ยกเลิกการจอง?</h3>
-            <p className="text-sm text-gray-500 mb-4">คุณแน่ใจหรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้</p>
+            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2">{t.confirmation.cancelBooking}</h3>
+            <p className="text-sm text-gray-500 mb-4">{t.confirmation.cancelConfirm}</p>
             <div className="flex gap-2">
               <button onClick={() => setShowCancelModal(false)} className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold rounded-xl">
-                ไม่ใช่
+                {t.confirmation.no}
               </button>
               <button onClick={handleCancel} disabled={cancelling} className="flex-1 py-2.5 bg-red-600 text-white font-semibold rounded-xl">
-                {cancelling ? 'กำลังยกเลิก...' : 'ใช่, ยกเลิก'}
+                {cancelling ? t.confirmation.cancelling : t.confirmation.yesCancelIt}
               </button>
             </div>
           </div>

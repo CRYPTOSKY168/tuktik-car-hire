@@ -60,7 +60,7 @@ const DATE_FILTERS = [
 ];
 
 export default function AdminBookingsPage() {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const [bookings, setBookings] = useState<any[]>([]);
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [loading, setLoading] = useState(true);
@@ -188,13 +188,13 @@ export default function AdminBookingsPage() {
 
     // Filter tabs
     const FILTER_TABS = [
-        { value: 'all', label: 'ทั้งหมด', color: 'gray', count: stats.total },
-        { value: 'awaiting_payment', label: 'รอชำระ', color: 'orange', count: stats.awaiting_payment },
-        { value: 'pending', label: 'รอยืนยัน', color: 'amber', count: stats.pending },
-        { value: 'confirmed', label: 'ยืนยันแล้ว', color: 'blue', count: stats.confirmed },
-        { value: 'in_progress', label: 'กำลังเดินทาง', color: 'cyan', count: stats.in_progress },
-        { value: 'completed', label: 'เสร็จสิ้น', color: 'emerald', count: stats.completed },
-        { value: 'cancelled', label: 'ยกเลิก', color: 'red', count: stats.cancelled },
+        { value: 'all', label: t.admin.bookings.filters.all, color: 'gray', count: stats.total },
+        { value: 'awaiting_payment', label: t.admin.bookings.filters.awaitingPayment, color: 'orange', count: stats.awaiting_payment },
+        { value: 'pending', label: t.admin.bookings.filters.pending, color: 'amber', count: stats.pending },
+        { value: 'confirmed', label: t.admin.bookings.filters.confirmed, color: 'blue', count: stats.confirmed },
+        { value: 'in_progress', label: t.admin.bookings.filters.inProgress, color: 'cyan', count: stats.in_progress },
+        { value: 'completed', label: t.admin.bookings.filters.completed, color: 'emerald', count: stats.completed },
+        { value: 'cancelled', label: t.admin.bookings.filters.cancelled, color: 'red', count: stats.cancelled },
     ];
 
     // Filtered & Sorted Bookings
@@ -253,11 +253,13 @@ export default function AdminBookingsPage() {
             pink: { bg: 'bg-pink-100', text: 'text-pink-700', border: 'border-pink-200' },
         };
         const c = colors[s.color] || colors.gray;
-        return { ...c, icon: s.icon, label: s.label, step: s.step };
+        return { ...c, icon: s.icon, label: language === 'en' ? s.labelEn : s.label, step: s.step };
     };
 
     const getPaymentMethodConfig = (method: string) => {
-        return PAYMENT_METHODS.find(m => m.value === method) || { icon: 'payment', label: method || '-', color: 'gray' };
+        const m = PAYMENT_METHODS.find(x => x.value === method);
+        if (!m) return { icon: 'payment', label: method || '-', color: 'gray' };
+        return { ...m, label: language === 'en' ? m.labelEn : m.label };
     };
 
     const getPaymentStatusConfig = (status: string) => {
@@ -272,7 +274,7 @@ export default function AdminBookingsPage() {
             pink: { bg: 'bg-pink-100', text: 'text-pink-700' },
         };
         const c = colors[s.color] || { bg: 'bg-gray-100', text: 'text-gray-600' };
-        return { ...c, icon: s.icon, label: s.label };
+        return { ...c, icon: s.icon, label: language === 'en' ? s.labelEn : s.label };
     };
 
     // Check if transition is valid
@@ -501,7 +503,7 @@ export default function AdminBookingsPage() {
             <div className="flex items-center justify-center h-[60vh]">
                 <div className="flex flex-col items-center gap-4">
                     <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-                    <p className="text-blue-600 font-semibold">กำลังโหลด...</p>
+                    <p className="text-blue-600 font-semibold">{t.admin.common.loading}</p>
                 </div>
             </div>
         );
@@ -512,15 +514,15 @@ export default function AdminBookingsPage() {
             {/* Header */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">จัดการการจอง</h1>
-                    <p className="text-gray-500 text-sm mt-1">ติดตามและจัดการงานจองทั้งหมด</p>
+                    <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">{t.admin.bookings.title}</h1>
+                    <p className="text-gray-500 text-sm mt-1">{t.admin.bookings.subtitle}</p>
                 </div>
                 <button
                     onClick={exportToCSV}
                     className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-500/30"
                 >
                     <span className="material-symbols-outlined text-lg">download</span>
-                    ส่งออก CSV
+                    {t.admin.bookings.exportCSV}
                 </button>
             </div>
 
@@ -532,7 +534,7 @@ export default function AdminBookingsPage() {
                             <span className="material-symbols-outlined text-white text-lg">receipt_long</span>
                         </div>
                         <div>
-                            <p className="text-xs text-gray-400">ทั้งหมด</p>
+                            <p className="text-xs text-gray-400">{t.admin.bookings.stats.total}</p>
                             <p className="text-xl font-bold text-gray-800">{stats.total}</p>
                         </div>
                     </div>
@@ -544,7 +546,7 @@ export default function AdminBookingsPage() {
                             <span className="material-symbols-outlined text-white text-lg">today</span>
                         </div>
                         <div>
-                            <p className="text-xs text-gray-400">วันนี้</p>
+                            <p className="text-xs text-gray-400">{t.admin.bookings.stats.today}</p>
                             <p className="text-xl font-bold text-gray-800">{stats.today}</p>
                         </div>
                     </div>
@@ -556,7 +558,7 @@ export default function AdminBookingsPage() {
                             <span className="material-symbols-outlined text-white text-lg">warning</span>
                         </div>
                         <div>
-                            <p className="text-xs text-gray-400">เร่งด่วน</p>
+                            <p className="text-xs text-gray-400">{t.admin.bookings.stats.urgent}</p>
                             <p className={`text-xl font-bold ${stats.urgent > 0 ? 'text-red-600' : 'text-gray-800'}`}>{stats.urgent}</p>
                         </div>
                     </div>
@@ -568,7 +570,7 @@ export default function AdminBookingsPage() {
                             <span className="material-symbols-outlined text-white text-lg">schedule</span>
                         </div>
                         <div>
-                            <p className="text-xs text-gray-400">รอยืนยัน</p>
+                            <p className="text-xs text-gray-400">{t.admin.bookings.stats.pending}</p>
                             <p className="text-xl font-bold text-gray-800">{stats.pending}</p>
                         </div>
                     </div>
@@ -580,7 +582,7 @@ export default function AdminBookingsPage() {
                             <span className="material-symbols-outlined text-white text-lg">trip_origin</span>
                         </div>
                         <div>
-                            <p className="text-xs text-gray-400">กำลังเดินทาง</p>
+                            <p className="text-xs text-gray-400">{t.admin.bookings.stats.inProgress}</p>
                             <p className="text-xl font-bold text-gray-800">{stats.in_progress}</p>
                         </div>
                     </div>
@@ -592,7 +594,7 @@ export default function AdminBookingsPage() {
                             <span className="material-symbols-outlined text-white text-lg">payments</span>
                         </div>
                         <div>
-                            <p className="text-xs text-gray-400">รายได้</p>
+                            <p className="text-xs text-gray-400">{t.admin.bookings.stats.revenue}</p>
                             <p className="text-lg font-bold text-emerald-600">฿{stats.revenue.toLocaleString()}</p>
                         </div>
                     </div>
@@ -666,14 +668,14 @@ export default function AdminBookingsPage() {
 
                     {/* Search */}
                     <div className="relative flex-1 lg:max-w-xs">
-                        <label htmlFor="booking-search" className="sr-only">ค้นหาการจอง</label>
+                        <label htmlFor="booking-search" className="sr-only">{t.admin.bookings.searchPlaceholder}</label>
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
                         <input
                             id="booking-search"
                             name="bookingSearch"
                             type="text"
                             autoComplete="off"
-                            placeholder="ค้นหา ID, ชื่อ, เบอร์โทร..."
+                            placeholder={t.admin.bookings.searchPlaceholder}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none"
@@ -688,8 +690,8 @@ export default function AdminBookingsPage() {
                     <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 mx-auto mb-4">
                         <span className="material-symbols-outlined text-4xl">inbox</span>
                     </div>
-                    <h3 className="text-lg font-bold text-gray-800">ไม่พบการจอง</h3>
-                    <p className="text-gray-500 mt-1">ลองปรับ filter หรือคำค้นหา</p>
+                    <h3 className="text-lg font-bold text-gray-800">{t.admin.bookings.noBookings}</h3>
+                    <p className="text-gray-500 mt-1">{t.admin.bookings.adjustFilters}</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 gap-4">

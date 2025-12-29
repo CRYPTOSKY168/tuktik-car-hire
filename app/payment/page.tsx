@@ -594,64 +594,112 @@ export default function PaymentPage() {
           </button>
 
           {expandedSection === 'info' && (
-            <div className="px-4 pb-4 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="firstName" className="text-xs font-medium text-gray-500 mb-1 block">ชื่อ *</label>
-                  <input
-                    type="text"
-                    id="firstName"
-                    name="firstName"
-                    autoComplete="given-name"
-                    value={formData.firstName}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500 dark:text-white"
-                    placeholder="ชื่อจริง"
-                  />
+            <div className="px-4 pb-4 space-y-4">
+              {/* Card 1: Contact Information */}
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-4 border border-blue-100 dark:border-blue-800/30">
+                {/* Card Header */}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                    <span className="material-symbols-outlined text-white">person</span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-800 dark:text-white">ข้อมูลติดต่อ</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">กรุณากรอกข้อมูลให้ครบถ้วน</p>
+                  </div>
                 </div>
-                <div>
-                  <label htmlFor="lastName" className="text-xs font-medium text-gray-500 mb-1 block">นามสกุล *</label>
-                  <input
-                    type="text"
-                    id="lastName"
-                    name="lastName"
-                    autoComplete="family-name"
-                    value={formData.lastName}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500 dark:text-white"
-                    placeholder="นามสกุล"
-                  />
+
+                {/* Name Fields */}
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label htmlFor="firstName" className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-sm text-blue-500">badge</span>
+                      ชื่อ <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="firstName"
+                      name="firstName"
+                      autoComplete="given-name"
+                      value={formData.firstName}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:text-white transition-all"
+                      placeholder="ชื่อจริง"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="lastName" className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-sm text-blue-500">badge</span>
+                      นามสกุล <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="lastName"
+                      name="lastName"
+                      autoComplete="family-name"
+                      value={formData.lastName}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:text-white transition-all"
+                      placeholder="นามสกุล"
+                    />
+                  </div>
+                </div>
+
+                {/* Phone & Email */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="phone" className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-sm text-green-500">call</span>
+                      เบอร์โทร <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      id="phone"
+                      name="phone"
+                      autoComplete="tel"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:text-white transition-all"
+                      placeholder="08X-XXX-XXXX"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="email" className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-sm text-purple-500">mail</span>
+                      อีเมล <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      autoComplete="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:text-white transition-all"
+                      placeholder="email@example.com"
+                    />
+                  </div>
                 </div>
               </div>
-              <div>
-                <label htmlFor="phone" className="text-xs font-medium text-gray-500 mb-1 block">เบอร์โทร *</label>
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  autoComplete="tel"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500 dark:text-white"
-                  placeholder="08X-XXX-XXXX"
-                />
-              </div>
-              <div>
-                <label htmlFor="email" className="text-xs font-medium text-gray-500 mb-1 block">อีเมล *</label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  autoComplete="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500 dark:text-white"
-                  placeholder="email@example.com"
-                />
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label htmlFor="flightNumber" className="text-xs font-medium text-gray-500 mb-1 block">เที่ยวบิน</label>
+
+              {/* Card 2: Trip Details */}
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-2xl p-4 border border-amber-100 dark:border-amber-800/30">
+                {/* Card Header */}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
+                    <span className="material-symbols-outlined text-white">flight</span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-800 dark:text-white">รายละเอียดการเดินทาง</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">ข้อมูลเพิ่มเติมสำหรับการเดินทาง</p>
+                  </div>
+                </div>
+
+                {/* Flight Number */}
+                <div className="mb-4">
+                  <label htmlFor="flightNumber" className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm text-amber-500">airplane_ticket</span>
+                    เที่ยวบิน <span className="text-gray-400 font-normal">(ถ้ามี)</span>
+                  </label>
                   <input
                     type="text"
                     id="flightNumber"
@@ -659,42 +707,80 @@ export default function PaymentPage() {
                     autoComplete="off"
                     value={formData.flightNumber}
                     onChange={handleChange}
-                    className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500 dark:text-white"
-                    placeholder="TG123"
+                    className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:text-white transition-all"
+                    placeholder="เช่น TG123, FD3033"
                   />
                 </div>
-                <div>
-                  <label htmlFor="passengerCount" className="text-xs font-medium text-gray-500 mb-1 block">ผู้โดยสาร</label>
-                  <input
-                    type="number"
-                    id="passengerCount"
-                    name="passengerCount"
-                    autoComplete="off"
-                    value={formData.passengerCount}
-                    onChange={handleChange}
-                    min="1"
-                    className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="luggageCount" className="text-xs font-medium text-gray-500 mb-1 block">กระเป๋า</label>
-                  <input
-                    type="number"
-                    id="luggageCount"
-                    name="luggageCount"
-                    autoComplete="off"
-                    value={formData.luggageCount}
-                    onChange={handleChange}
-                    min="0"
-                    className="w-full px-3 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm outline-none focus:border-blue-500 dark:text-white"
-                  />
+
+                {/* Passenger & Luggage Stepper */}
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Passenger Count Stepper */}
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-sm text-blue-500">groups</span>
+                      ผู้โดยสาร
+                    </label>
+                    <div className="flex items-center justify-between bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, passengerCount: Math.max(1, prev.passengerCount - 1) }))}
+                        disabled={formData.passengerCount <= 1}
+                        className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-xl">remove</span>
+                      </button>
+                      <div className="flex-1 text-center">
+                        <span className="text-2xl font-bold text-gray-800 dark:text-white">{formData.passengerCount}</span>
+                        <span className="text-xs text-gray-400 ml-1">คน</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, passengerCount: Math.min(20, prev.passengerCount + 1) }))}
+                        disabled={formData.passengerCount >= 20}
+                        className="w-10 h-10 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 flex items-center justify-center text-white transition-colors shadow-sm"
+                      >
+                        <span className="material-symbols-outlined text-xl">add</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Luggage Count Stepper */}
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-sm text-orange-500">luggage</span>
+                      กระเป๋า
+                    </label>
+                    <div className="flex items-center justify-between bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, luggageCount: Math.max(0, prev.luggageCount - 1) }))}
+                        disabled={formData.luggageCount <= 0}
+                        className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-xl">remove</span>
+                      </button>
+                      <div className="flex-1 text-center">
+                        <span className="text-2xl font-bold text-gray-800 dark:text-white">{formData.luggageCount}</span>
+                        <span className="text-xs text-gray-400 ml-1">ใบ</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, luggageCount: Math.min(20, prev.luggageCount + 1) }))}
+                        disabled={formData.luggageCount >= 20}
+                        className="w-10 h-10 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 flex items-center justify-center text-white transition-colors shadow-sm"
+                      >
+                        <span className="material-symbols-outlined text-xl">add</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
+              {/* Next Button */}
               {isFormComplete && (
                 <button
                   onClick={() => setExpandedSection('payment')}
-                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+                  className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30"
                 >
                   ถัดไป: เลือกวิธีชำระเงิน
                   <span className="material-symbols-outlined">arrow_forward</span>

@@ -2,20 +2,21 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { FirestoreService } from '@/lib/firebase/firestore';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-// Status config
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: string; step: number }> = {
-  awaiting_payment: { label: 'รอชำระเงิน', color: 'text-amber-600', bg: 'bg-amber-500', icon: 'hourglass_empty', step: 0 },
-  pending: { label: 'รอยืนยัน', color: 'text-amber-600', bg: 'bg-amber-500', icon: 'schedule', step: 1 },
-  confirmed: { label: 'ยืนยันแล้ว', color: 'text-blue-600', bg: 'bg-blue-500', icon: 'check_circle', step: 2 },
-  driver_assigned: { label: 'มอบหมายคนขับแล้ว', color: 'text-purple-600', bg: 'bg-purple-500', icon: 'person_check', step: 3 },
-  driver_en_route: { label: 'คนขับกำลังมารับ', color: 'text-indigo-600', bg: 'bg-indigo-500', icon: 'directions_car', step: 4 },
-  in_progress: { label: 'กำลังเดินทาง', color: 'text-cyan-600', bg: 'bg-cyan-500', icon: 'route', step: 5 },
-  completed: { label: 'เสร็จสิ้น', color: 'text-emerald-600', bg: 'bg-emerald-500', icon: 'task_alt', step: 6 },
-  cancelled: { label: 'ยกเลิกแล้ว', color: 'text-red-600', bg: 'bg-red-500', icon: 'cancel', step: -1 },
+// Status config (labels will be added dynamically from translations)
+const STATUS_STYLES: Record<string, { color: string; bg: string; icon: string; step: number }> = {
+  awaiting_payment: { color: 'text-amber-600', bg: 'bg-amber-500', icon: 'hourglass_empty', step: 0 },
+  pending: { color: 'text-amber-600', bg: 'bg-amber-500', icon: 'schedule', step: 1 },
+  confirmed: { color: 'text-blue-600', bg: 'bg-blue-500', icon: 'check_circle', step: 2 },
+  driver_assigned: { color: 'text-purple-600', bg: 'bg-purple-500', icon: 'person_check', step: 3 },
+  driver_en_route: { color: 'text-indigo-600', bg: 'bg-indigo-500', icon: 'directions_car', step: 4 },
+  in_progress: { color: 'text-cyan-600', bg: 'bg-cyan-500', icon: 'route', step: 5 },
+  completed: { color: 'text-emerald-600', bg: 'bg-emerald-500', icon: 'task_alt', step: 6 },
+  cancelled: { color: 'text-red-600', bg: 'bg-red-500', icon: 'cancel', step: -1 },
 };
 
 const ACTIVE_STATUSES = ['pending', 'confirmed', 'driver_assigned', 'driver_en_route', 'in_progress', 'awaiting_payment'];
@@ -72,7 +73,7 @@ const Confetti = () => {
 };
 
 // Celebration Modal
-const CelebrationModal = ({ booking, onClose }: { booking: any; onClose: () => void }) => {
+const CelebrationModal = ({ booking, onClose, t }: { booking: any; onClose: () => void; t: any }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-md w-full overflow-hidden animate-celebration-pop">
@@ -99,8 +100,8 @@ const CelebrationModal = ({ booking, onClose }: { booking: any; onClose: () => v
             </div>
           </div>
 
-          <h2 className="text-2xl font-bold text-white mt-6 animate-fade-in">ถึงจุดหมายแล้ว!</h2>
-          <p className="text-emerald-100 mt-2">ขอบคุณที่ใช้บริการ TukTik</p>
+          <h2 className="text-2xl font-bold text-white mt-6 animate-fade-in">{t.dashboard.celebration.arrived}</h2>
+          <p className="text-emerald-100 mt-2">{t.dashboard.celebration.thankYou}</p>
         </div>
 
         {/* Content */}
@@ -127,7 +128,7 @@ const CelebrationModal = ({ booking, onClose }: { booking: any; onClose: () => v
               <span className="material-symbols-outlined text-white text-2xl">toll</span>
             </div>
             <div>
-              <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">คุณได้รับคะแนน</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">{t.dashboard.celebration.pointsEarned}</p>
               <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">+{Math.floor((booking?.totalCost || 0) / 100)} Points</p>
             </div>
           </div>
@@ -138,7 +139,7 @@ const CelebrationModal = ({ booking, onClose }: { booking: any; onClose: () => v
               onClick={onClose}
               className="flex-1 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:scale-[1.02] transition-all"
             >
-              เยี่ยมเลย!
+              {t.dashboard.celebration.awesome}
             </button>
             <Link
               href={`/confirmation?bookingId=${booking?.id}`}
@@ -186,6 +187,7 @@ const CelebrationModal = ({ booking, onClose }: { booking: any; onClose: () => v
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
+  const { t, language } = useLanguage();
   const router = useRouter();
   const [bookings, setBookings] = useState<any[]>([]);
   const [fetching, setFetching] = useState(true);
@@ -195,6 +197,21 @@ export default function DashboardPage() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationBooking, setCelebrationBooking] = useState<any>(null);
   const previousBookingsRef = useRef<any[]>([]);
+
+  // Get status label from translations
+  const getStatusLabel = (status: string) => {
+    const statusLabels: Record<string, string> = {
+      awaiting_payment: t.dashboard.status.awaiting_payment,
+      pending: t.dashboard.status.pending,
+      confirmed: t.dashboard.status.confirmed,
+      driver_assigned: t.dashboard.status.driver_assigned,
+      driver_en_route: t.dashboard.status.driver_en_route,
+      in_progress: t.dashboard.status.in_progress,
+      completed: t.dashboard.status.completed,
+      cancelled: t.dashboard.status.cancelled,
+    };
+    return statusLabels[status] || status;
+  };
 
   // Redirect if not logged in
   useEffect(() => {
@@ -260,9 +277,9 @@ export default function DashboardPage() {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'สวัสดีตอนเช้า';
-    if (hour < 17) return 'สวัสดีตอนบ่าย';
-    return 'สวัสดีตอนเย็น';
+    if (hour < 12) return t.dashboard.greeting.morning;
+    if (hour < 17) return t.dashboard.greeting.afternoon;
+    return t.dashboard.greeting.evening;
   };
 
   if (loading || !user) {
@@ -273,7 +290,7 @@ export default function DashboardPage() {
     );
   }
 
-  const config = activeBooking ? (STATUS_CONFIG[activeBooking.status] || STATUS_CONFIG.pending) : null;
+  const config = activeBooking ? (STATUS_STYLES[activeBooking.status] || STATUS_STYLES.pending) : null;
 
   return (
     <>
@@ -286,6 +303,7 @@ export default function DashboardPage() {
             setShowCelebration(false);
             setCelebrationBooking(null);
           }}
+          t={t}
         />
       )}
 
@@ -297,7 +315,7 @@ export default function DashboardPage() {
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">{getGreeting()}</p>
               <h1 className="text-xl font-bold text-gray-800 dark:text-white">
-                {user.displayName || 'สมาชิก'}
+                {user.displayName || t.dashboard.member}
               </h1>
             </div>
             <Link href="/vehicles" className="p-2.5 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-500/30">
@@ -317,7 +335,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined">{config?.icon}</span>
-                  <span className="font-semibold">{config?.label}</span>
+                  <span className="font-semibold">{getStatusLabel(activeBooking.status)}</span>
                 </div>
                 <span className="text-xs bg-white/20 px-2 py-1 rounded-full">
                   #{activeBooking.id?.slice(-6).toUpperCase()}
@@ -341,7 +359,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between text-sm mb-4">
                 <div className="flex items-center gap-1 text-white/80">
                   <span className="material-symbols-outlined text-base">event</span>
-                  {activeBooking.pickupDate && new Date(activeBooking.pickupDate).toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' })}
+                  {activeBooking.pickupDate && new Date(activeBooking.pickupDate).toLocaleDateString(language === 'th' ? 'th-TH' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short' })}
                   <span className="mx-1">•</span>
                   {activeBooking.pickupTime}
                 </div>
@@ -386,13 +404,13 @@ export default function DashboardPage() {
                     className="py-2.5 bg-white text-amber-600 font-semibold rounded-xl text-center text-sm flex items-center justify-center gap-1"
                   >
                     <span className="material-symbols-outlined text-base">payment</span>
-                    ชำระเงินเลย
+                    {t.dashboard.actions.payNow}
                   </Link>
                   <Link
                     href={`/confirmation?bookingId=${activeBooking.id}`}
                     className="py-2.5 bg-white/20 font-semibold rounded-xl text-center text-sm"
                   >
-                    ดูรายละเอียด
+                    {t.dashboard.actions.viewDetails}
                   </Link>
                 </div>
               ) : (
@@ -401,7 +419,7 @@ export default function DashboardPage() {
                     href={`/confirmation?bookingId=${activeBooking.id}`}
                     className="py-2.5 bg-white text-gray-800 font-semibold rounded-xl text-center text-sm"
                   >
-                    ดูรายละเอียด
+                    {t.dashboard.actions.viewDetails}
                   </Link>
                   <a
                     href={activeBooking.driver?.phone ? `tel:${activeBooking.driver.phone}` : '/contact'}
@@ -410,7 +428,7 @@ export default function DashboardPage() {
                     <span className="material-symbols-outlined text-base">
                       {activeBooking.driver?.phone ? 'call' : 'support_agent'}
                     </span>
-                    {activeBooking.driver?.phone ? 'โทรคนขับ' : 'ติดต่อเรา'}
+                    {activeBooking.driver?.phone ? t.dashboard.actions.callDriver : t.dashboard.actions.contactUs}
                   </a>
                 </div>
               )}
@@ -422,14 +440,14 @@ export default function DashboardPage() {
             <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <span className="material-symbols-outlined text-3xl">directions_car</span>
             </div>
-            <h2 className="text-xl font-bold mb-2">พร้อมเดินทางหรือยัง?</h2>
-            <p className="text-blue-100 text-sm mb-4">จองรถรับส่งสนามบินง่ายๆ ไม่ต้องรอ</p>
+            <h2 className="text-xl font-bold mb-2">{t.dashboard.empty.readyToTravel}</h2>
+            <p className="text-blue-100 text-sm mb-4">{t.dashboard.empty.bookEasy}</p>
             <Link
               href="/vehicles"
               className="inline-flex items-center gap-2 px-6 py-3 bg-white text-blue-600 font-bold rounded-xl shadow-lg"
             >
               <span className="material-symbols-outlined">add</span>
-              จองรถเลย
+              {t.dashboard.actions.bookNow}
             </Link>
           </div>
         )}
@@ -438,15 +456,15 @@ export default function DashboardPage() {
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-3 text-center shadow-sm">
             <p className="text-2xl font-bold text-gray-800 dark:text-white">{stats.trips}</p>
-            <p className="text-xs text-gray-500">เที่ยว</p>
+            <p className="text-xs text-gray-500">{t.dashboard.stats.trips}</p>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-xl p-3 text-center shadow-sm">
             <p className="text-2xl font-bold text-blue-600">฿{(stats.spent / 1000).toFixed(1)}K</p>
-            <p className="text-xs text-gray-500">ใช้ไปแล้ว</p>
+            <p className="text-xs text-gray-500">{t.dashboard.stats.spent}</p>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-xl p-3 text-center shadow-sm">
             <p className="text-2xl font-bold text-amber-500">{stats.points}</p>
-            <p className="text-xs text-gray-500">คะแนน</p>
+            <p className="text-xs text-gray-500">{t.dashboard.stats.points}</p>
           </div>
         </div>
 
@@ -457,20 +475,20 @@ export default function DashboardPage() {
             className="flex items-center justify-center gap-2 w-full py-3.5 bg-white dark:bg-gray-800 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-gray-600 dark:text-gray-400 font-semibold hover:border-blue-300 hover:text-blue-600 transition-colors"
           >
             <span className="material-symbols-outlined">add</span>
-            จองรถใหม่
+            {t.dashboard.actions.bookNewTrip}
           </Link>
         )}
 
         {/* Recent Bookings */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
-            <h2 className="font-bold text-gray-800 dark:text-white">ประวัติการจอง</h2>
+            <h2 className="font-bold text-gray-800 dark:text-white">{t.dashboard.history.title}</h2>
             {bookings.length > 5 && (
               <button
                 onClick={() => setActiveTab('bookings')}
                 className="text-sm text-blue-600 font-medium"
               >
-                ดูทั้งหมด
+                {t.dashboard.actions.viewAll}
               </button>
             )}
           </div>
@@ -482,7 +500,7 @@ export default function DashboardPage() {
           ) : recentBookings.length > 0 ? (
             <div className="divide-y divide-gray-50 dark:divide-gray-700">
               {recentBookings.map((booking) => {
-                const bConfig = STATUS_CONFIG[booking.status] || STATUS_CONFIG.pending;
+                const bConfig = STATUS_STYLES[booking.status] || STATUS_STYLES.pending;
                 return (
                   <Link
                     key={booking.id}
@@ -497,9 +515,9 @@ export default function DashboardPage() {
                         {booking.pickupLocation} → {booking.dropoffLocation}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {booking.pickupDate && new Date(booking.pickupDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })}
+                        {booking.pickupDate && new Date(booking.pickupDate).toLocaleDateString(language === 'th' ? 'th-TH' : 'en-US', { day: 'numeric', month: 'short', year: '2-digit' })}
                         <span className="mx-1">•</span>
-                        {bConfig.label}
+                        {getStatusLabel(booking.status)}
                       </p>
                     </div>
                     <div className="text-right">
@@ -514,7 +532,7 @@ export default function DashboardPage() {
               <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-xl flex items-center justify-center mx-auto mb-3">
                 <span className="material-symbols-outlined text-gray-400">receipt_long</span>
               </div>
-              <p className="text-gray-500 text-sm">ยังไม่มีประวัติการจอง</p>
+              <p className="text-gray-500 text-sm">{t.dashboard.history.noHistory}</p>
             </div>
           )}
         </div>
@@ -530,8 +548,8 @@ export default function DashboardPage() {
               <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.349 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/>
             </svg>
             <div>
-              <p className="font-semibold text-sm">LINE</p>
-              <p className="text-xs text-white/80">ติดต่อเรา</p>
+              <p className="font-semibold text-sm">{t.dashboard.quickLinks.line}</p>
+              <p className="text-xs text-white/80">{t.dashboard.quickLinks.contactUs}</p>
             </div>
           </a>
           <Link
@@ -542,8 +560,8 @@ export default function DashboardPage() {
               <span className="material-symbols-outlined text-blue-600">help</span>
             </div>
             <div>
-              <p className="font-semibold text-gray-800 dark:text-white text-sm">ช่วยเหลือ</p>
-              <p className="text-xs text-gray-500">FAQ & Support</p>
+              <p className="font-semibold text-gray-800 dark:text-white text-sm">{t.dashboard.quickLinks.help}</p>
+              <p className="text-xs text-gray-500">{t.dashboard.quickLinks.faqSupport}</p>
             </div>
           </Link>
         </div>
@@ -557,7 +575,7 @@ export default function DashboardPage() {
             className={`flex flex-col items-center gap-0.5 px-6 py-2 rounded-xl transition-colors ${activeTab === 'home' ? 'text-blue-600' : 'text-gray-400'}`}
           >
             <span className="material-symbols-outlined text-xl">home</span>
-            <span className="text-[10px] font-medium">หน้าหลัก</span>
+            <span className="text-[10px] font-medium">{t.dashboard.nav.home}</span>
           </button>
           <Link
             href="/vehicles"
@@ -572,7 +590,7 @@ export default function DashboardPage() {
             className="flex flex-col items-center gap-0.5 px-6 py-2 rounded-xl text-gray-400"
           >
             <span className="material-symbols-outlined text-xl">person</span>
-            <span className="text-[10px] font-medium">โปรไฟล์</span>
+            <span className="text-[10px] font-medium">{t.dashboard.nav.profile}</span>
           </Link>
         </div>
       </div>

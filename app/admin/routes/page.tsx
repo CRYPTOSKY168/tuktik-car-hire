@@ -172,7 +172,7 @@ export default function AdminRoutesPage() {
                         <div className="w-16 h-16 border-4 border-blue-200 rounded-full"></div>
                         <div className="w-16 h-16 border-4 border-blue-600 rounded-full animate-spin border-t-transparent absolute top-0 left-0"></div>
                     </div>
-                    <p className="text-blue-600 font-semibold">Loading Routes...</p>
+                    <p className="text-blue-600 font-semibold">{t.admin.routesPage.loading}</p>
                 </div>
             </div>
         );
@@ -183,8 +183,8 @@ export default function AdminRoutesPage() {
             {/* Page Header */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">Route Pricing</h1>
-                    <p className="text-gray-500 text-sm mt-1">Manage fixed prices for specific routes</p>
+                    <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">{t.admin.routesPage.title}</h1>
+                    <p className="text-gray-500 text-sm mt-1">{t.admin.routesPage.subtitle}</p>
                 </div>
                 <div className="flex gap-2">
                     {routes.length === 0 && (
@@ -193,7 +193,7 @@ export default function AdminRoutesPage() {
                             className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition-colors"
                         >
                             <span className="material-symbols-outlined text-lg">database</span>
-                            Seed Data
+                            {t.admin.routesPage.seedData}
                         </button>
                     )}
                     <button
@@ -201,7 +201,7 @@ export default function AdminRoutesPage() {
                         className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-500/30"
                     >
                         <span className="material-symbols-outlined text-lg">add_road</span>
-                        Add Route
+                        {t.admin.routesPage.addRoute}
                     </button>
                 </div>
             </div>
@@ -214,7 +214,7 @@ export default function AdminRoutesPage() {
                             <span className="material-symbols-outlined text-white text-lg lg:text-xl">route</span>
                         </div>
                         <div>
-                            <p className="text-xs text-gray-400 font-medium">Total Routes</p>
+                            <p className="text-xs text-gray-400 font-medium">{t.admin.routesPage.stats.totalRoutes}</p>
                             <p className="text-xl lg:text-2xl font-bold text-gray-800">{stats.total}</p>
                         </div>
                     </div>
@@ -225,7 +225,7 @@ export default function AdminRoutesPage() {
                             <span className="material-symbols-outlined text-white text-lg lg:text-xl">directions_car</span>
                         </div>
                         <div>
-                            <p className="text-xs text-gray-400 font-medium">Avg. Sedan</p>
+                            <p className="text-xs text-gray-400 font-medium">{t.admin.routesPage.stats.avgSedan}</p>
                             <p className="text-xl lg:text-2xl font-bold text-gray-800">฿{stats.avgSedan.toLocaleString()}</p>
                         </div>
                     </div>
@@ -236,7 +236,7 @@ export default function AdminRoutesPage() {
                             <span className="material-symbols-outlined text-white text-lg lg:text-xl">airport_shuttle</span>
                         </div>
                         <div>
-                            <p className="text-xs text-gray-400 font-medium">Avg. Van</p>
+                            <p className="text-xs text-gray-400 font-medium">{t.admin.routesPage.stats.avgVan}</p>
                             <p className="text-xl lg:text-2xl font-bold text-gray-800">฿{stats.avgVan.toLocaleString()}</p>
                         </div>
                     </div>
@@ -247,7 +247,7 @@ export default function AdminRoutesPage() {
                             <span className="material-symbols-outlined text-white text-lg lg:text-xl">star</span>
                         </div>
                         <div>
-                            <p className="text-xs text-gray-400 font-medium">Avg. Luxury</p>
+                            <p className="text-xs text-gray-400 font-medium">{t.admin.routesPage.stats.avgLuxury}</p>
                             <p className="text-xl lg:text-2xl font-bold text-gray-800">฿{stats.avgLuxury.toLocaleString()}</p>
                         </div>
                     </div>
@@ -257,13 +257,13 @@ export default function AdminRoutesPage() {
             {/* Search */}
             <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
                 <div className="relative">
-                    <label htmlFor="route-search" className="sr-only">ค้นหาเส้นทาง</label>
+                    <label htmlFor="route-search" className="sr-only">{t.admin.routesPage.searchPlaceholder}</label>
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
                     <input
                         id="route-search"
                         name="routeSearch"
                         type="text"
-                        placeholder="Search routes by origin or destination..."
+                        placeholder={t.admin.routesPage.searchPlaceholder}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         autoComplete="off"
@@ -278,8 +278,8 @@ export default function AdminRoutesPage() {
                     <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 mb-4">
                         <span className="material-symbols-outlined text-4xl">route</span>
                     </div>
-                    <h3 className="text-lg font-bold text-gray-800">No routes found</h3>
-                    <p className="text-gray-500 mt-1">Add a route to get started or adjust your search.</p>
+                    <h3 className="text-lg font-bold text-gray-800">{t.admin.routesPage.noRoutes}</h3>
+                    <p className="text-gray-500 mt-1">{t.admin.routesPage.addToStart}</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -299,11 +299,11 @@ export default function AdminRoutesPage() {
                                         {/* Route Names */}
                                         <div className="flex flex-col gap-3">
                                             <div>
-                                                <p className="text-[10px] text-blue-200 uppercase tracking-wider font-medium">From</p>
+                                                <p className="text-[10px] text-blue-200 uppercase tracking-wider font-medium">{t.admin.routesPage.from}</p>
                                                 <p className="text-white font-bold text-lg">{getLocName(route.originId, route.origin)}</p>
                                             </div>
                                             <div>
-                                                <p className="text-[10px] text-blue-200 uppercase tracking-wider font-medium">To</p>
+                                                <p className="text-[10px] text-blue-200 uppercase tracking-wider font-medium">{t.admin.routesPage.to}</p>
                                                 <p className="text-white font-bold text-lg">{getLocName(route.destinationId, route.destination)}</p>
                                             </div>
                                         </div>
@@ -329,14 +329,14 @@ export default function AdminRoutesPage() {
 
                             {/* Prices Grid */}
                             <div className="p-4">
-                                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-3">Vehicle Prices</p>
+                                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-3">{t.admin.routesPage.vehiclePrices}</p>
                                 <div className="grid grid-cols-5 gap-2">
                                     {[
-                                        { key: 'sedan', label: 'Sedan', icon: 'directions_car', color: 'blue' },
-                                        { key: 'suv', label: 'SUV', icon: 'directions_car', color: 'orange' },
-                                        { key: 'van', label: 'Van', icon: 'airport_shuttle', color: 'purple' },
-                                        { key: 'luxury', label: 'Luxury', icon: 'star', color: 'amber' },
-                                        { key: 'minibus', label: 'Minibus', icon: 'directions_bus', color: 'emerald' },
+                                        { key: 'sedan', label: t.admin.routesPage.sedan, icon: 'directions_car', color: 'blue' },
+                                        { key: 'suv', label: t.admin.routesPage.suv, icon: 'directions_car', color: 'orange' },
+                                        { key: 'van', label: t.admin.routesPage.van, icon: 'airport_shuttle', color: 'purple' },
+                                        { key: 'luxury', label: t.admin.routesPage.luxury, icon: 'star', color: 'amber' },
+                                        { key: 'minibus', label: t.admin.routesPage.minibus, icon: 'directions_bus', color: 'emerald' },
                                     ].map((item) => (
                                         <div key={item.key} className="bg-gray-50 rounded-xl p-3 text-center">
                                             <span className={`material-symbols-outlined text-${item.color}-500 text-lg mb-1 block`}>{item.icon}</span>
@@ -358,10 +358,10 @@ export default function AdminRoutesPage() {
                         {/* Modal Header */}
                         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 sticky top-0">
                             <h2 className="text-xl font-bold text-white">
-                                {editingRoute ? 'Edit Route Pricing' : 'New Route Pricing'}
+                                {editingRoute ? t.admin.routesPage.modal.editTitle : t.admin.routesPage.modal.addTitle}
                             </h2>
                             <p className="text-blue-100 text-sm">
-                                {editingRoute ? 'Update the route pricing details' : 'Set prices for a new route'}
+                                {editingRoute ? t.admin.routesPage.modal.editSubtitle : t.admin.routesPage.modal.addSubtitle}
                             </p>
                         </div>
 
@@ -369,7 +369,7 @@ export default function AdminRoutesPage() {
                             {/* Route Selection */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label htmlFor="route-origin" className="block text-xs font-bold text-gray-500 uppercase mb-2">Origin</label>
+                                    <label htmlFor="route-origin" className="block text-xs font-bold text-gray-500 uppercase mb-2">{t.admin.routesPage.modal.origin}</label>
                                     <div className="relative">
                                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-emerald-500 text-lg">trip_origin</span>
                                         <select
@@ -380,7 +380,7 @@ export default function AdminRoutesPage() {
                                             onChange={e => setFormData({ ...formData, originId: e.target.value })}
                                             className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
                                         >
-                                            <option value="">Select Origin</option>
+                                            <option value="">{t.admin.routesPage.modal.selectOrigin}</option>
                                             {locations.map(loc => (
                                                 <option key={loc.id} value={loc.id}>
                                                     {loc.name?.en} ({loc.name?.th})
@@ -391,7 +391,7 @@ export default function AdminRoutesPage() {
                                     </div>
                                 </div>
                                 <div>
-                                    <label htmlFor="route-destination" className="block text-xs font-bold text-gray-500 uppercase mb-2">Destination</label>
+                                    <label htmlFor="route-destination" className="block text-xs font-bold text-gray-500 uppercase mb-2">{t.admin.routesPage.modal.destination}</label>
                                     <div className="relative">
                                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-red-500 text-lg">location_on</span>
                                         <select
@@ -402,7 +402,7 @@ export default function AdminRoutesPage() {
                                             onChange={e => setFormData({ ...formData, destinationId: e.target.value })}
                                             className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
                                         >
-                                            <option value="">Select Destination</option>
+                                            <option value="">{t.admin.routesPage.modal.selectDestination}</option>
                                             {locations.map(loc => (
                                                 <option key={loc.id} value={loc.id}>
                                                     {loc.name?.en} ({loc.name?.th})
@@ -420,7 +420,7 @@ export default function AdminRoutesPage() {
                             <fieldset>
                                 <legend className="font-bold text-gray-800 mb-4 flex items-center gap-2">
                                     <span className="material-symbols-outlined text-blue-600">payments</span>
-                                    Vehicle Prices (THB)
+                                    {t.admin.routesPage.modal.vehiclePrices}
                                 </legend>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                     {[
@@ -460,14 +460,14 @@ export default function AdminRoutesPage() {
                                     onClick={() => setShowModal(false)}
                                     className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
                                 >
-                                    Cancel
+                                    {t.admin.routesPage.modal.cancel}
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={loading}
                                     className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/30 transition-all disabled:opacity-50"
                                 >
-                                    {loading ? 'Saving...' : 'Save Route'}
+                                    {loading ? t.admin.routesPage.modal.saving : t.admin.routesPage.modal.save}
                                 </button>
                             </div>
                         </form>

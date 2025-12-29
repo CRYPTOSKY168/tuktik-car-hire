@@ -1,9 +1,9 @@
 # TukTik Car Rental - Project Documentation
 
 > **Last Updated:** 2025-12-29
-> **Version:** 5.9 (Driver Status Update Fix)
+> **Version:** 6.2 (Admin i18n Complete)
 > **Status:** Production
-> **Lines:** ~2500+
+> **Lines:** ~2900+
 
 ---
 
@@ -90,6 +90,27 @@ npm run lint         # Run ESLint
 6. อย่า refactor โค้ดที่ไม่เกี่ยวข้องกับ task
 7. อย่าใช้ FieldValue.serverTimestamp() ใน array
 8. อย่าเปลี่ยน API response format ที่มีอยู่
+```
+
+### ⚠️ Prototype/Demo vs Production (สำคัญมาก!)
+
+```markdown
+Prototype pages เป็นแค่ DEMO ทดลองดีไซน์ ห้ามเอาไปปนกับ Production!
+
+| ประเภท | Path | หมายเหตุ |
+|--------|------|----------|
+| **Production** | `/driver`, `/driver/login`, `/driver/setup`, `/driver/profile`, `/driver/history`, `/driver/pending` | ❌ ห้ามเปลี่ยนธีม/styling โดยไม่ได้รับอนุญาต |
+| **Demo/Prototype** | `/driver/prototype-*` | ✅ ทดลองธีมใหม่ได้อิสระ (Cyberpunk, Synthwave, etc.) |
+
+❌ ห้ามทำ:
+- เอาธีม Cyberpunk/Synthwave/Neon ไปใส่หน้า Production
+- Copy styling จาก prototype ไปใส่หน้า driver จริง
+- สับสน prototype กับ production
+
+✅ ทำได้:
+- สร้าง prototype ใหม่ใน /driver/prototype-* เพื่อทดลองดีไซน์
+- ลบ prototype ที่ไม่ต้องการ
+- ถ้าจะเอาธีมจาก prototype ไปใช้จริง ต้องถามก่อนเสมอ!
 ```
 
 ### Code Style
@@ -1940,6 +1961,62 @@ STRIPE_WEBHOOK_SECRET=
 
 ## Changelog
 
+### 2025-12-29 v6.2 - Admin i18n Complete 🌐
+- **Complete i18n translations for ALL admin pages**
+  - `/admin` - Admin dashboard page (stats, charts, recent bookings, quick actions)
+  - `/admin/bookings` - Booking management page
+  - `/admin/drivers` - Driver management page
+  - `/admin/customers` - Customer management page
+  - `/admin/members` - Member management page
+  - `/admin/vehicles` - Vehicle management page
+  - `/admin/routes` - Route pricing page
+- **Translation features:**
+  - Status labels switch based on language (Thai/English)
+  - Payment method and status labels switch based on language
+  - All stats, filters, empty states, and action buttons translated
+  - Date formatting uses locale-aware formatting (th-TH / en-US)
+  - Chart day names (Mon-Sun / จ-อา) switch based on language
+- **Files modified:**
+  - `lib/i18n/translations.ts` - Added ~450 lines of translations (including dashboard)
+  - All admin page.tsx files - Updated to use `useLanguage()` hook
+- **Pattern used:**
+  ```typescript
+  const { t, language } = useLanguage();
+  // Then use {t.admin.bookings.title} or similar
+  ```
+
+### 2025-12-29 v6.1 - Push Notification & Payment Form Redesign 🔔
+- **Push Notification ทำงานสมบูรณ์แล้ว!**
+  - แก้ไข `firebase-messaging-sw.js` ใส่ Firebase config จริง
+  - ทดสอบผ่านทุกประเภท: test, booking_confirmed, driver_en_route, completed
+  - Service Worker registered และรับ FCM Token สำเร็จ
+  - รองรับทั้ง Foreground และ Background notifications
+- **Payment Form Redesign (Card-Based Sections)**
+  - Card 1: ข้อมูลติดต่อ (ชื่อ, นามสกุล, เบอร์โทร, อีเมล) - พื้นหลัง blue gradient
+  - Card 2: รายละเอียดการเดินทาง (เที่ยวบิน, ผู้โดยสาร, กระเป๋า) - พื้นหลัง amber gradient
+  - เพิ่ม icons ทุก field, focus ring effect, dark mode support
+  - Stepper buttons สำหรับผู้โดยสาร/กระเป๋า
+- **ไฟล์ที่แก้:**
+  - `public/firebase-messaging-sw.js` - Firebase config จริง
+  - `app/payment/page.tsx` - Card-Based form design
+
+### 2025-12-29 v6.0 - Customer Dashboard i18n 🌐
+- เพิ่มระบบ **translations สมบูรณ์** สำหรับหน้า Customer Dashboard (`/dashboard`)
+- **ข้อความที่แปลแล้ว:**
+  - Greeting messages (สวัสดีตอนเช้า/บ่าย/เย็น)
+  - Status labels ทุกสถานะ (รอชำระเงิน, รอยืนยัน, ยืนยันแล้ว, ฯลฯ)
+  - Action buttons (ชำระเงินเลย, ดูรายละเอียด, โทรคนขับ, ติดต่อเรา)
+  - Empty state (พร้อมเดินทางหรือยัง?)
+  - Stats labels (เที่ยว, ใช้ไปแล้ว, คะแนน)
+  - Booking history section
+  - Quick links (LINE, ช่วยเหลือ)
+  - Bottom navigation (หน้าหลัก, โปรไฟล์)
+  - Celebration modal (ถึงจุดหมายแล้ว!)
+- รองรับการแสดงวันที่ตามภาษา (th-TH / en-US)
+- **ไฟล์ที่แก้:**
+  - `lib/i18n/translations.ts` - เพิ่ม dashboard translations ทั้ง EN และ TH
+  - `app/dashboard/page.tsx` - ใช้ `useLanguage` hook แทน hardcode text
+
 ### 2025-12-29 v5.9 - Driver Status Update Fix 🔧
 - แก้ไข bug "Cannot change status from X to X" ในหน้าคนขับ
 - **สาเหตุ:** Race condition - คนขับกดปุ่มก่อน real-time update มาถึง
@@ -2437,4 +2514,4 @@ vercel --prod        # Deploy to production
 ---
 
 *Document maintained by development team. Last updated: 2025-12-29*
-*Lines: ~2550 | Version: 5.9 (Driver Status Update Fix) 🔧*
+*Lines: ~2600 | Version: 6.1 (Push Notification & Payment Form Redesign) 🔔*

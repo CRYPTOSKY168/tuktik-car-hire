@@ -3,14 +3,10 @@
 import { useEffect, useState } from 'react';
 import { FirestoreService } from '@/lib/firebase/firestore';
 import { Driver, DriverStatus } from '@/lib/types';
-
-const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
-    [DriverStatus.AVAILABLE]: { label: 'ว่าง', color: 'bg-green-100 text-green-700', dot: 'bg-green-500' },
-    [DriverStatus.BUSY]: { label: 'กำลังวิ่งงาน', color: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' },
-    [DriverStatus.OFFLINE]: { label: 'ปิดรับงาน', color: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' }
-};
+import { useLanguage } from '@/lib/contexts/LanguageContext';
 
 export default function AdminDriversPage() {
+    const { t, language } = useLanguage();
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -18,6 +14,16 @@ export default function AdminDriversPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState<'all' | DriverStatus | string>('all');
     const [saving, setSaving] = useState(false);
+
+    // Status config with language support
+    const getStatusConfig = (status: string) => {
+        const configs: Record<string, { label: string; color: string; dot: string }> = {
+            [DriverStatus.AVAILABLE]: { label: t.admin.drivers.status.available, color: 'bg-green-100 text-green-700', dot: 'bg-green-500' },
+            [DriverStatus.BUSY]: { label: t.admin.drivers.status.busy, color: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' },
+            [DriverStatus.OFFLINE]: { label: t.admin.drivers.status.offline, color: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' }
+        };
+        return configs[status] || { label: status, color: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' };
+    };
 
     const [formData, setFormData] = useState({
         name: '',
@@ -149,7 +155,7 @@ export default function AdminDriversPage() {
                         <div className="w-12 h-12 border-4 border-blue-200 rounded-full"></div>
                         <div className="w-12 h-12 border-4 border-blue-600 rounded-full animate-spin border-t-transparent absolute top-0 left-0"></div>
                     </div>
-                    <p className="text-gray-500 font-medium">กำลังโหลดข้อมูลคนขับ...</p>
+                    <p className="text-gray-500 font-medium">{t.admin.common.loading}</p>
                 </div>
             </div>
         );
@@ -160,15 +166,15 @@ export default function AdminDriversPage() {
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-800">จัดการคนขับ</h1>
-                    <p className="text-sm text-gray-500 mt-1">จัดการคนขับและสถานะการรับงาน</p>
+                    <h1 className="text-2xl font-bold text-gray-800">{t.admin.drivers.title}</h1>
+                    <p className="text-sm text-gray-500 mt-1">{t.admin.drivers.subtitle}</p>
                 </div>
                 <button
                     onClick={() => openModal()}
                     className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl text-sm font-medium text-white hover:shadow-lg hover:shadow-blue-500/30 transition-all"
                 >
                     <span className="material-symbols-outlined text-lg">person_add</span>
-                    เพิ่มคนขับ
+                    {t.admin.drivers.addDriver}
                 </button>
             </div>
 
@@ -181,7 +187,7 @@ export default function AdminDriversPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
-                            <p className="text-xs text-gray-500">คนขับทั้งหมด</p>
+                            <p className="text-xs text-gray-500">{t.admin.drivers.stats.total}</p>
                         </div>
                     </div>
                 </div>
@@ -192,7 +198,7 @@ export default function AdminDriversPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-green-600">{stats.available}</p>
-                            <p className="text-xs text-gray-500">ว่าง</p>
+                            <p className="text-xs text-gray-500">{t.admin.drivers.stats.available}</p>
                         </div>
                     </div>
                 </div>
@@ -203,7 +209,7 @@ export default function AdminDriversPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-amber-600">{stats.busy}</p>
-                            <p className="text-xs text-gray-500">On Trip</p>
+                            <p className="text-xs text-gray-500">{t.admin.drivers.stats.onTrip}</p>
                         </div>
                     </div>
                 </div>
@@ -214,7 +220,7 @@ export default function AdminDriversPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-gray-500">{stats.offline}</p>
-                            <p className="text-xs text-gray-500">ปิดรับงาน</p>
+                            <p className="text-xs text-gray-500">{t.admin.drivers.stats.offline}</p>
                         </div>
                     </div>
                 </div>
@@ -225,13 +231,13 @@ export default function AdminDriversPage() {
                 <div className="flex flex-col sm:flex-row gap-4">
                     {/* Search */}
                     <div className="flex-1 relative">
-                        <label htmlFor="driver-search" className="sr-only">ค้นหาคนขับ</label>
+                        <label htmlFor="driver-search" className="sr-only">{t.admin.drivers.searchPlaceholder}</label>
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
                         <input
                             id="driver-search"
                             name="driverSearch"
                             type="text"
-                            placeholder="Search by name, phone, or plate..."
+                            placeholder={t.admin.drivers.searchPlaceholder}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             autoComplete="off"
@@ -251,7 +257,7 @@ export default function AdminDriversPage() {
                                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                 }`}
                             >
-                                {status === 'all' ? 'All' : STATUS_CONFIG[status]?.label || status}
+                                {status === 'all' ? t.admin.drivers.status.all : getStatusConfig(status).label}
                             </button>
                         ))}
                     </div>
@@ -264,11 +270,11 @@ export default function AdminDriversPage() {
                     <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
                         <span className="material-symbols-outlined text-3xl text-gray-400">person_off</span>
                     </div>
-                    <p className="text-gray-500 font-medium">ไม่พบคนขับ</p>
+                    <p className="text-gray-500 font-medium">{t.admin.drivers.noDrivers}</p>
                     <p className="text-sm text-gray-400 mt-1">
                         {searchQuery || filterStatus !== 'all'
-                            ? 'ลองปรับคำค้นหาหรือตัวกรอง'
-                            : 'เพิ่มคนขับคนแรกเพื่อเริ่มต้น'}
+                            ? t.admin.drivers.adjustFilters
+                            : t.admin.drivers.addFirstDriver}
                     </p>
                     {!searchQuery && filterStatus === 'all' && (
                         <button
@@ -294,7 +300,7 @@ export default function AdminDriversPage() {
                                         <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-md">
                                             {driver.name.charAt(0).toUpperCase()}
                                         </div>
-                                        <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${STATUS_CONFIG[driver.status].dot}`}></div>
+                                        <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${getStatusConfig(driver.status).dot}`}></div>
                                     </div>
 
                                     {/* Info */}
@@ -304,9 +310,9 @@ export default function AdminDriversPage() {
                                                 <h3 className="font-semibold text-gray-800 truncate">{driver.name}</h3>
                                                 <p className="text-sm text-gray-500">{driver.phone}</p>
                                             </div>
-                                            <span className={`flex-shrink-0 px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${STATUS_CONFIG[driver.status].color}`}>
-                                                <span className={`w-1.5 h-1.5 rounded-full ${STATUS_CONFIG[driver.status].dot}`}></span>
-                                                {STATUS_CONFIG[driver.status].label}
+                                            <span className={`flex-shrink-0 px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${getStatusConfig(driver.status).color}`}>
+                                                <span className={`w-1.5 h-1.5 rounded-full ${getStatusConfig(driver.status).dot}`}></span>
+                                                {getStatusConfig(driver.status).label}
                                             </span>
                                         </div>
                                     </div>
@@ -360,10 +366,10 @@ export default function AdminDriversPage() {
                                             onClick={() => handleStatusChange(driver, status)}
                                             className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
                                                 driver.status === status
-                                                    ? STATUS_CONFIG[status]?.color || ''
+                                                    ? getStatusConfig(status).color || ''
                                                     : 'text-gray-400 hover:bg-gray-200'
                                             }`}
-                                            title={STATUS_CONFIG[status]?.label || status}
+                                            title={getStatusConfig(status).label || status}
                                         >
                                             <span className="material-symbols-outlined text-lg">
                                                 {status === DriverStatus.AVAILABLE ? 'check_circle' : status === DriverStatus.BUSY ? 'schedule' : 'do_not_disturb_on'}
@@ -543,12 +549,12 @@ export default function AdminDriversPage() {
                                             onClick={() => setFormData({ ...formData, status })}
                                             className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${
                                                 formData.status === status
-                                                    ? (STATUS_CONFIG[status]?.color || '') + ' ring-2 ring-offset-1 ring-current'
+                                                    ? (getStatusConfig(status).color || '') + ' ring-2 ring-offset-1 ring-current'
                                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                             }`}
                                         >
-                                            <span className={`w-2 h-2 rounded-full ${STATUS_CONFIG[status]?.dot || ''}`}></span>
-                                            {STATUS_CONFIG[status]?.label || status}
+                                            <span className={`w-2 h-2 rounded-full ${getStatusConfig(status).dot || ''}`}></span>
+                                            {getStatusConfig(status).label || status}
                                         </button>
                                     ))}
                                 </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { FirestoreService } from '@/lib/firebase/firestore';
+import { useLanguage } from '@/lib/contexts/LanguageContext';
 
 interface Customer {
     id: string; // Either Firestore user ID or booking email/phone as key
@@ -23,6 +24,7 @@ interface CustomerStats {
 }
 
 export default function AdminCustomersPage() {
+    const { t, language } = useLanguage();
     const [users, setUsers] = useState<any[]>([]);
     const [bookings, setBookings] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -227,7 +229,7 @@ export default function AdminCustomersPage() {
     const formatDate = (timestamp: any) => {
         if (!timestamp) return '-';
         const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
-        return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+        return date.toLocaleDateString(language === 'th' ? 'th-TH' : 'en-US', { day: 'numeric', month: 'short', year: '2-digit' });
     };
 
     const getStatusConfig = (status: string) => {
@@ -245,17 +247,17 @@ export default function AdminCustomersPage() {
     };
 
     const getDisplayName = (customer: Customer) => {
-        return customer.displayName || `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'ไม่ระบุชื่อ';
+        return customer.displayName || `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || t.admin.customers.noName;
     };
 
     const getSourceBadge = (source: string) => {
         switch (source) {
             case 'user':
-                return <span className="px-2 py-0.5 text-[10px] font-bold bg-green-100 text-green-700 rounded-full">Registered</span>;
+                return <span className="px-2 py-0.5 text-[10px] font-bold bg-green-100 text-green-700 rounded-full">{t.admin.customers.types.registered}</span>;
             case 'merged':
-                return <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 rounded-full">Verified</span>;
+                return <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-700 rounded-full">{t.admin.customers.types.verified}</span>;
             case 'booking':
-                return <span className="px-2 py-0.5 text-[10px] font-bold bg-gray-100 text-gray-600 rounded-full">Guest</span>;
+                return <span className="px-2 py-0.5 text-[10px] font-bold bg-gray-100 text-gray-600 rounded-full">{t.admin.customers.types.guest}</span>;
             default:
                 return null;
         }
@@ -269,7 +271,7 @@ export default function AdminCustomersPage() {
                         <div className="w-12 h-12 border-4 border-blue-200 rounded-full"></div>
                         <div className="w-12 h-12 border-4 border-blue-600 rounded-full animate-spin border-t-transparent absolute top-0 left-0"></div>
                     </div>
-                    <p className="text-gray-500 font-medium">กำลังโหลดข้อมูลลูกค้า...</p>
+                    <p className="text-gray-500 font-medium">{t.admin.common.loading}</p>
                 </div>
             </div>
         );
@@ -280,8 +282,8 @@ export default function AdminCustomersPage() {
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-800">จัดการลูกค้า</h1>
-                    <p className="text-sm text-gray-500 mt-1">ดูและจัดการลูกค้าทั้งหมด (สมาชิก + ผู้เยี่ยมชม)</p>
+                    <h1 className="text-2xl font-bold text-gray-800">{t.admin.customers.title}</h1>
+                    <p className="text-sm text-gray-500 mt-1">{t.admin.customers.subtitle}</p>
                 </div>
             </div>
 
@@ -294,7 +296,7 @@ export default function AdminCustomersPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-gray-800">{overallStats.totalCustomers}</p>
-                            <p className="text-xs text-gray-500">ลูกค้าทั้งหมด</p>
+                            <p className="text-xs text-gray-500">{t.admin.customers.stats.totalCustomers}</p>
                         </div>
                     </div>
                 </div>
@@ -305,7 +307,7 @@ export default function AdminCustomersPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-green-600">{overallStats.registeredCustomers}</p>
-                            <p className="text-xs text-gray-500">สมาชิก</p>
+                            <p className="text-xs text-gray-500">{t.admin.customers.stats.members}</p>
                         </div>
                     </div>
                 </div>
@@ -316,7 +318,7 @@ export default function AdminCustomersPage() {
                         </div>
                         <div>
                             <p className="text-xl font-bold text-emerald-600">฿{overallStats.totalRevenue.toLocaleString()}</p>
-                            <p className="text-xs text-gray-500">รายได้รวม</p>
+                            <p className="text-xs text-gray-500">{t.admin.customers.stats.totalRevenue}</p>
                         </div>
                     </div>
                 </div>
@@ -327,7 +329,7 @@ export default function AdminCustomersPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-purple-600">{overallStats.totalTrips}</p>
-                            <p className="text-xs text-gray-500">เที่ยวสำเร็จ</p>
+                            <p className="text-xs text-gray-500">{t.admin.customers.stats.completedTrips}</p>
                         </div>
                     </div>
                 </div>
@@ -338,13 +340,13 @@ export default function AdminCustomersPage() {
                 <div className="flex flex-col sm:flex-row gap-4">
                     {/* Search */}
                     <div className="flex-1 relative">
-                        <label htmlFor="customer-search" className="sr-only">ค้นหาลูกค้า</label>
+                        <label htmlFor="customer-search" className="sr-only">{t.admin.customers.searchPlaceholder}</label>
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
                         <input
                             id="customer-search"
                             name="customerSearch"
                             type="text"
-                            placeholder="ค้นหาด้วยชื่อ, อีเมล, หรือเบอร์โทร..."
+                            placeholder={t.admin.customers.searchPlaceholder}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             autoComplete="off"

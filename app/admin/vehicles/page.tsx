@@ -126,7 +126,7 @@ export default function AdminVehiclesPage() {
                         <div className="w-16 h-16 border-4 border-blue-200 rounded-full"></div>
                         <div className="w-16 h-16 border-4 border-blue-600 rounded-full animate-spin border-t-transparent absolute top-0 left-0"></div>
                     </div>
-                    <p className="text-blue-600 font-semibold">Loading Vehicles...</p>
+                    <p className="text-blue-600 font-semibold">{t.admin.vehiclesPage.loading}</p>
                 </div>
             </div>
         );
@@ -137,8 +137,8 @@ export default function AdminVehiclesPage() {
             {/* Page Header */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">{t.admin.vehicles.name}</h1>
-                    <p className="text-gray-500 text-sm mt-1">Manage your fleet, prices, and availability</p>
+                    <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">{t.admin.vehiclesPage.title}</h1>
+                    <p className="text-gray-500 text-sm mt-1">{t.admin.vehiclesPage.subtitle}</p>
                 </div>
                 <div className="flex gap-2">
                     {vehicles.length === 0 && (
@@ -147,7 +147,7 @@ export default function AdminVehiclesPage() {
                             className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition-colors"
                         >
                             <span className="material-symbols-outlined text-lg">database</span>
-                            Initialize DB
+                            {t.admin.vehiclesPage.initializeDB}
                         </button>
                     )}
                     <Link
@@ -155,7 +155,7 @@ export default function AdminVehiclesPage() {
                         className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-500/30"
                     >
                         <span className="material-symbols-outlined text-lg">add</span>
-                        {t.admin.vehicles.add}
+                        {t.admin.vehiclesPage.addVehicle}
                     </Link>
                 </div>
             </div>
@@ -168,7 +168,7 @@ export default function AdminVehiclesPage() {
                             <span className="material-symbols-outlined text-white text-lg">garage</span>
                         </div>
                         <div>
-                            <p className="text-xs text-gray-400 font-medium">Total</p>
+                            <p className="text-xs text-gray-400 font-medium">{t.admin.vehiclesPage.stats.total}</p>
                             <p className="text-xl font-bold text-gray-800">{stats.total}</p>
                         </div>
                     </div>
@@ -179,7 +179,7 @@ export default function AdminVehiclesPage() {
                             <span className="material-symbols-outlined text-white text-lg">check_circle</span>
                         </div>
                         <div>
-                            <p className="text-xs text-gray-400 font-medium">Active</p>
+                            <p className="text-xs text-gray-400 font-medium">{t.admin.vehiclesPage.stats.active}</p>
                             <p className="text-xl font-bold text-gray-800">{stats.active}</p>
                         </div>
                     </div>
@@ -190,7 +190,7 @@ export default function AdminVehiclesPage() {
                             <span className="material-symbols-outlined text-white text-lg">cancel</span>
                         </div>
                         <div>
-                            <p className="text-xs text-gray-400 font-medium">Inactive</p>
+                            <p className="text-xs text-gray-400 font-medium">{t.admin.vehiclesPage.stats.inactive}</p>
                             <p className="text-xl font-bold text-gray-800">{stats.inactive}</p>
                         </div>
                     </div>
@@ -201,7 +201,7 @@ export default function AdminVehiclesPage() {
                             <span className="material-symbols-outlined text-white text-lg">directions_car</span>
                         </div>
                         <div>
-                            <p className="text-xs text-gray-400 font-medium">Sedan</p>
+                            <p className="text-xs text-gray-400 font-medium">{t.admin.vehiclesPage.stats.sedan}</p>
                             <p className="text-xl font-bold text-gray-800">{stats.sedan}</p>
                         </div>
                     </div>
@@ -212,7 +212,7 @@ export default function AdminVehiclesPage() {
                             <span className="material-symbols-outlined text-white text-lg">directions_car</span>
                         </div>
                         <div>
-                            <p className="text-xs text-gray-400 font-medium">SUV</p>
+                            <p className="text-xs text-gray-400 font-medium">{t.admin.vehiclesPage.stats.suv}</p>
                             <p className="text-xl font-bold text-gray-800">{stats.suv}</p>
                         </div>
                     </div>
@@ -223,7 +223,7 @@ export default function AdminVehiclesPage() {
                             <span className="material-symbols-outlined text-white text-lg">airport_shuttle</span>
                         </div>
                         <div>
-                            <p className="text-xs text-gray-400 font-medium">Van</p>
+                            <p className="text-xs text-gray-400 font-medium">{t.admin.vehiclesPage.stats.van}</p>
                             <p className="text-xl font-bold text-gray-800">{stats.van}</p>
                         </div>
                     </div>
@@ -244,20 +244,23 @@ export default function AdminVehiclesPage() {
                                     : 'text-gray-500 hover:text-gray-700'
                                     }`}
                             >
-                                {type === 'all' ? 'All Types' : type}
+                                {type === 'all' ? t.admin.vehiclesPage.filters.allTypes :
+                                 type === 'sedan' ? t.admin.vehiclesPage.stats.sedan :
+                                 type === 'suv' ? t.admin.vehiclesPage.stats.suv :
+                                 t.admin.vehiclesPage.stats.van}
                             </button>
                         ))}
                     </div>
 
                     {/* Search */}
                     <div className="relative">
-                        <label htmlFor="vehicle-search" className="sr-only">ค้นหายานพาหนะ</label>
+                        <label htmlFor="vehicle-search" className="sr-only">{t.admin.vehiclesPage.searchPlaceholder}</label>
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
                         <input
                             id="vehicle-search"
                             name="vehicleSearch"
                             type="text"
-                            placeholder="Search vehicles..."
+                            placeholder={t.admin.vehiclesPage.searchPlaceholder}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             autoComplete="off"
@@ -273,8 +276,8 @@ export default function AdminVehiclesPage() {
                     <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 mb-4">
                         <span className="material-symbols-outlined text-4xl">directions_car</span>
                     </div>
-                    <h3 className="text-lg font-bold text-gray-800">No vehicles found</h3>
-                    <p className="text-gray-500 mt-1">Add a vehicle to get started or adjust your filters.</p>
+                    <h3 className="text-lg font-bold text-gray-800">{t.admin.vehiclesPage.noVehicles}</h3>
+                    <p className="text-gray-500 mt-1">{t.admin.vehiclesPage.addToStart}</p>
                 </div>
             ) : (
                 <>
@@ -284,13 +287,13 @@ export default function AdminVehiclesPage() {
                             <table className="w-full text-sm text-left">
                                 <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                                     <tr>
-                                        <th className="px-6 py-4 font-semibold">Vehicle</th>
-                                        <th className="px-6 py-4 font-semibold">Type</th>
-                                        <th className="px-6 py-4 font-semibold">Price/Day</th>
-                                        <th className="px-6 py-4 font-semibold">Capacity</th>
-                                        <th className="px-6 py-4 font-semibold">Features</th>
-                                        <th className="px-6 py-4 font-semibold">Status</th>
-                                        <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                                        <th className="px-6 py-4 font-semibold">{t.admin.vehiclesPage.table.vehicle}</th>
+                                        <th className="px-6 py-4 font-semibold">{t.admin.vehiclesPage.table.type}</th>
+                                        <th className="px-6 py-4 font-semibold">{t.admin.vehiclesPage.table.pricePerDay}</th>
+                                        <th className="px-6 py-4 font-semibold">{t.admin.vehiclesPage.table.capacity}</th>
+                                        <th className="px-6 py-4 font-semibold">{t.admin.vehiclesPage.table.features}</th>
+                                        <th className="px-6 py-4 font-semibold">{t.admin.vehiclesPage.table.status}</th>
+                                        <th className="px-6 py-4 font-semibold text-right">{t.admin.vehiclesPage.table.actions}</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
@@ -353,7 +356,7 @@ export default function AdminVehiclesPage() {
                                                             : 'bg-red-50 text-red-700 hover:bg-red-100'
                                                             }`}
                                                     >
-                                                        {v.isActive ? 'Active' : 'Inactive'}
+                                                        {v.isActive ? t.admin.vehiclesPage.status.active : t.admin.vehiclesPage.status.inactive}
                                                     </button>
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
@@ -361,14 +364,14 @@ export default function AdminVehiclesPage() {
                                                         <Link
                                                             href={`/admin/vehicles/${v.id}`}
                                                             className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                                                            title="Edit"
+                                                            title={t.admin.vehiclesPage.edit}
                                                         >
                                                             <span className="material-symbols-outlined text-lg">edit</span>
                                                         </Link>
                                                         <button
                                                             onClick={() => handleDelete(v)}
                                                             className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-                                                            title="Delete"
+                                                            title={t.admin.common.delete}
                                                         >
                                                             <span className="material-symbols-outlined text-lg">delete</span>
                                                         </button>
@@ -410,7 +413,7 @@ export default function AdminVehiclesPage() {
                                                     : 'bg-red-500 text-white'
                                                     }`}
                                             >
-                                                {v.isActive ? 'Active' : 'Inactive'}
+                                                {v.isActive ? t.admin.vehiclesPage.status.active : t.admin.vehiclesPage.status.inactive}
                                             </button>
                                         </div>
                                     </div>
@@ -428,11 +431,11 @@ export default function AdminVehiclesPage() {
                                         <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
                                             <span className="flex items-center gap-1">
                                                 <span className="material-symbols-outlined text-sm">person</span>
-                                                {v.capacity} seats
+                                                {v.capacity} {t.admin.vehiclesPage.seats}
                                             </span>
                                             <span className="flex items-center gap-1">
                                                 <span className="material-symbols-outlined text-sm">luggage</span>
-                                                {v.luggage} bags
+                                                {v.luggage} {t.admin.vehiclesPage.bags}
                                             </span>
                                         </div>
 
@@ -441,7 +444,7 @@ export default function AdminVehiclesPage() {
                                                 href={`/admin/vehicles/${v.id}`}
                                                 className="flex-1 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl text-sm font-bold text-center shadow-lg shadow-blue-500/30"
                                             >
-                                                Edit
+                                                {t.admin.vehiclesPage.edit}
                                             </Link>
                                             <button
                                                 onClick={() => handleDelete(v)}

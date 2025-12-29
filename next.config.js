@@ -85,6 +85,8 @@ const nextConfig = {
       },
     ],
   },
+  // Allow cross-origin requests from local network devices (iPad, mobile, etc.)
+  allowedDevOrigins: ['192.168.1.42', '*.192.168.1.*'],
   // Allow webpack config from next-pwa in Next.js 16
   turbopack: {},
 };

@@ -75,7 +75,7 @@ function ProgressRing({ progress, size = 60, strokeWidth = 6, color = '#3B82F6' 
 }
 
 export default function AdminDashboardPage() {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const [stats, setStats] = useState({
         totalBookings: 0,
         totalRevenue: 0,
@@ -195,16 +195,16 @@ export default function AdminDashboardPage() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800">{t.admin.title}</h1>
-                    <p className="text-sm text-gray-500 mt-1">ภาพรวมแดชบอร์ดของคุณ</p>
+                    <p className="text-sm text-gray-500 mt-1">{t.admin.dashboard.subtitle}</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
                         <span className="material-symbols-outlined text-lg">download</span>
-                        ส่งออก
+                        {t.admin.dashboard.export}
                     </button>
                     <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl text-sm font-medium text-white hover:shadow-lg hover:shadow-blue-500/30 transition-all">
                         <span className="material-symbols-outlined text-lg">add</span>
-                        จองใหม่
+                        {t.admin.dashboard.newBooking}
                     </button>
                 </div>
             </div>
@@ -222,7 +222,7 @@ export default function AdminDashboardPage() {
                             +12.5%
                         </span>
                     </div>
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">รายได้รวม</p>
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">{t.admin.dashboard.stats.totalRevenue}</p>
                     <p className="text-2xl font-bold text-gray-800">฿{stats.totalRevenue.toLocaleString()}</p>
                     <div className="mt-3 h-10">
                         <SparklineChart data={revenueChartData} color="#3B82F6" />
@@ -240,7 +240,7 @@ export default function AdminDashboardPage() {
                             +8.2%
                         </span>
                     </div>
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">จำนวนการจอง</p>
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">{t.admin.dashboard.stats.totalBookings}</p>
                     <p className="text-2xl font-bold text-gray-800">{stats.totalBookings}</p>
                     <div className="mt-3 h-10">
                         <SparklineChart data={bookingsChartData} color="#10B981" />
@@ -256,11 +256,11 @@ export default function AdminDashboardPage() {
                         {stats.pendingBookings > 0 && (
                             <span className="flex items-center gap-1 text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded-full animate-pulse">
                                 <span className="material-symbols-outlined text-sm">priority_high</span>
-                                ต้องดำเนินการ
+                                {t.admin.dashboard.stats.needsAction}
                             </span>
                         )}
                     </div>
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">รอดำเนินการ</p>
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">{t.admin.dashboard.stats.pending}</p>
                     <p className="text-2xl font-bold text-gray-800">{stats.pendingBookings}</p>
                     <div className="mt-3 flex items-center gap-2">
                         <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -280,14 +280,14 @@ export default function AdminDashboardPage() {
                             <span className="material-symbols-outlined text-white">directions_car</span>
                         </div>
                         <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                            กองยาน
+                            {t.admin.dashboard.stats.fleet}
                         </span>
                     </div>
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">จำนวนรถ</p>
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">{t.admin.dashboard.stats.totalVehicles}</p>
                     <p className="text-2xl font-bold text-gray-800">{stats.activeVehicles}</p>
                     <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
                         <span className="material-symbols-outlined text-sm text-green-500">check_circle</span>
-                        รถพร้อมใช้งานทั้งหมด
+                        {t.admin.dashboard.stats.allVehiclesReady}
                     </div>
                 </div>
             </div>
@@ -298,8 +298,8 @@ export default function AdminDashboardPage() {
                 <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h3 className="font-semibold text-gray-800">ภาพรวมรายได้</h3>
-                            <p className="text-sm text-gray-500">ผลการดำเนินงาน 7 วันล่าสุด</p>
+                            <h3 className="font-semibold text-gray-800">{t.admin.dashboard.charts.revenueOverview}</h3>
+                            <p className="text-sm text-gray-500">{t.admin.dashboard.charts.last7DaysPerformance}</p>
                         </div>
                         <div className="flex items-center gap-2">
                             <button className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg">7D</button>
@@ -313,7 +313,7 @@ export default function AdminDashboardPage() {
                         {revenueChartData.map((value, index) => {
                             const maxValue = Math.max(...revenueChartData, 1);
                             const heightPercent = (value / maxValue) * 100;
-                            const days = ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'];
+                            const days = t.admin.dashboard.charts.days;
                             return (
                                 <div key={index} className="flex-1 flex flex-col items-center gap-2">
                                     <div className="w-full relative group">
@@ -335,7 +335,7 @@ export default function AdminDashboardPage() {
                 {/* Booking Stats Ring */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                     <div className="flex items-center justify-between mb-6">
-                        <h3 className="font-semibold text-gray-800">อัตราความสำเร็จ</h3>
+                        <h3 className="font-semibold text-gray-800">{t.admin.dashboard.charts.successRate}</h3>
                         <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">
                             <span className="material-symbols-outlined text-lg">more_horiz</span>
                         </button>
@@ -346,7 +346,7 @@ export default function AdminDashboardPage() {
                             <ProgressRing progress={completionRate} size={140} strokeWidth={12} color="#3B82F6" />
                             <div className="absolute inset-0 flex flex-col items-center justify-center">
                                 <span className="text-3xl font-bold text-gray-800">{completionRate}%</span>
-                                <span className="text-xs text-gray-500">สำเร็จ</span>
+                                <span className="text-xs text-gray-500">{t.admin.dashboard.charts.completed}</span>
                             </div>
                         </div>
 
@@ -354,21 +354,21 @@ export default function AdminDashboardPage() {
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                                    <span className="text-sm text-gray-600">เสร็จสิ้น</span>
+                                    <span className="text-sm text-gray-600">{t.admin.dashboard.charts.completed}</span>
                                 </div>
                                 <span className="text-sm font-semibold text-gray-800">{stats.completedBookings}</span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                                    <span className="text-sm text-gray-600">ยืนยันแล้ว</span>
+                                    <span className="text-sm text-gray-600">{t.admin.dashboard.charts.confirmed}</span>
                                 </div>
                                 <span className="text-sm font-semibold text-gray-800">{stats.confirmedBookings}</span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-                                    <span className="text-sm text-gray-600">Pending</span>
+                                    <span className="text-sm text-gray-600">{t.admin.dashboard.stats.pending}</span>
                                 </div>
                                 <span className="text-sm font-semibold text-gray-800">{stats.pendingBookings}</span>
                             </div>
@@ -381,14 +381,14 @@ export default function AdminDashboardPage() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h3 className="font-semibold text-gray-800">การจองล่าสุด</h3>
-                        <p className="text-sm text-gray-500">รายการและกิจกรรมล่าสุด</p>
+                        <h3 className="font-semibold text-gray-800">{t.admin.dashboard.recentBookings.title}</h3>
+                        <p className="text-sm text-gray-500">{t.admin.dashboard.recentBookings.subtitle}</p>
                     </div>
                     <Link
                         href="/admin/bookings"
                         className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700"
                     >
-                        ดูทั้งหมด
+                        {t.admin.dashboard.recentBookings.viewAll}
                         <span className="material-symbols-outlined text-lg">arrow_forward</span>
                     </Link>
                 </div>
@@ -398,12 +398,12 @@ export default function AdminDashboardPage() {
                     <table className="w-full">
                         <thead className="bg-gray-50/80">
                             <tr>
-                                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer</th>
-                                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Vehicle</th>
-                                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
-                                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                                <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
+                                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t.admin.dashboard.recentBookings.table.customer}</th>
+                                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t.admin.dashboard.recentBookings.table.vehicle}</th>
+                                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t.admin.dashboard.recentBookings.table.date}</th>
+                                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t.admin.dashboard.recentBookings.table.amount}</th>
+                                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t.admin.dashboard.recentBookings.table.status}</th>
+                                <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">{t.admin.dashboard.recentBookings.table.action}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -427,13 +427,13 @@ export default function AdminDashboardPage() {
                                     <td className="px-5 py-4">
                                         <p className="text-gray-800">
                                             {b.createdAt?.seconds
-                                                ? new Date(b.createdAt.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                                                ? new Date(b.createdAt.seconds * 1000).toLocaleDateString(language === 'th' ? 'th-TH' : 'en-US', { month: 'short', day: 'numeric' })
                                                 : 'N/A'
                                             }
                                         </p>
                                         <p className="text-xs text-gray-500">
                                             {b.createdAt?.seconds
-                                                ? new Date(b.createdAt.seconds * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                                                ? new Date(b.createdAt.seconds * 1000).toLocaleTimeString(language === 'th' ? 'th-TH' : 'en-US', { hour: '2-digit', minute: '2-digit' })
                                                 : ''
                                             }
                                         </p>
@@ -515,8 +515,8 @@ export default function AdminDashboardPage() {
                         <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
                             <span className="material-symbols-outlined text-3xl text-gray-400">inbox</span>
                         </div>
-                        <p className="text-gray-500">ยังไม่มีการจอง</p>
-                        <p className="text-sm text-gray-400 mt-1">การจองจะปรากฏที่นี่เมื่อลูกค้าเริ่มจอง</p>
+                        <p className="text-gray-500">{t.admin.dashboard.recentBookings.noBookings}</p>
+                        <p className="text-sm text-gray-400 mt-1">{t.admin.dashboard.recentBookings.noBookingsDesc}</p>
                     </div>
                 )}
             </div>
@@ -527,32 +527,32 @@ export default function AdminDashboardPage() {
                     <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mb-3 group-hover:bg-blue-100 transition-colors">
                         <span className="material-symbols-outlined text-blue-600">receipt_long</span>
                     </div>
-                    <p className="font-medium text-gray-800">จัดการการจอง</p>
-                    <p className="text-xs text-gray-500 mt-1">ดูและอัปเดต</p>
+                    <p className="font-medium text-gray-800">{t.admin.dashboard.quickActions.manageBookings}</p>
+                    <p className="text-xs text-gray-500 mt-1">{t.admin.dashboard.quickActions.viewAndUpdate}</p>
                 </Link>
 
                 <Link href="/admin/vehicles" className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md hover:border-green-200 transition-all group">
                     <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center mb-3 group-hover:bg-green-100 transition-colors">
                         <span className="material-symbols-outlined text-green-600">directions_car</span>
                     </div>
-                    <p className="font-medium text-gray-800">จัดการรถ</p>
-                    <p className="text-xs text-gray-500 mt-1">เพิ่มหรือแก้ไขรถ</p>
+                    <p className="font-medium text-gray-800">{t.admin.dashboard.quickActions.manageVehicles}</p>
+                    <p className="text-xs text-gray-500 mt-1">{t.admin.dashboard.quickActions.addOrEdit}</p>
                 </Link>
 
                 <Link href="/admin/locations" className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md hover:border-purple-200 transition-all group">
                     <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center mb-3 group-hover:bg-purple-100 transition-colors">
                         <span className="material-symbols-outlined text-purple-600">location_on</span>
                     </div>
-                    <p className="font-medium text-gray-800">สถานที่</p>
-                    <p className="text-xs text-gray-500 mt-1">จัดการพื้นที่ให้บริการ</p>
+                    <p className="font-medium text-gray-800">{t.admin.dashboard.quickActions.locations}</p>
+                    <p className="text-xs text-gray-500 mt-1">{t.admin.dashboard.quickActions.manageServiceAreas}</p>
                 </Link>
 
                 <Link href="/admin/routes" className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md hover:border-amber-200 transition-all group">
                     <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center mb-3 group-hover:bg-amber-100 transition-colors">
                         <span className="material-symbols-outlined text-amber-600">route</span>
                     </div>
-                    <p className="font-medium text-gray-800">ราคาเส้นทาง</p>
-                    <p className="text-xs text-gray-500 mt-1">ตั้งราคาตามเส้นทาง</p>
+                    <p className="font-medium text-gray-800">{t.admin.dashboard.quickActions.routePricing}</p>
+                    <p className="text-xs text-gray-500 mt-1">{t.admin.dashboard.quickActions.setPricesByRoute}</p>
                 </Link>
             </div>
         </div>
