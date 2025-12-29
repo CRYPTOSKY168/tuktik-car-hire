@@ -92,13 +92,15 @@ export const LocationService = {
     async getRoutes(): Promise<Route[]> {
         if (!db) return [];
         try {
-            const q = query(collection(db!, COLLECTIONS.ROUTES), orderBy('originName'));
+            // Note: ใช้ 'origin' ไม่ใช่ 'originName' เพราะ data จริงใช้ field นี้
+            const q = query(collection(db!, COLLECTIONS.ROUTES), orderBy('origin'));
             const querySnapshot = await getDocs(q);
             return querySnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             })) as Route[];
-        } catch {
+        } catch (error) {
+            console.error('Error fetching routes:', error);
             return [];
         }
     },

@@ -192,12 +192,18 @@ export interface Location {
 export interface Route {
     id: string;
     originId: string;
-    originName: string;
+    origin: string;              // ชื่อต้นทาง (fallback/display)
     destinationId: string;
-    destinationName: string;
-    price: number;
-    estimatedTime?: number; // in minutes
-    distance?: number; // in km
+    destination: string;         // ชื่อปลายทาง (fallback/display)
+    prices: {                    // ราคาตามประเภทรถ
+        sedan: number;
+        suv: number;
+        van: number;
+        luxury: number;
+        minibus: number;
+    };
+    estimatedTime?: number;      // in minutes
+    distance?: number;           // in km
     isActive: boolean;
     createdAt?: Timestamp | Date;
     updatedAt?: Timestamp | Date;
