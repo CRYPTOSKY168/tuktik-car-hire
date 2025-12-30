@@ -1,9 +1,9 @@
 # TukTik Car Rental - Project Documentation
 
 > **Last Updated:** 2025-12-31
-> **Version:** 7.5 (Bayesian Average Rating)
+> **Version:** 7.6 (Real-time Driver Stats)
 > **Status:** Production
-> **Lines:** ~3700+
+> **Lines:** ~3800+
 
 ---
 
@@ -83,6 +83,7 @@ npm run lint         # Run ESLint
 8. อัปเดต CLAUDE.md หลังแก้ไขสำคัญ
 9. Test ก่อน deploy ทุกครั้ง (npm run build)
 10. ใช้ Services จาก lib/firebase/services/ แทน direct Firestore calls
+11. ⭐ เขียน Auto Test Script ทดสอบ flow ก่อนส่งงานทุกครั้ง (ดู Testing Scripts section)
 ```
 
 ### ❌ MUST NOT (ห้ามทำ)
@@ -2473,7 +2474,112 @@ w-11 h-11 bg-gray-100 text-gray-600 rounded-full shadow-sm
 
 ---
 
+## 🧪 Testing Scripts (สำคัญมาก!)
+
+> **Rule:** ทุกครั้งที่แก้ไข feature สำคัญ ต้องเขียน Auto Test Script และรันทดสอบก่อนส่งงาน
+
+### Available Test Scripts
+
+| Script | Description | Usage |
+|--------|-------------|-------|
+| `test-rating-flow.js` | ทดสอบ Rating System (Bayesian Average) | `node scripts/test-rating-flow.js --cleanup` |
+| `test-realtime-rating-auto.js` | ทดสอบ Real-time Rating Update | `node scripts/test-realtime-rating-auto.js` |
+| `check-logs.js` | ตรวจสอบ bugs (Vercel, Firebase, Code) | `node scripts/check-logs.js` |
+| `monitor-logs.js` | Monitor logs แบบ real-time | `node scripts/monitor-logs.js` |
+
+### เมื่อไหร่ต้องเขียน Test Script?
+
+```markdown
+✅ ต้องเขียน:
+- เพิ่ม/แก้ไข API endpoint
+- เพิ่ม/แก้ไข real-time subscription (onSnapshot)
+- เพิ่ม/แก้ไข database operations
+- เพิ่ม/แก้ไข authentication/authorization logic
+
+❌ ไม่จำเป็น:
+- แก้ไข UI styling
+- แก้ไข text/translations
+- เพิ่ม comments
+```
+
+### Test Script Template
+
+```javascript
+#!/usr/bin/env node
+/**
+ * Test [Feature Name] Script
+ * Usage: node scripts/test-[feature].js
+ */
+
+const admin = require('firebase-admin');
+const path = require('path');
+
+// Colors
+const c = {
+    reset: '\x1b[0m', green: '\x1b[32m', red: '\x1b[31m',
+    yellow: '\x1b[33m', blue: '\x1b[34m', cyan: '\x1b[36m',
+};
+
+// Init Firebase
+function initFirebase() {
+    if (admin.apps.length > 0) return admin.firestore();
+    require('dotenv').config({ path: path.join(__dirname, '..', '.env.local') });
+
+    admin.initializeApp({
+        credential: admin.credential.cert({
+            projectId: process.env.FIREBASE_PROJECT_ID,
+            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+            privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        }),
+    });
+    return admin.firestore();
+}
+
+async function main() {
+    console.log(`\n${c.cyan}🧪 Test [Feature Name]${c.reset}\n`);
+    const db = initFirebase();
+
+    // 1. Get current state
+    // 2. Make changes
+    // 3. Verify changes
+    // 4. Rollback (optional)
+
+    console.log(`${c.green}✅ Test passed!${c.reset}\n`);
+}
+
+main().catch(err => {
+    console.error(`${c.red}❌ Error:${c.reset}`, err.message);
+    process.exit(1);
+});
+```
+
+### Test Script Best Practices
+
+```markdown
+1. **Auto Mode** - ไม่ต้องรอ input จาก user (ใช้ echo pipe ไม่ได้)
+2. **Rollback** - คืนค่าเดิมหลังทดสอบเสมอ
+3. **Clear Output** - แสดงผลชัดเจน (ใช้ colors, emoji)
+4. **Quick** - รันเสร็จใน 30 วินาที
+5. **Standalone** - รันได้โดยไม่ต้อง setup อะไรเพิ่ม
+```
+
+---
+
 ## Changelog
+
+### 2025-12-31 v7.6 - Real-time Driver Stats + Auto Test Scripts 🔄🧪
+- **Real-time Driver Stats ใน `/demo-driver`**
+  - เพิ่ม `onSnapshot` subscription สำหรับ driver document
+  - Rating, ratingCount, totalTrips, totalEarnings อัปเดตแบบ real-time
+  - ไม่ต้อง refresh หน้าเพื่อเห็นค่าใหม่
+- **Auto Test Scripts**
+  - สร้าง `scripts/test-realtime-rating-auto.js` ทดสอบ real-time rating
+  - เพิ่ม Testing Scripts section ใน CLAUDE.md
+  - เพิ่ม rule: ต้องเขียน Auto Test Script ก่อนส่งงานทุกครั้ง
+- **Files modified:**
+  - `app/demo-driver/page.tsx` - เพิ่ม onSnapshot subscription
+  - `scripts/test-realtime-rating-auto.js` - NEW
+  - `CLAUDE.md` - เพิ่ม Testing Scripts section
 
 ### 2025-12-31 v7.5 - Bayesian Average Rating ⭐📊
 - **เปลี่ยนระบบคำนวณคะแนนจาก Simple Average เป็น Bayesian Average**

@@ -50,3 +50,5 @@ next-env.d.ts
 .env.local
 .env.local.backup
 .env.local.vercel
+google-cloud-sdk/
+google-cloud-cli-*.tar.gz
