@@ -1059,45 +1059,45 @@ export default function TestMaps1Page() {
                     )}
                 </div>
 
-                {/* Bottom Sheet */}
+                {/* Bottom Sheet (Auto Height / Fit-Content) */}
                 <div className="bg-white rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)] -mt-6 relative z-10">
                     {/* Handle */}
-                    <div className="flex justify-center py-3">
+                    <div className="flex justify-center py-2">
                         <div className="w-10 h-1 bg-gray-300 rounded-full" />
                     </div>
 
                     {/* Status Badge */}
-                    <div className="flex justify-center mb-4">
-                        <div className={`px-4 py-2 rounded-full text-white text-sm font-medium ${statusConfig[status]?.color}`}>
+                    <div className="flex justify-center mb-2">
+                        <div className={`px-4 py-1.5 rounded-full text-white text-sm font-medium ${statusConfig[status]?.color}`}>
                             {statusConfig[status]?.text}
                         </div>
                     </div>
 
-                    <div className="px-4 pb-[max(16px,env(safe-area-inset-bottom))] space-y-4">
+                    <div className="px-4 pb-[max(12px,env(safe-area-inset-bottom))] space-y-2">
 
                         {/* Route Info Card - hide when completed */}
                         {status !== 'completed' && (
-                        <div className="bg-gray-50 rounded-2xl p-4">
+                        <div className="bg-gray-50 rounded-xl p-3">
                             <div className="flex">
                                 {/* Connection Line */}
-                                <div className="flex flex-col items-center mr-4">
-                                    <div className="w-3 h-3 rounded-full bg-green-500 ring-4 ring-green-100" />
-                                    <div className="w-0.5 h-10 bg-gray-300 my-1" />
-                                    <div className="w-3 h-3 rounded-full bg-red-500 ring-4 ring-red-100" />
+                                <div className="flex flex-col items-center mr-3">
+                                    <div className="w-3 h-3 rounded-full bg-green-500 ring-2 ring-green-100" />
+                                    <div className="w-0.5 h-8 bg-gray-300 my-0.5" />
+                                    <div className="w-3 h-3 rounded-full bg-red-500 ring-2 ring-red-100" />
                                 </div>
 
                                 {/* Location Info */}
-                                <div className="flex-1 space-y-2">
+                                <div className="flex-1 space-y-1">
                                     <button
                                         onClick={() => { setLocationPickerType('pickup'); setSearchQuery(''); setShowLocationPicker(true); }}
                                         disabled={status !== 'selecting'}
-                                        className="w-full text-left p-2 -m-2 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:hover:bg-transparent disabled:cursor-default group"
+                                        className="w-full text-left p-1.5 -m-1.5 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:hover:bg-transparent disabled:cursor-default group"
                                     >
                                         <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider">
                                             {language === 'th' ? 'จุดรับ' : 'Pickup'}
                                         </p>
                                         <div className="flex items-center justify-between gap-2">
-                                            <p className="text-[15px] font-semibold text-gray-900 line-clamp-2 leading-tight" title={pickup.name}>
+                                            <p className="text-[15px] font-semibold text-gray-900 truncate" title={pickup.name}>
                                                 {pickup.name}
                                             </p>
                                             {status === 'selecting' && (
@@ -1108,18 +1108,18 @@ export default function TestMaps1Page() {
                                         </div>
                                     </button>
 
-                                    <div className="h-px bg-gray-200 mx-2" />
+                                    <div className="h-px bg-gray-200" />
 
                                     <button
                                         onClick={() => { setLocationPickerType('dropoff'); setSearchQuery(''); setShowLocationPicker(true); }}
                                         disabled={status !== 'selecting'}
-                                        className="w-full text-left p-2 -m-2 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:hover:bg-transparent disabled:cursor-default group"
+                                        className="w-full text-left p-1.5 -m-1.5 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:hover:bg-transparent disabled:cursor-default group"
                                     >
                                         <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider">
                                             {language === 'th' ? 'จุดส่ง' : 'Dropoff'}
                                         </p>
                                         <div className="flex items-center justify-between gap-2">
-                                            <p className="text-[15px] font-semibold text-gray-900 line-clamp-2 leading-tight" title={dropoff.name}>
+                                            <p className="text-[15px] font-semibold text-gray-900 truncate" title={dropoff.name}>
                                                 {dropoff.name}
                                             </p>
                                             {status === 'selecting' && (
@@ -1133,12 +1133,12 @@ export default function TestMaps1Page() {
 
                                 {/* Price/Distance */}
                                 {tripInfo && (
-                                    <div className="text-right ml-4 flex-shrink-0">
+                                    <div className="text-right ml-3 flex-shrink-0">
                                         <p className="text-xl font-bold text-blue-600">฿{tripInfo.price.toLocaleString()}</p>
                                         <p className="text-xs text-gray-500">
                                             {tripInfo.distance} km • {tripInfo.duration >= 60
-                                                ? `${Math.floor(tripInfo.duration / 60)} ${language === 'th' ? 'ชม.' : 'hr'} ${tripInfo.duration % 60} ${language === 'th' ? 'น.' : 'min'}`
-                                                : `${tripInfo.duration} ${language === 'th' ? 'นาที' : 'min'}`
+                                                ? `${Math.floor(tripInfo.duration / 60)}${language === 'th' ? 'ชม.' : 'h'}${tripInfo.duration % 60}${language === 'th' ? 'น.' : 'm'}`
+                                                : `${tripInfo.duration}${language === 'th' ? 'น.' : 'm'}`
                                             }
                                         </p>
                                     </div>
@@ -1149,29 +1149,27 @@ export default function TestMaps1Page() {
 
                         {/* Driver Info - only show when driver has ACCEPTED the job (en_route or in_progress) */}
                         {(status === 'driver_en_route' || status === 'in_progress') && (
-                            <div className="bg-blue-50 rounded-2xl p-4">
+                            <div className="bg-blue-50 rounded-xl p-3">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-14 h-14 bg-blue-200 rounded-full flex items-center justify-center text-2xl overflow-hidden">
+                                    <div className="w-12 h-12 bg-blue-200 rounded-full flex items-center justify-center text-2xl overflow-hidden flex-shrink-0">
                                         {assignedDriver?.photo ? (
                                             <img src={assignedDriver.photo} alt="" className="w-full h-full object-cover" />
                                         ) : (
                                             '👨‍✈️'
                                         )}
                                     </div>
-                                    <div className="flex-1">
-                                        <p className="font-bold text-gray-800">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-bold text-gray-800 truncate">
                                             {mode === 'live' && assignedDriver ? assignedDriver.name : MOCK_DRIVER.name}
                                         </p>
                                         <div className="flex items-center gap-2 text-sm text-gray-600">
                                             <span>⭐ {mode === 'live' && assignedDriver ? assignedDriver.rating?.toFixed(1) || '5.0' : MOCK_DRIVER.rating}</span>
                                             <span>•</span>
-                                            <span>{mode === 'live' && assignedDriver ? assignedDriver.vehicleModel : MOCK_DRIVER.vehicleModel}</span>
+                                            <span className="truncate">{mode === 'live' && assignedDriver ? assignedDriver.vehicleModel : MOCK_DRIVER.vehicleModel}</span>
                                         </div>
-                                        <p className="text-sm text-blue-600 font-medium">
-                                            {mode === 'live' && assignedDriver ? assignedDriver.vehiclePlate : MOCK_DRIVER.vehiclePlate}
-                                        </p>
+                                        <p className="text-sm text-blue-600 font-medium">{mode === 'live' && assignedDriver ? assignedDriver.vehiclePlate : MOCK_DRIVER.vehiclePlate}</p>
                                     </div>
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2 flex-shrink-0">
                                         <a
                                             href={`tel:${mode === 'live' && assignedDriver ? assignedDriver.phone : MOCK_DRIVER.phone}`}
                                             className="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center shadow-md active:scale-95 transition-transform"
@@ -1188,17 +1186,17 @@ export default function TestMaps1Page() {
 
                         {/* Waiting for driver to accept (driver_assigned status) */}
                         {status === 'driver_assigned' && (
-                            <div className="bg-amber-50 rounded-2xl p-4 border border-amber-200">
+                            <div className="bg-amber-50 rounded-xl p-3 border border-amber-200">
                                 <div className="flex items-center gap-3">
-                                    <div className="relative">
-                                        <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center text-2xl">
+                                    <div className="relative flex-shrink-0">
+                                        <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-2xl">
                                             🚗
                                         </div>
                                         <div className="absolute -top-1 -right-1 w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center animate-pulse">
                                             <span className="text-xs">⏳</span>
                                         </div>
                                     </div>
-                                    <div className="flex-1">
+                                    <div className="flex-1 min-w-0">
                                         <p className="font-bold text-amber-800">
                                             {language === 'th' ? 'รอคนขับยืนยัน...' : 'Waiting for driver...'}
                                         </p>
@@ -1206,8 +1204,8 @@ export default function TestMaps1Page() {
                                             {language === 'th' ? 'คนขับกำลังตรวจสอบรายละเอียดงาน' : 'Driver is reviewing the trip details'}
                                         </p>
                                     </div>
-                                    <div className="animate-spin">
-                                        <div className="w-8 h-8 border-3 border-amber-300 border-t-amber-600 rounded-full"></div>
+                                    <div className="animate-spin flex-shrink-0">
+                                        <div className="w-7 h-7 border-3 border-amber-300 border-t-amber-600 rounded-full"></div>
                                     </div>
                                 </div>
                             </div>
@@ -1217,10 +1215,10 @@ export default function TestMaps1Page() {
                         {mode === 'live' && status === 'selecting' && selectedVehicle && !isLoadingActiveBooking && !activeBooking && (
                             <button
                                 onClick={() => setShowVehiclePicker(true)}
-                                className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl p-4 mb-3 flex items-center justify-between hover:bg-gray-100 transition-colors"
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 flex items-center justify-between hover:bg-gray-100 transition-colors"
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">
+                                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-xl">
                                         🚗
                                     </div>
                                     <div className="text-left">
@@ -1237,9 +1235,9 @@ export default function TestMaps1Page() {
 
                         {/* Loading Active Booking for Live Mode */}
                         {mode === 'live' && isLoadingActiveBooking && (
-                            <div className="flex flex-col items-center py-6">
-                                <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
-                                <p className="text-gray-600 text-sm">
+                            <div className="flex items-center justify-center gap-3 py-4">
+                                <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                <p className="text-gray-600">
                                     {language === 'th' ? 'กำลังตรวจสอบการจองของคุณ...' : 'Checking your bookings...'}
                                 </p>
                             </div>
@@ -1247,14 +1245,14 @@ export default function TestMaps1Page() {
 
                         {/* Active Booking Exists - Show Info Instead of Booking Button */}
                         {mode === 'live' && !isLoadingActiveBooking && activeBooking && status !== 'completed' && (
-                            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4">
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
                                 <div className="flex items-start gap-3">
                                     <span className="text-2xl">📋</span>
-                                    <div className="flex-1">
+                                    <div className="flex-1 min-w-0">
                                         <p className="font-semibold text-amber-800">
                                             {language === 'th' ? 'คุณมีการจองที่กำลังดำเนินการ' : 'You have an active booking'}
                                         </p>
-                                        <p className="text-sm text-amber-700 mt-1">
+                                        <p className="text-sm text-amber-700 mt-1 truncate">
                                             {activeBooking.pickupLocation} → {activeBooking.dropoffLocation}
                                         </p>
                                         <p className="text-xs text-amber-600 mt-1">
@@ -1272,7 +1270,7 @@ export default function TestMaps1Page() {
 
                         {/* Available Drivers Count for Live Mode */}
                         {mode === 'live' && status === 'selecting' && !isLoadingActiveBooking && !activeBooking && (
-                            <p className="text-center text-sm text-gray-500 mb-3">
+                            <p className="text-center text-sm text-gray-500">
                                 {availableDrivers.length > 0
                                     ? `🟢 ${availableDrivers.length} ${language === 'th' ? 'คนขับพร้อมให้บริการ' : 'drivers available'}`
                                     : `🔴 ${language === 'th' ? 'ไม่มีคนขับว่าง' : 'No drivers available'}`
@@ -1313,7 +1311,7 @@ export default function TestMaps1Page() {
 
                         {status === 'searching' && !activeBooking && (
                             <div className="flex flex-col items-center py-4">
-                                <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+                                <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-3"></div>
                                 <p className="text-gray-600">{language === 'th' ? 'กำลังค้นหาคนขับใกล้คุณ...' : 'Finding nearby drivers...'}</p>
                             </div>
                         )}
@@ -1321,7 +1319,7 @@ export default function TestMaps1Page() {
                         {/* Waiting for admin to assign driver */}
                         {status === 'searching' && activeBooking && (
                             <div className="flex flex-col items-center py-4">
-                                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+                                <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
                                 <p className="text-gray-600 text-center">
                                     {language === 'th' ? 'รอเจ้าหน้าที่มอบหมายคนขับ...' : 'Waiting for driver assignment...'}
                                 </p>
@@ -1342,160 +1340,99 @@ export default function TestMaps1Page() {
                         )}
 
                         {status === 'completed' && (
-                            <div className="space-y-4">
+                            <div className="flex flex-col">
                                 {/* Trip Summary Card */}
-                                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-4 border border-green-100">
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <span className="text-xl">📋</span>
-                                        <h3 className="font-bold text-gray-800">
-                                            {language === 'th' ? 'สรุปการเดินทาง' : 'Trip Summary'}
-                                        </h3>
-                                    </div>
-
-                                    {/* Route */}
-                                    <div className="flex items-start gap-3 mb-3">
-                                        <div className="flex flex-col items-center">
-                                            <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                                            <div className="w-0.5 h-8 bg-gray-300"></div>
-                                            <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                                <div className="bg-green-50 rounded-xl p-3 mb-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                            <span className="w-3 h-3 rounded-full bg-green-500 flex-shrink-0"></span>
+                                            <span className="text-gray-700 truncate">{activeBooking?.pickupLocation || tripInfo?.pickup || pickup.name}</span>
+                                            <span className="text-gray-400">→</span>
+                                            <span className="w-3 h-3 rounded-full bg-red-500 flex-shrink-0"></span>
+                                            <span className="text-gray-700 truncate">{activeBooking?.dropoffLocation || tripInfo?.dropoff || dropoff.name}</span>
                                         </div>
-                                        <div className="flex-1 space-y-3">
-                                            <div>
-                                                <p className="text-xs text-gray-400">{language === 'th' ? 'จุดรับ' : 'Pickup'}</p>
-                                                <p className="text-sm font-medium text-gray-800">{activeBooking?.pickupLocation || tripInfo?.pickup || pickup.name}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-xs text-gray-400">{language === 'th' ? 'จุดส่ง' : 'Dropoff'}</p>
-                                                <p className="text-sm font-medium text-gray-800">{activeBooking?.dropoffLocation || tripInfo?.dropoff || dropoff.name}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Stats */}
-                                    <div className="flex items-center justify-between text-sm border-t border-green-100 pt-3">
-                                        <div className="flex items-center gap-4">
-                                            <span className="text-gray-500">
-                                                📏 {tripInfo?.distance || '30.8'} km
-                                            </span>
-                                            <span className="text-gray-500">
-                                                ⏱️ {tripInfo?.duration ? (tripInfo.duration >= 60
-                                                    ? `${Math.floor(tripInfo.duration / 60)} ${language === 'th' ? 'ชม.' : 'hr'} ${tripInfo.duration % 60} ${language === 'th' ? 'น.' : 'min'}`
-                                                    : `${tripInfo.duration} ${language === 'th' ? 'นาที' : 'min'}`)
-                                                    : '45 นาที'}
-                                            </span>
-                                        </div>
-                                        <span className="font-bold text-green-600 text-lg">
+                                        <span className="font-bold text-green-600 text-xl flex-shrink-0">
                                             ฿{(activeBooking?.totalCost || tripInfo?.price || 1200).toLocaleString()}
                                         </span>
                                     </div>
                                 </div>
 
-                                {/* Rating Card */}
-                                <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl p-4 border border-amber-100">
-                                    <div className="text-center mb-4">
-                                        <h3 className="font-bold text-gray-800 mb-1">
-                                            {language === 'th' ? '⭐ ให้คะแนนคนขับ' : '⭐ Rate Your Driver'}
-                                        </h3>
-
-                                        {/* Driver Info */}
-                                        <div className="flex items-center justify-center gap-3 my-3">
-                                            <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center text-2xl overflow-hidden">
-                                                {assignedDriver?.photo ? (
-                                                    <img src={assignedDriver.photo} alt="" className="w-full h-full object-cover" />
-                                                ) : (
-                                                    '👨‍✈️'
-                                                )}
-                                            </div>
-                                            <div className="text-left">
-                                                <p className="font-semibold text-gray-800">
-                                                    {assignedDriver?.name || activeBooking?.driver?.name || 'คนขับ'}
-                                                </p>
-                                                <p className="text-sm text-gray-500">
-                                                    {assignedDriver?.vehicleModel || activeBooking?.driver?.vehicleModel || 'Toyota'} • {assignedDriver?.vehiclePlate || activeBooking?.driver?.vehiclePlate || '1234'}
-                                                </p>
-                                            </div>
+                                {/* Rating Section */}
+                                <div className="bg-amber-50 rounded-xl p-4 mb-3">
+                                    {/* Driver + Stars */}
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-2xl overflow-hidden flex-shrink-0">
+                                            {assignedDriver?.photo ? (
+                                                <img src={assignedDriver.photo} alt="" className="w-full h-full object-cover" />
+                                            ) : (
+                                                '👨‍✈️'
+                                            )}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="font-semibold text-gray-800 truncate">
+                                                {assignedDriver?.name || activeBooking?.driver?.name || 'คนขับ'}
+                                            </p>
+                                        </div>
+                                        {/* Star Rating */}
+                                        <div className="flex gap-1">
+                                            {[1, 2, 3, 4, 5].map((star) => (
+                                                <button
+                                                    key={star}
+                                                    onClick={() => setRating(star)}
+                                                    className={`text-2xl transition-all active:scale-110 ${
+                                                        star <= rating ? 'text-amber-400' : 'text-gray-300'
+                                                    }`}
+                                                >
+                                                    ★
+                                                </button>
+                                            ))}
                                         </div>
                                     </div>
 
-                                    {/* Star Rating */}
-                                    <div className="flex justify-center gap-2 mb-4">
-                                        {[1, 2, 3, 4, 5].map((star) => (
-                                            <button
-                                                key={star}
-                                                onClick={() => setRating(star)}
-                                                className={`text-3xl transition-all active:scale-110 ${
-                                                    star <= rating ? 'text-amber-400' : 'text-gray-300'
-                                                }`}
-                                            >
-                                                ★
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    {/* Rating Text */}
-                                    {rating > 0 && (
-                                        <p className="text-center text-sm text-amber-600 mb-3">
-                                            {rating === 5 && (language === 'th' ? 'ยอดเยี่ยมมาก! 🎉' : 'Excellent! 🎉')}
-                                            {rating === 4 && (language === 'th' ? 'ดีมาก! 👍' : 'Great! 👍')}
-                                            {rating === 3 && (language === 'th' ? 'พอใช้ได้' : 'Good')}
-                                            {rating === 2 && (language === 'th' ? 'ควรปรับปรุง' : 'Could be better')}
-                                            {rating === 1 && (language === 'th' ? 'ไม่พอใจ' : 'Poor')}
-                                        </p>
-                                    )}
-
                                     {/* Comment Input */}
-                                    <textarea
+                                    <input
+                                        type="text"
                                         id="rating-comment"
                                         name="ratingComment"
                                         value={ratingComment}
                                         onChange={(e) => setRatingComment(e.target.value)}
-                                        placeholder={language === 'th' ? 'แสดงความคิดเห็น (ไม่บังคับ)' : 'Leave a comment (optional)'}
-                                        rows={2}
-                                        className="w-full px-4 py-3 bg-white border border-amber-200 rounded-xl text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none text-sm"
+                                        placeholder={language === 'th' ? 'แสดงความคิดเห็น...' : 'Comment...'}
+                                        className="w-full px-4 py-3 bg-white border border-amber-200 rounded-xl text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-300"
                                     />
                                 </div>
 
-                                {/* Action Buttons */}
-                                <button
-                                    onClick={async () => {
-                                        setIsSubmittingRating(true);
-                                        // TODO: Save rating to database
-                                        // await BookingService.addRating(bookingId, rating, ratingComment);
-                                        console.log('Rating submitted:', { rating, comment: ratingComment });
-
-                                        // Simulate API call
-                                        await new Promise(resolve => setTimeout(resolve, 500));
-
-                                        setIsSubmittingRating(false);
-                                        // Reset states
-                                        setRating(0);
-                                        setRatingComment('');
-                                        resetTrip();
-                                    }}
-                                    disabled={isSubmittingRating}
-                                    className="w-full h-14 bg-green-500 hover:bg-green-600 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:bg-green-300"
-                                >
-                                    {isSubmittingRating ? (
-                                        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                    ) : (
-                                        <>
-                                            <span>✅</span>
-                                            {language === 'th' ? 'เสร็จสิ้น' : 'Complete'}
-                                        </>
-                                    )}
-                                </button>
-
-                                <button
-                                    onClick={() => {
-                                        setRating(0);
-                                        setRatingComment('');
-                                        resetTrip();
-                                    }}
-                                    className="w-full h-12 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-2xl font-medium flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                                >
-                                    <span>🚗</span>
-                                    {language === 'th' ? 'จองรถอีกครั้ง' : 'Book Another Trip'}
-                                </button>
+                                {/* Action Buttons - Side by side */}
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => {
+                                            setRating(0);
+                                            setRatingComment('');
+                                            resetTrip();
+                                        }}
+                                        className="flex-1 h-14 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                                    >
+                                        🚗 {language === 'th' ? 'จองใหม่' : 'New'}
+                                    </button>
+                                    <button
+                                        onClick={async () => {
+                                            setIsSubmittingRating(true);
+                                            console.log('Rating submitted:', { rating, comment: ratingComment });
+                                            await new Promise(resolve => setTimeout(resolve, 500));
+                                            setIsSubmittingRating(false);
+                                            setRating(0);
+                                            setRatingComment('');
+                                            resetTrip();
+                                        }}
+                                        disabled={isSubmittingRating}
+                                        className="flex-[2] h-14 bg-green-500 hover:bg-green-600 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:bg-green-300"
+                                    >
+                                        {isSubmittingRating ? (
+                                            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        ) : (
+                                            <>✅ {language === 'th' ? 'เสร็จสิ้น' : 'Done'}</>
+                                        )}
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>
