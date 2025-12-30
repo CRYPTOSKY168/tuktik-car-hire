@@ -1,7 +1,7 @@
 # TukTik Car Rental - Project Documentation
 
-> **Last Updated:** 2025-12-30
-> **Version:** 7.2 (Demo Driver + Log Checker)
+> **Last Updated:** 2025-12-31
+> **Version:** 7.3 (Live Mode Bug Fixes)
 > **Status:** Production
 > **Lines:** ~3550+
 
@@ -2300,9 +2300,81 @@ const [isLoadingActiveBooking, setIsLoadingActiveBooking] = useState(false);
 3. ถ้าไม่มี active booking → จะเห็น vehicle picker และปุ่ม "จองรถตอนนี้"
 4. ถ้ามี active booking → จะเห็นกล่องแจ้งเตือนและสถานะปัจจุบัน
 
+### Design System (Grab Style - Light Theme)
+
+> **Updated:** 2025-12-31 | **Style:** Grab-inspired Light Theme
+
+**Color Palette:**
+| Color | Hex | Usage |
+|-------|-----|-------|
+| Primary Green | `#00b14f` | CTA buttons, status badges, accent |
+| Background | `white` / `gray-50` | Page & card backgrounds |
+| Card Border | `gray-100` / `gray-200` | Card borders |
+| Text Primary | `gray-900` | Main text |
+| Text Secondary | `gray-500` | Labels, descriptions |
+| Pickup Dot | `#00b14f` (green) | Pickup location indicator |
+| Dropoff Dot | `orange-500` | Dropoff location indicator |
+
+**Component Styles:**
+```css
+/* Bottom Sheet */
+bg-white rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.08)]
+
+/* Route Info Card */
+bg-gray-50 rounded-2xl p-4 border border-gray-100
+
+/* Driver Info Card */
+bg-white rounded-2xl p-4 shadow-md border border-gray-100
+
+/* Status Badge */
+px-4 py-1.5 rounded-full text-sm font-semibold
+- selecting: bg-gray-100 text-gray-600
+- searching: bg-[#00b14f]/10 text-[#00b14f]
+- driver_assigned: bg-blue-50 text-blue-600
+- driver_en_route: bg-[#00b14f]/10 text-[#00b14f]
+- in_progress: bg-[#00b14f] text-white
+- completed: bg-[#00b14f] text-white
+
+/* CTA Button (Primary) */
+h-14 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-bold
+
+/* Secondary Button */
+h-12 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-semibold
+
+/* Connection Line (Route) */
+Pickup: w-3 h-3 rounded-full bg-[#00b14f] ring-4 ring-[#00b14f]/20
+Line: w-0.5 h-10 bg-gray-300
+Dropoff: w-3 h-3 rounded-sm bg-orange-500 ring-4 ring-orange-500/20
+
+/* Call Button */
+w-11 h-11 bg-[#00b14f] text-white rounded-full shadow-md
+
+/* Chat Button */
+w-11 h-11 bg-gray-100 text-gray-600 rounded-full shadow-sm
+```
+
+**Icons:** Use SVG inline icons (not emoji) for professional look
+
 ---
 
 ## Changelog
+
+### 2025-12-31 v7.3 - Live Mode Bug Fixes 🐛
+- **แก้ไข 3 บั๊กใน `/test-maps1` Live Mode:**
+  1. **Coordinates ไม่ถูก restore** - เมื่อโหลด active booking กลับมา หมุดแผนที่แสดงผิดตำแหน่ง
+     - แก้ไข: `checkActiveBooking()` โหลดพิกัดจาก `booking.pickupCoordinates` และ `booking.dropoffCoordinates`
+  2. **Manual status override ขัดแย้งกับ Firestore** - `setTimeout` เปลี่ยนสถานะเป็น `driver_en_route` หลัง 2 วินาที
+     - แก้ไข: ลบ manual override, ให้ Firestore subscription จัดการสถานะ
+  3. **Coordinates ไม่ถูกบันทึกตอนสร้าง booking** - ทำให้โหลดกลับมาไม่ได้
+     - แก้ไข: `createLiveBooking()` บันทึก `pickupCoordinates`, `dropoffCoordinates`, `pickupLocationId`, `dropoffLocationId`
+- **Live Mode Flow ทำงานถูกต้องแล้ว:**
+  - ผู้ใช้เลือกจุดรับ-ส่ง → พิกัดบันทึกใน state
+  - สร้าง Booking พร้อมพิกัด → Firestore subscription คอยรับฟัง
+  - Admin/คนขับ อัปเดตสถานะ → หน้าจออัปเดตอัตโนมัติ
+  - Refresh หน้า → พิกัดโหลดกลับจาก booking
+- **Files modified:**
+  - `app/test-maps1/page.tsx` - แก้บั๊ก 3 จุด
+  - `lib/types/index.ts` - เพิ่ม `pickupLocationId`, `dropoffLocationId`
 
 ### 2025-12-30 v7.2 - Demo Driver + Log Checker 🔍
 - **สร้างหน้า `/demo-driver`** - Driver app UI ใหม่ + Google Maps + Real Backend

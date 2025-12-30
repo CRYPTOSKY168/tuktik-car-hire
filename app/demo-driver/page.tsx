@@ -439,6 +439,10 @@ export default function DemoDriverPage() {
         return bookings.some(b => ['driver_en_route', 'in_progress'].includes(b.status));
     }, [bookings]);
 
+    // Recently completed booking (within last 5 minutes)
+    const [recentlyCompleted, setRecentlyCompleted] = useState<Booking | null>(null);
+    const [showCompletedModal, setShowCompletedModal] = useState(false);
+
     // GPS Location Tracking
     const locationTracking = useDriverLocationUpdates(
         driver?.id || null,
@@ -525,6 +529,15 @@ export default function DemoDriverPage() {
                 setShowNewJobModal(false);
                 setNewJobAlert(null);
             }
+
+            // Show completed modal when job is done
+            if (newStatus === 'completed') {
+                const completedBooking = bookings.find(b => b.id === bookingId);
+                if (completedBooking) {
+                    setRecentlyCompleted({ ...completedBooking, status: 'completed' });
+                    setShowCompletedModal(true);
+                }
+            }
         } catch (error: any) {
             alert(error.message || 'ไม่สามารถอัปเดตสถานะได้');
         } finally {
@@ -575,6 +588,21 @@ export default function DemoDriverPage() {
         if (!newJobAlert) return;
         await handleBookingAction(newJobAlert.id, 'driver_en_route');
     };
+
+    // Open external navigation (Google Maps / Apple Maps)
+    const openNavigation = useCallback((destination: { lat: number; lng: number }, label: string) => {
+        const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+        const lat = destination.lat;
+        const lng = destination.lng;
+
+        if (isIOS) {
+            // Apple Maps
+            window.open(`maps://maps.apple.com/?daddr=${lat},${lng}&dirflg=d&t=m`, '_blank');
+        } else {
+            // Google Maps
+            window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`, '_blank');
+        }
+    }, []);
 
     // Map load handler
     const onMapLoad = (map: google.maps.Map) => {
@@ -733,15 +761,15 @@ export default function DemoDriverPage() {
                     </GoogleMap>
                 </div>
 
-                {/* ===== FLOATING HEADER ===== */}
+                {/* ===== FLOATING HEADER - Grab Style ===== */}
                 <div
                     className="absolute top-0 left-0 right-0 z-20"
                     style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}
                 >
                     <div className="px-4 flex items-center justify-between">
-                        {/* Driver Info - Glass effect */}
-                        <div className="flex items-center gap-3 bg-white/90 backdrop-blur-xl rounded-2xl px-4 py-2 shadow-lg">
-                            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden ring-2 ring-green-500/50">
+                        {/* Driver Info - Grab Style */}
+                        <div className="flex items-center gap-3 bg-white rounded-2xl px-4 py-2 shadow-md border border-gray-100">
+                            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden ring-2 ring-[#00b14f]/30">
                                 {driver.photo ? (
                                     <img src={driver.photo} alt="" className="w-full h-full object-cover" />
                                 ) : (
@@ -756,23 +784,23 @@ export default function DemoDriverPage() {
                             </div>
                         </div>
 
-                        {/* Status Toggle - Big toggle button */}
+                        {/* Status Toggle - Grab Style */}
                         <button
                             onClick={handleToggleOnline}
                             disabled={hasActiveJob || statusLoading}
-                            className={`relative w-20 h-10 rounded-full transition-all shadow-lg ${
+                            className={`relative w-20 h-10 rounded-full transition-all shadow-md border ${
                                 hasActiveJob
-                                    ? 'bg-amber-100'
+                                    ? 'bg-[#00b14f]/10 border-[#00b14f]/30'
                                     : isOnline
-                                        ? 'bg-green-500'
-                                        : 'bg-gray-300'
+                                        ? 'bg-[#00b14f] border-[#00b14f]'
+                                        : 'bg-gray-200 border-gray-300'
                             }`}
                         >
-                            <div className={`absolute top-1 ${isOnline ? 'right-1' : 'left-1'} w-8 h-8 bg-white rounded-full shadow-lg transition-all flex items-center justify-center`}>
+                            <div className={`absolute top-1 ${isOnline ? 'right-1' : 'left-1'} w-8 h-8 bg-white rounded-full shadow-md transition-all flex items-center justify-center`}>
                                 {statusLoading ? (
-                                    <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                                    <div className="w-4 h-4 border-2 border-[#00b14f] border-t-transparent rounded-full animate-spin"></div>
                                 ) : isOnline ? (
-                                    <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <svg className="w-4 h-4 text-[#00b14f]" fill="currentColor" viewBox="0 0 20 20">
                                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                     </svg>
                                 ) : (
@@ -784,16 +812,16 @@ export default function DemoDriverPage() {
                         </button>
                     </div>
 
-                    {/* GPS Status Bar */}
+                    {/* GPS Status Bar - Grab Style */}
                     {hasActiveJob && (
                         <div className="px-4 mt-2">
-                            <div className={`px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow ${
+                            <div className={`px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-sm ${
                                 locationTracking.isWatching
-                                    ? 'bg-green-50 text-green-600 border border-green-200'
+                                    ? 'bg-[#00b14f]/5 text-[#00b14f] border border-[#00b14f]/20'
                                     : 'bg-amber-50 text-amber-600 border border-amber-200'
                             }`}>
                                 <div className={`w-2 h-2 rounded-full ${
-                                    locationTracking.isWatching ? 'bg-green-500 animate-pulse' : 'bg-amber-500'
+                                    locationTracking.isWatching ? 'bg-[#00b14f] animate-pulse' : 'bg-amber-500'
                                 }`}></div>
                                 {locationTracking.isWatching ? 'LIVE • กำลังส่งตำแหน่ง' : 'กำลังเชื่อมต่อ GPS...'}
                             </div>
@@ -839,13 +867,13 @@ export default function DemoDriverPage() {
                     {/* === ONLINE/NO JOB STATE === */}
                     {isOnline && !activeBooking && (
                         <div className="px-5 pb-[max(20px,env(safe-area-inset-bottom))]">
-                            {/* Status indicator */}
+                            {/* Status indicator - Grab Style */}
                             <div className="flex items-center gap-3 mb-6">
-                                <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
-                                <span className="text-green-600 font-bold text-lg">พร้อมรับงาน</span>
+                                <div className="w-3 h-3 rounded-full bg-[#00b14f] animate-pulse"></div>
+                                <span className="text-[#00b14f] font-bold text-lg">พร้อมรับงาน</span>
                             </div>
 
-                            {/* Stats Grid */}
+                            {/* Stats Grid - Grab Style */}
                             <div className="grid grid-cols-3 gap-2 mb-6">
                                 <div className="bg-gray-50 rounded-2xl p-3 text-center border border-gray-100 min-w-0 overflow-hidden">
                                     <p className="text-gray-500 text-xs mb-1">งานวันนี้</p>
@@ -853,9 +881,9 @@ export default function DemoDriverPage() {
                                         {bookings.filter(b => b.status === 'completed' && b.pickupDate === new Date().toISOString().split('T')[0]).length}
                                     </p>
                                 </div>
-                                <div className="bg-green-50 rounded-2xl p-3 text-center border border-green-100 min-w-0 overflow-hidden">
+                                <div className="bg-[#00b14f]/5 rounded-2xl p-3 text-center border border-[#00b14f]/20 min-w-0 overflow-hidden">
                                     <p className="text-gray-500 text-xs mb-1">รายได้</p>
-                                    <p className="text-base font-bold text-green-600 truncate">
+                                    <p className="text-base font-bold text-[#00b14f] truncate">
                                         ฿{bookings
                                             .filter(b => b.status === 'completed' && b.pickupDate === new Date().toISOString().split('T')[0])
                                             .reduce((sum, b) => sum + (b.totalCost || 0), 0)
@@ -897,39 +925,39 @@ export default function DemoDriverPage() {
                         </div>
                     )}
 
-                    {/* === EN ROUTE TO PICKUP STATE === */}
+                    {/* === EN ROUTE TO PICKUP STATE - Grab Style === */}
                     {activeBooking && activeBooking.status === 'driver_en_route' && (
                         <div className="px-5 pb-[max(20px,env(safe-area-inset-bottom))]">
                             {/* Header */}
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center">
-                                        <svg className="w-6 h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <div className="w-12 h-12 bg-[#00b14f]/10 rounded-full flex items-center justify-center">
+                                        <svg className="w-6 h-6 text-[#00b14f]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                         </svg>
                                     </div>
                                     <div>
-                                        <p className="text-blue-600 font-bold">กำลังไปรับผู้โดยสาร</p>
+                                        <p className="text-[#00b14f] font-bold">กำลังไปรับผู้โดยสาร</p>
                                         <p className="text-gray-500 text-sm">{activeBooking.firstName} {activeBooking.lastName}</p>
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-green-600 font-bold text-xl">฿{activeBooking.totalCost?.toLocaleString()}</p>
+                                    <p className="text-[#00b14f] font-bold text-xl">฿{activeBooking.totalCost?.toLocaleString()}</p>
                                 </div>
                             </div>
 
                             {/* Location Card */}
                             <div className="bg-gray-50 rounded-2xl p-4 mb-4 border border-gray-100">
                                 <div className="flex items-start gap-3">
-                                    <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                                    <div className="w-8 h-8 bg-[#00b14f]/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <div className="w-3 h-3 rounded-full bg-[#00b14f]"></div>
                                     </div>
                                     <div className="flex-1">
                                         <p className="text-gray-400 text-xs mb-1">จุดรับ</p>
                                         <p className="text-gray-900 font-medium">{activeBooking.pickupLocation}</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-3 mt-4 pt-4 border-t border-gray-200">
+                                <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-200">
                                     <a
                                         href={`tel:${activeBooking.phone}`}
                                         className="flex-1 h-12 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium flex items-center justify-center gap-2"
@@ -939,14 +967,26 @@ export default function DemoDriverPage() {
                                         </svg>
                                         โทร
                                     </a>
+                                    <button
+                                        onClick={() => openNavigation(
+                                            activeBooking.pickupCoordinates || getLocationCoordinates(activeBooking.pickupLocation),
+                                            activeBooking.pickupLocation
+                                        )}
+                                        className="flex-1 h-12 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium flex items-center justify-center gap-2"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                                        </svg>
+                                        นำทาง
+                                    </button>
                                 </div>
                             </div>
 
-                            {/* Action Button */}
+                            {/* Action Button - Grab Green */}
                             <button
                                 onClick={() => handleBookingAction(activeBooking.id, 'in_progress')}
                                 disabled={updatingStatus === activeBooking.id}
-                                className="w-full h-14 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg disabled:opacity-50"
+                                className="w-full h-14 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg disabled:opacity-50"
                             >
                                 {updatingStatus === activeBooking.id ? (
                                     <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -962,34 +1002,34 @@ export default function DemoDriverPage() {
                         </div>
                     )}
 
-                    {/* === IN PROGRESS STATE === */}
+                    {/* === IN PROGRESS STATE - Grab Style === */}
                     {activeBooking && activeBooking.status === 'in_progress' && (
                         <div className="px-5 pb-[max(20px,env(safe-area-inset-bottom))]">
                             {/* Header */}
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center">
-                                        <svg className="w-6 h-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <div className="w-12 h-12 bg-[#00b14f]/10 rounded-full flex items-center justify-center">
+                                        <svg className="w-6 h-6 text-[#00b14f]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                                         </svg>
                                     </div>
                                     <div>
-                                        <p className="text-emerald-600 font-bold">กำลังเดินทาง</p>
+                                        <p className="text-[#00b14f] font-bold">กำลังเดินทาง</p>
                                         <p className="text-gray-500 text-sm">{activeBooking.firstName} {activeBooking.lastName}</p>
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-green-600 font-bold text-xl">฿{activeBooking.totalCost?.toLocaleString()}</p>
+                                    <p className="text-[#00b14f] font-bold text-xl">฿{activeBooking.totalCost?.toLocaleString()}</p>
                                 </div>
                             </div>
 
-                            {/* Route Card */}
+                            {/* Route Card - Grab Style connection line */}
                             <div className="bg-gray-50 rounded-2xl p-4 mb-4 border border-gray-100">
                                 <div className="flex items-start gap-3">
                                     <div className="flex flex-col items-center">
-                                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                                        <div className="w-0.5 h-10 bg-gradient-to-b from-green-500 to-red-500"></div>
-                                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                                        <div className="w-3 h-3 rounded-full bg-[#00b14f] ring-4 ring-[#00b14f]/20"></div>
+                                        <div className="w-0.5 h-10 bg-gray-300"></div>
+                                        <div className="w-3 h-3 rounded-sm bg-orange-500 ring-4 ring-orange-500/20"></div>
                                     </div>
                                     <div className="flex-1">
                                         <p className="text-gray-400 text-xs mb-0.5">ต้นทาง</p>
@@ -999,13 +1039,27 @@ export default function DemoDriverPage() {
                                         <p className="text-gray-900 font-medium">{activeBooking.dropoffLocation}</p>
                                     </div>
                                 </div>
+
+                                {/* Navigate to dropoff button */}
+                                <button
+                                    onClick={() => openNavigation(
+                                        activeBooking.dropoffCoordinates || getLocationCoordinates(activeBooking.dropoffLocation),
+                                        activeBooking.dropoffLocation
+                                    )}
+                                    className="w-full h-12 mt-4 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium flex items-center justify-center gap-2"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                                    </svg>
+                                    นำทางไปปลายทาง
+                                </button>
                             </div>
 
-                            {/* Action Button */}
+                            {/* Action Button - Grab Green */}
                             <button
                                 onClick={() => handleBookingAction(activeBooking.id, 'completed')}
                                 disabled={updatingStatus === activeBooking.id}
-                                className="w-full h-14 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg disabled:opacity-50"
+                                className="w-full h-14 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg disabled:opacity-50"
                             >
                                 {updatingStatus === activeBooking.id ? (
                                     <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -1021,13 +1075,13 @@ export default function DemoDriverPage() {
                         </div>
                     )}
 
-                    {/* === DRIVER_ASSIGNED STATE (waiting to start) === */}
+                    {/* === DRIVER_ASSIGNED STATE (waiting to start) - Grab Style === */}
                     {activeBooking && activeBooking.status === 'driver_assigned' && !showNewJobModal && (
                         <div className="px-5 pb-[max(20px,env(safe-area-inset-bottom))]">
-                            {/* New Job Badge */}
+                            {/* New Job Badge - Grab Style */}
                             <div className="flex items-center gap-2 mb-4">
-                                <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse"></div>
-                                <span className="text-blue-600 font-bold">งานใหม่รอดำเนินการ</span>
+                                <div className="w-3 h-3 rounded-full bg-[#00b14f] animate-pulse"></div>
+                                <span className="text-[#00b14f] font-bold">งานใหม่รอดำเนินการ</span>
                             </div>
 
                             {/* Job Details Card */}
@@ -1043,15 +1097,15 @@ export default function DemoDriverPage() {
                                         <p className="text-gray-900 font-bold">{activeBooking.firstName} {activeBooking.lastName}</p>
                                         <p className="text-gray-500 text-sm">{activeBooking.pickupDate} • {activeBooking.pickupTime}</p>
                                     </div>
-                                    <p className="text-green-600 font-bold text-lg">฿{activeBooking.totalCost?.toLocaleString()}</p>
+                                    <p className="text-[#00b14f] font-bold text-lg">฿{activeBooking.totalCost?.toLocaleString()}</p>
                                 </div>
 
-                                {/* Route */}
+                                {/* Route - Grab Style connection line */}
                                 <div className="flex items-start gap-3">
                                     <div className="flex flex-col items-center">
-                                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                                        <div className="w-3 h-3 rounded-full bg-[#00b14f] ring-4 ring-[#00b14f]/20"></div>
                                         <div className="w-0.5 h-8 bg-gray-300"></div>
-                                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                                        <div className="w-3 h-3 rounded-sm bg-orange-500 ring-4 ring-orange-500/20"></div>
                                     </div>
                                     <div className="flex-1">
                                         <p className="text-gray-900 text-sm">{activeBooking.pickupLocation}</p>
@@ -1061,11 +1115,11 @@ export default function DemoDriverPage() {
                                 </div>
                             </div>
 
-                            {/* Action Button */}
+                            {/* Action Button - Grab Green */}
                             <button
                                 onClick={() => handleBookingAction(activeBooking.id, 'driver_en_route')}
                                 disabled={updatingStatus === activeBooking.id}
-                                className="w-full h-14 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg disabled:opacity-50"
+                                className="w-full h-14 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg disabled:opacity-50"
                             >
                                 {updatingStatus === activeBooking.id ? (
                                     <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -1083,14 +1137,126 @@ export default function DemoDriverPage() {
                     )}
                 </div>
 
-                {/* === NEW JOB MODAL (Light Theme) === */}
+                {/* === BOTTOM NAVIGATION - Grab Style === */}
+                {!activeBooking && !showNewJobModal && !showCompletedModal && (
+                    <div className="absolute bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200">
+                        <div className="flex items-center justify-around py-2" style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}>
+                            <button
+                                className="flex flex-col items-center gap-1 px-6 py-2 text-[#00b14f]"
+                            >
+                                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                                </svg>
+                                <span className="text-xs font-medium">หน้าหลัก</span>
+                            </button>
+                            <button
+                                onClick={() => router.push('/driver/history')}
+                                className="flex flex-col items-center gap-1 px-6 py-2 text-gray-400 hover:text-gray-600"
+                            >
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span className="text-xs font-medium">ประวัติ</span>
+                            </button>
+                            <button
+                                onClick={() => router.push('/driver/profile')}
+                                className="flex flex-col items-center gap-1 px-6 py-2 text-gray-400 hover:text-gray-600"
+                            >
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                                <span className="text-xs font-medium">โปรไฟล์</span>
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* === COMPLETED MODAL - Job Summary === */}
+                {showCompletedModal && recentlyCompleted && (
+                    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="w-full max-w-[380px] bg-white rounded-3xl animate-scale-up shadow-2xl overflow-hidden">
+                            {/* Success Header */}
+                            <div className="bg-gradient-to-br from-[#00b14f] to-[#00a045] p-6 text-center">
+                                <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <svg className="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
+                                <h2 className="text-white text-2xl font-bold mb-1">เสร็จสิ้นการเดินทาง!</h2>
+                                <p className="text-white/80">ขอบคุณที่ให้บริการ</p>
+                            </div>
+
+                            {/* Earnings */}
+                            <div className="p-6">
+                                <div className="bg-[#00b14f]/5 rounded-2xl p-4 mb-4 border border-[#00b14f]/20 text-center">
+                                    <p className="text-gray-500 text-sm mb-1">รายได้จากงานนี้</p>
+                                    <p className="text-[#00b14f] font-bold text-4xl">฿{recentlyCompleted.totalCost?.toLocaleString()}</p>
+                                </div>
+
+                                {/* Trip Summary */}
+                                <div className="bg-gray-50 rounded-2xl p-4 mb-6 border border-gray-100">
+                                    <div className="flex items-start gap-3">
+                                        <div className="flex flex-col items-center">
+                                            <div className="w-3 h-3 rounded-full bg-[#00b14f]"></div>
+                                            <div className="w-0.5 h-8 bg-gray-300"></div>
+                                            <div className="w-3 h-3 rounded-sm bg-orange-500"></div>
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-gray-600 text-sm">{recentlyCompleted.pickupLocation}</p>
+                                            <div className="h-4"></div>
+                                            <p className="text-gray-600 text-sm">{recentlyCompleted.dropoffLocation}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                                                <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                </svg>
+                                            </div>
+                                            <span className="text-gray-700 font-medium">{recentlyCompleted.firstName} {recentlyCompleted.lastName}</span>
+                                        </div>
+                                        <span className="text-gray-400 text-sm">{recentlyCompleted.vehicleName}</span>
+                                    </div>
+                                </div>
+
+                                {/* Action Buttons */}
+                                <button
+                                    onClick={() => {
+                                        setShowCompletedModal(false);
+                                        setRecentlyCompleted(null);
+                                    }}
+                                    className="w-full h-14 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg"
+                                >
+                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                    รับงานต่อ
+                                </button>
+
+                                <button
+                                    onClick={() => {
+                                        setShowCompletedModal(false);
+                                        setRecentlyCompleted(null);
+                                        router.push('/driver/history');
+                                    }}
+                                    className="w-full h-12 mt-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl font-medium flex items-center justify-center gap-2"
+                                >
+                                    ดูประวัติงาน
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* === NEW JOB MODAL - Grab Style === */}
                 {showNewJobModal && newJobAlert && (
                     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end">
                         <div className="w-full max-w-[430px] mx-auto bg-white rounded-t-[28px] animate-slide-up shadow-2xl">
-                            {/* Progress Bar */}
+                            {/* Progress Bar - Grab Green */}
                             <div className="h-1.5 bg-gray-200 rounded-t-[28px] overflow-hidden">
                                 <div
-                                    className="h-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-1000"
+                                    className="h-full bg-[#00b14f] transition-all duration-1000"
                                     style={{ width: `${(countdown / 15) * 100}%` }}
                                 />
                             </div>
@@ -1103,28 +1269,28 @@ export default function DemoDriverPage() {
                                         <p className="text-gray-500 text-sm">รับงานก่อนหมดเวลา</p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-100 to-emerald-100 border border-green-200 flex items-center justify-center">
-                                            <span className="text-3xl font-bold text-green-600">{countdown}</span>
+                                        <div className="w-16 h-16 rounded-full bg-[#00b14f]/10 border border-[#00b14f]/30 flex items-center justify-center">
+                                            <span className="text-3xl font-bold text-[#00b14f]">{countdown}</span>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Fare - Big highlight */}
-                                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-4 mb-4 border border-green-200">
+                                {/* Fare - Grab Style */}
+                                <div className="bg-[#00b14f]/5 rounded-2xl p-4 mb-4 border border-[#00b14f]/20">
                                     <p className="text-gray-500 text-sm mb-1">ค่าโดยสาร</p>
-                                    <p className="text-green-600 font-bold text-4xl">฿{newJobAlert.totalCost?.toLocaleString()}</p>
+                                    <p className="text-[#00b14f] font-bold text-4xl">฿{newJobAlert.totalCost?.toLocaleString()}</p>
                                 </div>
 
                                 {/* Trip Info Card */}
                                 <div className="bg-gray-50 rounded-2xl p-4 mb-6 border border-gray-100">
-                                    {/* Route */}
+                                    {/* Route - Grab Style connection line */}
                                     <div className="flex items-start gap-3 mb-4">
                                         <div className="flex flex-col items-center">
-                                            <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
+                                            <div className="w-4 h-4 rounded-full bg-[#00b14f] ring-4 ring-[#00b14f]/20 flex items-center justify-center">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-white"></div>
                                             </div>
-                                            <div className="w-0.5 h-10 bg-gradient-to-b from-green-500 to-red-500"></div>
-                                            <div className="w-4 h-4 rounded-full bg-red-500 flex items-center justify-center">
+                                            <div className="w-0.5 h-10 bg-gray-300"></div>
+                                            <div className="w-4 h-4 rounded-sm bg-orange-500 ring-4 ring-orange-500/20 flex items-center justify-center">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-white"></div>
                                             </div>
                                         </div>
@@ -1150,11 +1316,11 @@ export default function DemoDriverPage() {
                                     </div>
                                 </div>
 
-                                {/* Accept Button */}
+                                {/* Accept Button - Grab Green */}
                                 <button
                                     onClick={handleAcceptJob}
                                     disabled={updatingStatus === newJobAlert.id}
-                                    className="w-full h-16 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl font-bold text-xl flex items-center justify-center gap-3 active:scale-[0.98] transition-all shadow-lg shadow-green-500/25 mb-3 disabled:opacity-50"
+                                    className="w-full h-16 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-bold text-xl flex items-center justify-center gap-3 active:scale-[0.98] transition-all shadow-lg shadow-[#00b14f]/25 mb-3 disabled:opacity-50"
                                 >
                                     {updatingStatus === newJobAlert.id ? (
                                         <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -1192,6 +1358,13 @@ export default function DemoDriverPage() {
                 }
                 .animate-slide-up {
                     animation: slide-up 0.3s ease-out;
+                }
+                @keyframes scale-up {
+                    from { transform: scale(0.9); opacity: 0; }
+                    to { transform: scale(1); opacity: 1; }
+                }
+                .animate-scale-up {
+                    animation: scale-up 0.3s ease-out;
                 }
             `}</style>
         </div>

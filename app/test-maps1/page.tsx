@@ -289,15 +289,34 @@ export default function TestMaps1Page() {
                         }
                     }
 
-                    // Set pickup/dropoff from booking
-                    setPickup(prev => ({
-                        ...prev,
-                        name: active.pickupLocation,
-                    }));
-                    setDropoff(prev => ({
-                        ...prev,
-                        name: active.dropoffLocation,
-                    }));
+                    // Set pickup/dropoff from booking (with coordinates if available)
+                    if (active.pickupCoordinates) {
+                        setPickup({
+                            lat: active.pickupCoordinates.lat,
+                            lng: active.pickupCoordinates.lng,
+                            name: active.pickupLocation,
+                            id: active.pickupLocationId,
+                        });
+                    } else {
+                        setPickup(prev => ({
+                            ...prev,
+                            name: active.pickupLocation,
+                        }));
+                    }
+
+                    if (active.dropoffCoordinates) {
+                        setDropoff({
+                            lat: active.dropoffCoordinates.lat,
+                            lng: active.dropoffCoordinates.lng,
+                            name: active.dropoffLocation,
+                            id: active.dropoffLocationId,
+                        });
+                    } else {
+                        setDropoff(prev => ({
+                            ...prev,
+                            name: active.dropoffLocation,
+                        }));
+                    }
 
                     // Set trip info
                     setTripInfo({
@@ -607,6 +626,11 @@ export default function TestMaps1Page() {
                 // Trip details
                 pickupLocation: pickup.name,
                 dropoffLocation: dropoff.name,
+                // Save coordinates for map restoration
+                pickupCoordinates: { lat: pickup.lat, lng: pickup.lng },
+                dropoffCoordinates: { lat: dropoff.lat, lng: dropoff.lng },
+                pickupLocationId: pickup.id || '',
+                dropoffLocationId: dropoff.id || '',
                 pickupDate: new Date().toISOString().split('T')[0],
                 pickupTime: new Date().toTimeString().slice(0, 5),
                 tripType: 'oneWay' as const,
@@ -710,13 +734,14 @@ export default function TestMaps1Page() {
         }
 
         // Move to driver assigned status
+        // Note: Status will automatically update via Firestore subscription when:
+        // - Admin confirms booking (pending → confirmed)
+        // - Admin assigns driver (confirmed → driver_assigned)
+        // - Driver starts trip (driver_assigned → driver_en_route)
+        // - Driver picks up (driver_en_route → in_progress)
+        // - Driver completes (in_progress → completed)
         setStatus('driver_assigned');
-
-        // Start tracking (the useDriverTracking hook will automatically track)
-        setTimeout(() => {
-            setStatus('driver_en_route');
-            setFollowCar(true);
-        }, 2000);
+        setFollowCar(true);
     };
 
     // Map handlers
@@ -1059,41 +1084,49 @@ export default function TestMaps1Page() {
                     )}
                 </div>
 
-                {/* Bottom Sheet (Auto Height / Fit-Content) */}
-                <div className="bg-white rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)] -mt-6 relative z-10">
+                {/* Bottom Sheet - Grab Style (Light) */}
+                <div className="bg-white rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.08)] -mt-6 relative z-10">
                     {/* Handle */}
-                    <div className="flex justify-center py-2">
+                    <div className="flex justify-center py-3">
                         <div className="w-10 h-1 bg-gray-300 rounded-full" />
                     </div>
 
-                    {/* Status Badge */}
-                    <div className="flex justify-center mb-2">
-                        <div className={`px-4 py-1.5 rounded-full text-white text-sm font-medium ${statusConfig[status]?.color}`}>
+                    {/* Status Badge - Grab Style */}
+                    <div className="flex justify-center mb-3">
+                        <div className={`px-4 py-1.5 rounded-full text-sm font-semibold ${
+                            status === 'selecting' ? 'bg-gray-100 text-gray-600' :
+                            status === 'searching' ? 'bg-[#00b14f]/10 text-[#00b14f]' :
+                            status === 'driver_assigned' ? 'bg-blue-50 text-blue-600' :
+                            status === 'driver_en_route' ? 'bg-[#00b14f]/10 text-[#00b14f]' :
+                            status === 'in_progress' ? 'bg-[#00b14f] text-white' :
+                            status === 'completed' ? 'bg-[#00b14f] text-white' :
+                            'bg-gray-100 text-gray-600'
+                        }`}>
                             {statusConfig[status]?.text}
                         </div>
                     </div>
 
-                    <div className="px-4 pb-[max(12px,env(safe-area-inset-bottom))] space-y-2">
+                    <div className="px-4 pb-[max(16px,env(safe-area-inset-bottom))] space-y-3">
 
-                        {/* Route Info Card - hide when completed */}
+                        {/* Route Info Card - Grab Style */}
                         {status !== 'completed' && (
-                        <div className="bg-gray-50 rounded-xl p-3">
+                        <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
                             <div className="flex">
-                                {/* Connection Line */}
-                                <div className="flex flex-col items-center mr-3">
-                                    <div className="w-3 h-3 rounded-full bg-green-500 ring-2 ring-green-100" />
-                                    <div className="w-0.5 h-8 bg-gray-300 my-0.5" />
-                                    <div className="w-3 h-3 rounded-full bg-red-500 ring-2 ring-red-100" />
+                                {/* Connection Line - Grab Style */}
+                                <div className="flex flex-col items-center mr-4">
+                                    <div className="w-3 h-3 rounded-full bg-[#00b14f] ring-4 ring-[#00b14f]/20" />
+                                    <div className="w-0.5 h-10 bg-gray-300 my-1" />
+                                    <div className="w-3 h-3 rounded-sm bg-orange-500 ring-4 ring-orange-500/20" />
                                 </div>
 
                                 {/* Location Info */}
-                                <div className="flex-1 space-y-1">
+                                <div className="flex-1 space-y-2">
                                     <button
                                         onClick={() => { setLocationPickerType('pickup'); setSearchQuery(''); setShowLocationPicker(true); }}
                                         disabled={status !== 'selecting'}
-                                        className="w-full text-left p-1.5 -m-1.5 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:hover:bg-transparent disabled:cursor-default group"
+                                        className="w-full text-left p-2 -m-2 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:hover:bg-transparent disabled:cursor-default group"
                                     >
-                                        <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider">
+                                        <p className="text-[11px] text-[#00b14f] font-semibold uppercase tracking-wider">
                                             {language === 'th' ? 'จุดรับ' : 'Pickup'}
                                         </p>
                                         <div className="flex items-center justify-between gap-2">
@@ -1101,7 +1134,7 @@ export default function TestMaps1Page() {
                                                 {pickup.name}
                                             </p>
                                             {status === 'selecting' && (
-                                                <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg className="w-4 h-4 text-gray-400 group-hover:text-[#00b14f] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                                 </svg>
                                             )}
@@ -1113,9 +1146,9 @@ export default function TestMaps1Page() {
                                     <button
                                         onClick={() => { setLocationPickerType('dropoff'); setSearchQuery(''); setShowLocationPicker(true); }}
                                         disabled={status !== 'selecting'}
-                                        className="w-full text-left p-1.5 -m-1.5 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:hover:bg-transparent disabled:cursor-default group"
+                                        className="w-full text-left p-2 -m-2 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:hover:bg-transparent disabled:cursor-default group"
                                     >
-                                        <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider">
+                                        <p className="text-[11px] text-orange-500 font-semibold uppercase tracking-wider">
                                             {language === 'th' ? 'จุดส่ง' : 'Dropoff'}
                                         </p>
                                         <div className="flex items-center justify-between gap-2">
@@ -1123,7 +1156,7 @@ export default function TestMaps1Page() {
                                                 {dropoff.name}
                                             </p>
                                             {status === 'selecting' && (
-                                                <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg className="w-4 h-4 text-gray-400 group-hover:text-orange-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                                 </svg>
                                             )}
@@ -1131,11 +1164,11 @@ export default function TestMaps1Page() {
                                     </button>
                                 </div>
 
-                                {/* Price/Distance */}
+                                {/* Price/Distance - Grab Style */}
                                 {tripInfo && (
-                                    <div className="text-right ml-3 flex-shrink-0">
-                                        <p className="text-xl font-bold text-blue-600">฿{tripInfo.price.toLocaleString()}</p>
-                                        <p className="text-xs text-gray-500">
+                                    <div className="text-right ml-4 flex-shrink-0">
+                                        <p className="text-2xl font-bold text-[#00b14f]">฿{tripInfo.price.toLocaleString()}</p>
+                                        <p className="text-xs text-gray-500 font-medium">
                                             {tripInfo.distance} km • {tripInfo.duration >= 60
                                                 ? `${Math.floor(tripInfo.duration / 60)}${language === 'th' ? 'ชม.' : 'h'}${tripInfo.duration % 60}${language === 'th' ? 'น.' : 'm'}`
                                                 : `${tripInfo.duration}${language === 'th' ? 'น.' : 'm'}`
@@ -1147,11 +1180,11 @@ export default function TestMaps1Page() {
                         </div>
                         )}
 
-                        {/* Driver Info - only show when driver has ACCEPTED the job (en_route or in_progress) */}
+                        {/* Driver Info Card - Grab Style */}
                         {(status === 'driver_en_route' || status === 'in_progress') && (
-                            <div className="bg-blue-50 rounded-xl p-3">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-blue-200 rounded-full flex items-center justify-center text-2xl overflow-hidden flex-shrink-0">
+                            <div className="bg-white rounded-2xl p-4 shadow-md border border-gray-100">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center text-2xl overflow-hidden flex-shrink-0 ring-2 ring-[#00b14f]/20">
                                         {assignedDriver?.photo ? (
                                             <img src={assignedDriver.photo} alt="" className="w-full h-full object-cover" />
                                         ) : (
@@ -1159,126 +1192,153 @@ export default function TestMaps1Page() {
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-bold text-gray-800 truncate">
+                                        <p className="font-bold text-gray-900 text-lg truncate">
                                             {mode === 'live' && assignedDriver ? assignedDriver.name : MOCK_DRIVER.name}
                                         </p>
-                                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                                            <span>⭐ {mode === 'live' && assignedDriver ? assignedDriver.rating?.toFixed(1) || '5.0' : MOCK_DRIVER.rating}</span>
+                                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                                            <span className="text-amber-500">⭐ {mode === 'live' && assignedDriver ? assignedDriver.rating?.toFixed(1) || '5.0' : MOCK_DRIVER.rating}</span>
                                             <span>•</span>
                                             <span className="truncate">{mode === 'live' && assignedDriver ? assignedDriver.vehicleModel : MOCK_DRIVER.vehicleModel}</span>
                                         </div>
-                                        <p className="text-sm text-blue-600 font-medium">{mode === 'live' && assignedDriver ? assignedDriver.vehiclePlate : MOCK_DRIVER.vehiclePlate}</p>
+                                        <p className="text-sm text-gray-400 font-semibold">{mode === 'live' && assignedDriver ? assignedDriver.vehiclePlate : MOCK_DRIVER.vehiclePlate}</p>
                                     </div>
                                     <div className="flex gap-2 flex-shrink-0">
                                         <a
                                             href={`tel:${mode === 'live' && assignedDriver ? assignedDriver.phone : MOCK_DRIVER.phone}`}
-                                            className="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center shadow-md active:scale-95 transition-transform"
+                                            className="w-11 h-11 bg-[#00b14f] text-white rounded-full flex items-center justify-center shadow-md active:scale-95 transition-transform"
                                         >
-                                            📞
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                            </svg>
                                         </a>
-                                        <button className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-md active:scale-95 transition-transform">
-                                            💬
+                                        <button className="w-11 h-11 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center shadow-sm active:scale-95 transition-transform hover:bg-gray-200">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                            </svg>
                                         </button>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {/* Waiting for driver to accept (driver_assigned status) */}
+                        {/* Waiting for driver - Grab Style */}
                         {status === 'driver_assigned' && (
-                            <div className="bg-amber-50 rounded-xl p-3 border border-amber-200">
+                            <div className="bg-[#00b14f]/5 rounded-2xl p-4 border border-[#00b14f]/20">
                                 <div className="flex items-center gap-3">
                                     <div className="relative flex-shrink-0">
-                                        <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-2xl">
-                                            🚗
+                                        <div className="w-12 h-12 bg-[#00b14f]/10 rounded-full flex items-center justify-center">
+                                            <svg className="w-6 h-6 text-[#00b14f]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                            </svg>
                                         </div>
-                                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center animate-pulse">
-                                            <span className="text-xs">⏳</span>
+                                        <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-[#00b14f] rounded-full flex items-center justify-center animate-pulse">
+                                            <div className="w-2 h-2 bg-white rounded-full"></div>
                                         </div>
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-bold text-amber-800">
-                                            {language === 'th' ? 'รอคนขับยืนยัน...' : 'Waiting for driver...'}
+                                        <p className="font-semibold text-gray-900">
+                                            {language === 'th' ? 'กำลังจับคู่คนขับ...' : 'Matching driver...'}
                                         </p>
-                                        <p className="text-sm text-amber-600">
-                                            {language === 'th' ? 'คนขับกำลังตรวจสอบรายละเอียดงาน' : 'Driver is reviewing the trip details'}
+                                        <p className="text-sm text-gray-500">
+                                            {language === 'th' ? 'คนขับกำลังตอบรับงาน' : 'Driver is accepting the trip'}
                                         </p>
                                     </div>
                                     <div className="animate-spin flex-shrink-0">
-                                        <div className="w-7 h-7 border-3 border-amber-300 border-t-amber-600 rounded-full"></div>
+                                        <div className="w-6 h-6 border-2 border-[#00b14f]/30 border-t-[#00b14f] rounded-full"></div>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {/* Vehicle Selection for Live Mode - Hide if active booking exists */}
+                        {/* Vehicle Selection - Grab Style */}
                         {mode === 'live' && status === 'selecting' && selectedVehicle && !isLoadingActiveBooking && !activeBooking && (
                             <button
                                 onClick={() => setShowVehiclePicker(true)}
-                                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 flex items-center justify-between hover:bg-gray-100 transition-colors"
+                                className="w-full bg-white border border-gray-200 rounded-2xl p-4 flex items-center justify-between hover:bg-gray-50 transition-colors shadow-sm"
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-xl">
-                                        🚗
+                                    <div className="w-12 h-12 bg-[#00b14f]/10 rounded-xl flex items-center justify-center">
+                                        <svg className="w-6 h-6 text-[#00b14f]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                        </svg>
                                     </div>
                                     <div className="text-left">
                                         <p className="font-semibold text-gray-900">{selectedVehicle.name}</p>
                                         <p className="text-sm text-gray-500">{selectedVehicle.seats} {language === 'th' ? 'ที่นั่ง' : 'seats'}</p>
                                     </div>
                                 </div>
-                                <div className="text-right">
-                                    <p className="font-bold text-blue-600">฿{selectedVehicle.price.toLocaleString()}</p>
-                                    <p className="text-xs text-gray-400">{language === 'th' ? 'เปลี่ยนรถ' : 'Change'}</p>
+                                <div className="text-right flex items-center gap-2">
+                                    <div>
+                                        <p className="font-bold text-[#00b14f]">฿{selectedVehicle.price.toLocaleString()}</p>
+                                        <p className="text-xs text-gray-400">{language === 'th' ? 'เปลี่ยนรถ' : 'Change'}</p>
+                                    </div>
+                                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
                                 </div>
                             </button>
                         )}
 
-                        {/* Loading Active Booking for Live Mode */}
+                        {/* Loading - Grab Style */}
                         {mode === 'live' && isLoadingActiveBooking && (
                             <div className="flex items-center justify-center gap-3 py-4">
-                                <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                                <p className="text-gray-600">
+                                <div className="w-6 h-6 border-2 border-[#00b14f]/30 border-t-[#00b14f] rounded-full animate-spin"></div>
+                                <p className="text-gray-500 text-sm">
                                     {language === 'th' ? 'กำลังตรวจสอบการจองของคุณ...' : 'Checking your bookings...'}
                                 </p>
                             </div>
                         )}
 
-                        {/* Active Booking Exists - Show Info Instead of Booking Button */}
+                        {/* Active Booking Card - Grab Style */}
                         {mode === 'live' && !isLoadingActiveBooking && activeBooking && status !== 'completed' && (
-                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                            <div className="bg-[#00b14f]/5 border border-[#00b14f]/20 rounded-2xl p-4">
                                 <div className="flex items-start gap-3">
-                                    <span className="text-2xl">📋</span>
+                                    <div className="w-10 h-10 bg-[#00b14f]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                                        <svg className="w-5 h-5 text-[#00b14f]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                        </svg>
+                                    </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-semibold text-amber-800">
-                                            {language === 'th' ? 'คุณมีการจองที่กำลังดำเนินการ' : 'You have an active booking'}
+                                        <p className="font-semibold text-gray-900">
+                                            {language === 'th' ? 'มีการจองที่กำลังดำเนินการ' : 'Active booking'}
                                         </p>
-                                        <p className="text-sm text-amber-700 mt-1 truncate">
+                                        <p className="text-sm text-gray-600 mt-1 truncate">
                                             {activeBooking.pickupLocation} → {activeBooking.dropoffLocation}
                                         </p>
-                                        <p className="text-xs text-amber-600 mt-1">
-                                            {language === 'th' ? 'สถานะ: ' : 'Status: '}
-                                            {activeBooking.status === 'pending' && (language === 'th' ? 'รอยืนยัน' : 'Pending')}
-                                            {activeBooking.status === 'confirmed' && (language === 'th' ? 'ยืนยันแล้ว' : 'Confirmed')}
-                                            {activeBooking.status === 'driver_assigned' && (language === 'th' ? 'พบคนขับแล้ว' : 'Driver Assigned')}
-                                            {activeBooking.status === 'driver_en_route' && (language === 'th' ? 'คนขับกำลังมา' : 'Driver En Route')}
-                                            {activeBooking.status === 'in_progress' && (language === 'th' ? 'กำลังเดินทาง' : 'In Progress')}
-                                        </p>
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                                activeBooking.status === 'pending' ? 'bg-gray-100 text-gray-600' :
+                                                activeBooking.status === 'confirmed' ? 'bg-blue-100 text-blue-600' :
+                                                activeBooking.status === 'driver_assigned' ? 'bg-[#00b14f]/10 text-[#00b14f]' :
+                                                activeBooking.status === 'driver_en_route' ? 'bg-[#00b14f]/10 text-[#00b14f]' :
+                                                'bg-[#00b14f] text-white'
+                                            }`}>
+                                                {activeBooking.status === 'pending' && (language === 'th' ? 'รอยืนยัน' : 'Pending')}
+                                                {activeBooking.status === 'confirmed' && (language === 'th' ? 'ยืนยันแล้ว' : 'Confirmed')}
+                                                {activeBooking.status === 'driver_assigned' && (language === 'th' ? 'พบคนขับแล้ว' : 'Driver Assigned')}
+                                                {activeBooking.status === 'driver_en_route' && (language === 'th' ? 'คนขับกำลังมา' : 'Driver En Route')}
+                                                {activeBooking.status === 'in_progress' && (language === 'th' ? 'กำลังเดินทาง' : 'In Progress')}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {/* Available Drivers Count for Live Mode */}
+                        {/* Available Drivers - Grab Style */}
                         {mode === 'live' && status === 'selecting' && !isLoadingActiveBooking && !activeBooking && (
-                            <p className="text-center text-sm text-gray-500">
-                                {availableDrivers.length > 0
-                                    ? `🟢 ${availableDrivers.length} ${language === 'th' ? 'คนขับพร้อมให้บริการ' : 'drivers available'}`
-                                    : `🔴 ${language === 'th' ? 'ไม่มีคนขับว่าง' : 'No drivers available'}`
-                                }
-                            </p>
+                            <div className="flex items-center justify-center gap-2 py-1">
+                                <div className={`w-2 h-2 rounded-full ${availableDrivers.length > 0 ? 'bg-[#00b14f]' : 'bg-gray-300'}`}></div>
+                                <p className="text-sm text-gray-500">
+                                    {availableDrivers.length > 0
+                                        ? `${availableDrivers.length} ${language === 'th' ? 'คนขับพร้อมให้บริการ' : 'drivers available'}`
+                                        : (language === 'th' ? 'ไม่มีคนขับว่างขณะนี้' : 'No drivers available')
+                                    }
+                                </p>
+                            </div>
                         )}
 
-                        {/* Action Buttons - Only show if no active booking in Live Mode */}
+                        {/* Main CTA Button - Grab Style */}
                         {status === 'selecting' && !(mode === 'live' && (isLoadingActiveBooking || activeBooking)) && (
                             <button
                                 onClick={() => {
@@ -1293,13 +1353,12 @@ export default function TestMaps1Page() {
                                     }
                                 }}
                                 disabled={mode === 'live' && (!user || availableDrivers.length === 0 || isCreatingBooking)}
-                                className="w-full h-14 bg-gray-900 hover:bg-gray-800 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                className="w-full h-14 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
                             >
                                 {isCreatingBooking ? (
                                     <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                                 ) : (
                                     <>
-                                        <span>🔍</span>
                                         {mode === 'live'
                                             ? (language === 'th' ? 'จองรถตอนนี้' : 'Book Now')
                                             : (language === 'th' ? 'ค้นหาคนขับ' : 'Find Driver')
@@ -1309,19 +1368,20 @@ export default function TestMaps1Page() {
                             </button>
                         )}
 
+                        {/* Searching - Grab Style */}
                         {status === 'searching' && !activeBooking && (
                             <div className="flex flex-col items-center py-4">
-                                <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-3"></div>
-                                <p className="text-gray-600">{language === 'th' ? 'กำลังค้นหาคนขับใกล้คุณ...' : 'Finding nearby drivers...'}</p>
+                                <div className="w-10 h-10 border-3 border-[#00b14f]/30 border-t-[#00b14f] rounded-full animate-spin mb-3"></div>
+                                <p className="text-gray-700 font-medium">{language === 'th' ? 'กำลังค้นหาคนขับใกล้คุณ...' : 'Finding nearby drivers...'}</p>
                             </div>
                         )}
 
-                        {/* Waiting for admin to assign driver */}
+                        {/* Waiting for admin - Grab Style */}
                         {status === 'searching' && activeBooking && (
                             <div className="flex flex-col items-center py-4">
-                                <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
-                                <p className="text-gray-600 text-center">
-                                    {language === 'th' ? 'รอเจ้าหน้าที่มอบหมายคนขับ...' : 'Waiting for driver assignment...'}
+                                <div className="w-10 h-10 border-3 border-[#00b14f]/30 border-t-[#00b14f] rounded-full animate-spin mb-3"></div>
+                                <p className="text-gray-700 font-medium text-center">
+                                    {language === 'th' ? 'กำลังจัดหาคนขับให้คุณ...' : 'Assigning driver...'}
                                 </p>
                                 <p className="text-gray-400 text-sm mt-1">
                                     {language === 'th' ? 'โปรดรอสักครู่' : 'Please wait a moment'}
@@ -1329,64 +1389,81 @@ export default function TestMaps1Page() {
                             </div>
                         )}
 
+                        {/* Stop Simulation - Grab Style */}
                         {isSimulating && mode === 'demo' && (
                             <button
                                 onClick={stopTrip}
-                                className="w-full h-14 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                                className="w-full h-12 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                             >
-                                <span>⏹️</span>
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
                                 {language === 'th' ? 'หยุดจำลอง' : 'Stop Simulation'}
                             </button>
                         )}
 
+                        {/* Completed State - Grab Style */}
                         {status === 'completed' && (
                             <div className="flex flex-col">
-                                {/* Trip Summary Card */}
-                                <div className="bg-green-50 rounded-xl p-3 mb-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                                            <span className="w-3 h-3 rounded-full bg-green-500 flex-shrink-0"></span>
-                                            <span className="text-gray-700 truncate">{activeBooking?.pickupLocation || tripInfo?.pickup || pickup.name}</span>
-                                            <span className="text-gray-400">→</span>
-                                            <span className="w-3 h-3 rounded-full bg-red-500 flex-shrink-0"></span>
-                                            <span className="text-gray-700 truncate">{activeBooking?.dropoffLocation || tripInfo?.dropoff || dropoff.name}</span>
+                                {/* Trip Summary Card - Grab Style */}
+                                <div className="bg-[#00b14f]/5 rounded-2xl p-4 mb-3 border border-[#00b14f]/20">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                                            <div className="flex flex-col items-center">
+                                                <div className="w-2.5 h-2.5 rounded-full bg-[#00b14f]"></div>
+                                                <div className="w-0.5 h-6 bg-gray-300 my-1"></div>
+                                                <div className="w-2.5 h-2.5 rounded-sm bg-orange-500"></div>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm text-gray-900 truncate">{activeBooking?.pickupLocation || tripInfo?.pickup || pickup.name}</p>
+                                                <p className="text-sm text-gray-900 truncate mt-3">{activeBooking?.dropoffLocation || tripInfo?.dropoff || dropoff.name}</p>
+                                            </div>
                                         </div>
-                                        <span className="font-bold text-green-600 text-xl flex-shrink-0">
-                                            ฿{(activeBooking?.totalCost || tripInfo?.price || 1200).toLocaleString()}
-                                        </span>
+                                        <div className="text-right flex-shrink-0 ml-4">
+                                            <p className="text-2xl font-bold text-[#00b14f]">
+                                                ฿{(activeBooking?.totalCost || tripInfo?.price || 1200).toLocaleString()}
+                                            </p>
+                                            <p className="text-xs text-gray-500">{language === 'th' ? 'ชำระเรียบร้อย' : 'Paid'}</p>
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* Rating Section */}
-                                <div className="bg-amber-50 rounded-xl p-4 mb-3">
-                                    {/* Driver + Stars */}
-                                    <div className="flex items-center gap-3 mb-3">
-                                        <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-2xl overflow-hidden flex-shrink-0">
+                                {/* Rating Section - Grab Style */}
+                                <div className="bg-gray-50 rounded-2xl p-4 mb-3 border border-gray-100">
+                                    <p className="text-center text-gray-600 text-sm mb-3">
+                                        {language === 'th' ? 'ให้คะแนนการเดินทาง' : 'Rate your trip'}
+                                    </p>
+
+                                    {/* Driver Info */}
+                                    <div className="flex items-center justify-center gap-3 mb-4">
+                                        <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center text-2xl overflow-hidden ring-2 ring-[#00b14f]/20">
                                             {assignedDriver?.photo ? (
                                                 <img src={assignedDriver.photo} alt="" className="w-full h-full object-cover" />
                                             ) : (
                                                 '👨‍✈️'
                                             )}
                                         </div>
-                                        <div className="min-w-0 flex-1">
-                                            <p className="font-semibold text-gray-800 truncate">
+                                        <div className="text-left">
+                                            <p className="font-semibold text-gray-900">
                                                 {assignedDriver?.name || activeBooking?.driver?.name || 'คนขับ'}
                                             </p>
+                                            <p className="text-sm text-gray-500">{language === 'th' ? 'คนขับของคุณ' : 'Your driver'}</p>
                                         </div>
-                                        {/* Star Rating */}
-                                        <div className="flex gap-1">
-                                            {[1, 2, 3, 4, 5].map((star) => (
-                                                <button
-                                                    key={star}
-                                                    onClick={() => setRating(star)}
-                                                    className={`text-2xl transition-all active:scale-110 ${
-                                                        star <= rating ? 'text-amber-400' : 'text-gray-300'
-                                                    }`}
-                                                >
-                                                    ★
-                                                </button>
-                                            ))}
-                                        </div>
+                                    </div>
+
+                                    {/* Star Rating */}
+                                    <div className="flex justify-center gap-2 mb-4">
+                                        {[1, 2, 3, 4, 5].map((star) => (
+                                            <button
+                                                key={star}
+                                                onClick={() => setRating(star)}
+                                                className={`text-3xl transition-all active:scale-110 ${
+                                                    star <= rating ? 'text-amber-400' : 'text-gray-300'
+                                                }`}
+                                            >
+                                                ★
+                                            </button>
+                                        ))}
                                     </div>
 
                                     {/* Comment Input */}
@@ -1396,12 +1473,12 @@ export default function TestMaps1Page() {
                                         name="ratingComment"
                                         value={ratingComment}
                                         onChange={(e) => setRatingComment(e.target.value)}
-                                        placeholder={language === 'th' ? 'แสดงความคิดเห็น...' : 'Comment...'}
-                                        className="w-full px-4 py-3 bg-white border border-amber-200 rounded-xl text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                                        placeholder={language === 'th' ? 'แสดงความคิดเห็น (ไม่บังคับ)...' : 'Comment (optional)...'}
+                                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00b14f]/50"
                                     />
                                 </div>
 
-                                {/* Action Buttons - Side by side */}
+                                {/* Action Buttons - Grab Style */}
                                 <div className="flex gap-3">
                                     <button
                                         onClick={() => {
@@ -1409,9 +1486,9 @@ export default function TestMaps1Page() {
                                             setRatingComment('');
                                             resetTrip();
                                         }}
-                                        className="flex-1 h-14 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                                        className="flex-1 h-12 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                                     >
-                                        🚗 {language === 'th' ? 'จองใหม่' : 'New'}
+                                        {language === 'th' ? 'จองใหม่' : 'Book Again'}
                                     </button>
                                     <button
                                         onClick={async () => {
@@ -1424,12 +1501,12 @@ export default function TestMaps1Page() {
                                             resetTrip();
                                         }}
                                         disabled={isSubmittingRating}
-                                        className="flex-[2] h-14 bg-green-500 hover:bg-green-600 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:bg-green-300"
+                                        className="flex-[2] h-12 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:bg-[#00b14f]/50"
                                     >
                                         {isSubmittingRating ? (
-                                            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                                         ) : (
-                                            <>✅ {language === 'th' ? 'เสร็จสิ้น' : 'Done'}</>
+                                            <>{language === 'th' ? 'ส่งคะแนน' : 'Submit'}</>
                                         )}
                                     </button>
                                 </div>

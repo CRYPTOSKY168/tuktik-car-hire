@@ -105,6 +105,8 @@ export interface Booking {
     dropoffLocation: string;
     pickupCoordinates?: GeoCoordinates;   // GPS coordinates of pickup
     dropoffCoordinates?: GeoCoordinates;  // GPS coordinates of dropoff
+    pickupLocationId?: string;             // Location ID for restoring map
+    dropoffLocationId?: string;            // Location ID for restoring map
     distance?: number;                     // Distance in km
     estimatedDuration?: number;            // Estimated duration in minutes
     pickupDate: string;
