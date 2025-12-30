@@ -595,7 +595,13 @@ export default function DemoDriverPage() {
 
     // Handle reject job
     const handleRejectJob = async (bookingId: string) => {
-        if (!driver) return;
+        if (!driver) {
+            // Close modal even if no driver (edge case)
+            setShowNewJobModal(false);
+            setNewJobAlert(null);
+            newJobAlertRef.current = null;
+            return;
+        }
 
         setUpdatingStatus(bookingId);
         try {
@@ -616,20 +622,38 @@ export default function DemoDriverPage() {
             });
 
             const result = await response.json();
-            if (!result.success) throw new Error(result.error);
-
+            if (!result.success) {
+                // Log error but still close modal (job may have been cancelled/reassigned)
+                console.warn('Reject job failed:', result.error);
+            }
+        } catch (error: any) {
+            // Log error but don't show alert for auto-reject (countdown timeout)
+            console.error('Reject job error:', error.message);
+        } finally {
+            // Always close modal regardless of API result
             setShowNewJobModal(false);
             setNewJobAlert(null);
             newJobAlertRef.current = null;
-        } catch (error: any) {
-            alert(error.message || 'ไม่สามารถปฏิเสธงานได้');
-        } finally {
             setUpdatingStatus(null);
         }
     };
 
     // Keep ref in sync with function
     handleRejectJobRef.current = handleRejectJob;
+
+    // Auto-close modal when booking status changes (e.g., from script or admin)
+    useEffect(() => {
+        if (showNewJobModal && newJobAlert) {
+            // Check if the booking still exists and is still driver_assigned
+            const currentBooking = bookings.find(b => b.id === newJobAlert.id);
+            if (!currentBooking || currentBooking.status !== 'driver_assigned') {
+                // Booking was accepted, rejected, or deleted - close modal
+                setShowNewJobModal(false);
+                setNewJobAlert(null);
+                newJobAlertRef.current = null;
+            }
+        }
+    }, [showNewJobModal, newJobAlert, bookings]);
 
     // Accept job (from modal)
     const handleAcceptJob = async () => {

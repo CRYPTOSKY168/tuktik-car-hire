@@ -2482,10 +2482,61 @@ w-11 h-11 bg-gray-100 text-gray-600 rounded-full shadow-sm
 
 | Script | Description | Usage |
 |--------|-------------|-------|
+| `test-live-flow.js` | ⭐ **ทดสอบ Full Booking Flow แบบ Real-time** - ดูทั้ง 2 หน้าพร้อมกัน | `node scripts/test-live-flow.js` |
+| `test-booking-flow.js` | ทดสอบ Booking Flow + Options (stop-at-assign, cleanup) | `node scripts/test-booking-flow.js --stop-at-assign` |
 | `test-rating-flow.js` | ทดสอบ Rating System (Bayesian Average) | `node scripts/test-rating-flow.js --cleanup` |
 | `test-realtime-rating-auto.js` | ทดสอบ Real-time Rating Update | `node scripts/test-realtime-rating-auto.js` |
 | `check-logs.js` | ตรวจสอบ bugs (Vercel, Firebase, Code) | `node scripts/check-logs.js` |
 | `monitor-logs.js` | Monitor logs แบบ real-time | `node scripts/monitor-logs.js` |
+
+### ⭐ test-live-flow.js (แนะนำ!)
+
+**Script หลักสำหรับทดสอบ Full Booking Flow แบบ Real-time**
+
+```bash
+node scripts/test-live-flow.js
+```
+
+**ก่อนรัน เปิด 2 หน้านี้:**
+1. http://localhost:3000/test-maps1 → เปิด **Live Mode**
+2. http://localhost:3000/demo-driver → **Login** ด้วย imacroshosting@gmail.com
+
+**Flow ที่ทดสอบ (8 ขั้นตอน):**
+```
+Step 1: 📝 สร้าง Booking (pending)
+Step 2: ✅ Admin ยืนยัน (confirmed)
+Step 3: 🚗 Admin มอบหมายคนขับ (driver_assigned) → Modal ขึ้นบน demo-driver
+Step 4: 🚙 คนขับรับงาน (driver_en_route) → Modal ปิด
+Step 5: 🛣️ เริ่มเดินทาง (in_progress)
+Step 6: 🏁 เสร็จสิ้น (completed)
+Step 7: ⭐ ลูกค้าให้คะแนน + ทิป
+Step 8: 🔄 Rollback ข้อมูลทดสอบ
+```
+
+**Features:**
+- สุ่มสถานที่จุดรับ-ส่งอัตโนมัติ
+- มี delay 6 วินาทีระหว่างแต่ละ step เพื่อดู UI อัปเดต
+- Rollback อัตโนมัติหลังทดสอบเสร็จ
+- แสดงคำแนะนำว่าควรดูอะไรบนแต่ละหน้า
+
+### test-booking-flow.js Options
+
+```bash
+# ทดสอบเร็ว + rollback อัตโนมัติ
+node scripts/test-booking-flow.js
+
+# หยุดที่ driver_assigned (ดู Modal)
+node scripts/test-booking-flow.js --stop-at-assign
+
+# ไม่ rollback (เก็บข้อมูลไว้ดู)
+node scripts/test-booking-flow.js --no-rollback
+
+# รอ 20 วินาทีให้กดรับงานบน UI
+node scripts/test-booking-flow.js --wait-accept
+
+# ลบ booking ที่ค้างอยู่
+node scripts/test-booking-flow.js --cleanup <bookingId>
+```
 
 ### เมื่อไหร่ต้องเขียน Test Script?
 
