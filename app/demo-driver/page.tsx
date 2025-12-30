@@ -629,38 +629,7 @@ export default function DemoDriverPage() {
         }
     };
 
-    // Bottom sheet state
-    const [sheetHeight, setSheetHeight] = useState<'collapsed' | 'half' | 'full'>('half');
-    const [isDragging, setIsDragging] = useState(false);
-    const dragStartY = useRef(0);
-    const currentY = useRef(0);
-
-    // Handle bottom sheet drag
-    const handleTouchStart = (e: React.TouchEvent) => {
-        setIsDragging(true);
-        dragStartY.current = e.touches[0].clientY;
-        currentY.current = e.touches[0].clientY;
-    };
-
-    const handleTouchMove = (e: React.TouchEvent) => {
-        if (!isDragging) return;
-        currentY.current = e.touches[0].clientY;
-    };
-
-    const handleTouchEnd = () => {
-        if (!isDragging) return;
-        setIsDragging(false);
-        const diff = currentY.current - dragStartY.current;
-        if (diff > 50) {
-            // Swipe down
-            if (sheetHeight === 'full') setSheetHeight('half');
-            else if (sheetHeight === 'half') setSheetHeight('collapsed');
-        } else if (diff < -50) {
-            // Swipe up
-            if (sheetHeight === 'collapsed') setSheetHeight('half');
-            else if (sheetHeight === 'half') setSheetHeight('full');
-        }
-    };
+    // Bottom sheet is now auto-height (fit-content)
 
     // Loading
     if (loading || !isLoaded) {
@@ -710,14 +679,6 @@ export default function DemoDriverPage() {
         );
     }
 
-    // Calculate sheet height values
-    const getSheetTransform = () => {
-        switch (sheetHeight) {
-            case 'collapsed': return 'translateY(calc(100% - 100px))';
-            case 'full': return 'translateY(20%)';
-            default: return 'translateY(55%)';
-        }
-    };
 
     return (
         <div className="fixed inset-0 bg-gray-100">
@@ -866,19 +827,12 @@ export default function DemoDriverPage() {
                     )}
                 </div>
 
-                {/* ===== DRAGGABLE BOTTOM SHEET ===== */}
+                {/* ===== BOTTOM SHEET (Auto Height) ===== */}
                 <div
-                    className="absolute left-0 right-0 bottom-0 z-30 bg-white rounded-t-[28px] transition-transform duration-300 shadow-2xl"
-                    style={{
-                        transform: getSheetTransform(),
-                        height: '100%',
-                    }}
-                    onTouchStart={handleTouchStart}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
+                    className="absolute left-0 right-0 bottom-0 z-30 bg-white rounded-t-[28px] shadow-2xl"
                 >
-                    {/* Handle */}
-                    <div className="flex justify-center py-3 cursor-grab active:cursor-grabbing">
+                    {/* Handle bar (decorative) */}
+                    <div className="flex justify-center py-3">
                         <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
                     </div>
 
@@ -892,25 +846,25 @@ export default function DemoDriverPage() {
                             </div>
 
                             {/* Stats Grid */}
-                            <div className="grid grid-cols-3 gap-3 mb-6">
-                                <div className="bg-gray-50 rounded-2xl p-4 text-center border border-gray-100">
+                            <div className="grid grid-cols-3 gap-2 mb-6">
+                                <div className="bg-gray-50 rounded-2xl p-3 text-center border border-gray-100 min-w-0 overflow-hidden">
                                     <p className="text-gray-500 text-xs mb-1">งานวันนี้</p>
-                                    <p className="text-3xl font-bold text-gray-900">
+                                    <p className="text-2xl font-bold text-gray-900 truncate">
                                         {bookings.filter(b => b.status === 'completed' && b.pickupDate === new Date().toISOString().split('T')[0]).length}
                                     </p>
                                 </div>
-                                <div className="bg-green-50 rounded-2xl p-4 text-center border border-green-100">
+                                <div className="bg-green-50 rounded-2xl p-3 text-center border border-green-100 min-w-0 overflow-hidden">
                                     <p className="text-gray-500 text-xs mb-1">รายได้</p>
-                                    <p className="text-xl font-bold text-green-600">
+                                    <p className="text-base font-bold text-green-600 truncate">
                                         ฿{bookings
                                             .filter(b => b.status === 'completed' && b.pickupDate === new Date().toISOString().split('T')[0])
                                             .reduce((sum, b) => sum + (b.totalCost || 0), 0)
                                             .toLocaleString()}
                                     </p>
                                 </div>
-                                <div className="bg-amber-50 rounded-2xl p-4 text-center border border-amber-100">
+                                <div className="bg-amber-50 rounded-2xl p-3 text-center border border-amber-100 min-w-0 overflow-hidden">
                                     <p className="text-gray-500 text-xs mb-1">คะแนน</p>
-                                    <p className="text-2xl font-bold text-amber-500">4.9</p>
+                                    <p className="text-2xl font-bold text-amber-500 truncate">4.9</p>
                                 </div>
                             </div>
 
