@@ -237,9 +237,108 @@ export default function TestMaps1Page() {
     const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
 
     // Rating state for completed trips
-    const [rating, setRating] = useState<number>(0);
+    const [showRatingModal, setShowRatingModal] = useState(false);
+    const [ratingStars, setRatingStars] = useState(5);
+    const [ratingReasons, setRatingReasons] = useState<string[]>([]);
     const [ratingComment, setRatingComment] = useState('');
+    const [selectedTip, setSelectedTip] = useState<number>(0);
+    const [customTip, setCustomTip] = useState('');
     const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+
+    // Tip options
+    const tipOptions = [0, 20, 50, 100];
+
+    // Low rating reasons (customer to driver)
+    const lowRatingReasons = [
+        { code: 'late', label: language === 'th' ? 'มาสาย' : 'Late arrival' },
+        { code: 'dirty_car', label: language === 'th' ? 'รถไม่สะอาด' : 'Dirty car' },
+        { code: 'bad_driving', label: language === 'th' ? 'ขับรถไม่ดี' : 'Bad driving' },
+        { code: 'rude', label: language === 'th' ? 'ไม่สุภาพ' : 'Rude behavior' },
+        { code: 'wrong_route', label: language === 'th' ? 'ไปผิดทาง' : 'Wrong route' },
+        { code: 'other', label: language === 'th' ? 'อื่นๆ' : 'Other' },
+    ];
+
+    // Toggle rating reason
+    const toggleRatingReason = (code: string) => {
+        setRatingReasons(prev =>
+            prev.includes(code) ? prev.filter(r => r !== code) : [...prev, code]
+        );
+    };
+
+    // Reset rating form
+    const resetRatingForm = () => {
+        setRatingStars(5);
+        setRatingReasons([]);
+        setRatingComment('');
+        setSelectedTip(0);
+        setCustomTip('');
+        setShowRatingModal(false);
+    };
+
+    // Get auth token for API calls
+    const getAuthToken = async (): Promise<string | null> => {
+        if (!user) return null;
+        const { getIdToken } = await import('firebase/auth');
+        const { auth } = await import('@/lib/firebase/config');
+        if (!auth || !auth.currentUser) return null;
+        return getIdToken(auth.currentUser);
+    };
+
+    // Submit rating to API
+    const submitRating = async () => {
+        if (!bookingId && !activeBooking?.id) {
+            alert(language === 'th' ? 'ไม่พบข้อมูลการจอง' : 'Booking not found');
+            return;
+        }
+
+        // Validate low rating requires reasons
+        if (ratingStars <= 3 && ratingReasons.length === 0) {
+            alert(language === 'th' ? 'กรุณาเลือกเหตุผลสำหรับคะแนนต่ำ' : 'Please select reasons for low rating');
+            return;
+        }
+
+        setIsSubmittingRating(true);
+        try {
+            const token = await getAuthToken();
+            if (!token) {
+                alert(language === 'th' ? 'กรุณาเข้าสู่ระบบใหม่' : 'Please login again');
+                return;
+            }
+
+            const tipAmount = customTip ? parseInt(customTip) || 0 : selectedTip;
+
+            const response = await fetch('/api/booking/rate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    bookingId: bookingId || activeBooking?.id,
+                    ratingType: 'customerToDriver',
+                    stars: ratingStars,
+                    reasons: ratingStars <= 3 ? ratingReasons : undefined,
+                    comment: ratingComment.trim() || undefined,
+                    tip: tipAmount > 0 ? tipAmount : undefined,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to submit rating');
+            }
+
+            // Success - close modal and reset
+            resetRatingForm();
+            resetTrip();
+        } catch (error: any) {
+            console.error('Error submitting rating:', error);
+            alert(error.message || (language === 'th' ? 'ไม่สามารถส่งคะแนนได้' : 'Failed to submit rating'));
+        } finally {
+            setIsSubmittingRating(false);
+        }
+    };
 
     // Real-time driver tracking for live mode
     const { location: liveDriverLocation } = useDriverTracking(
@@ -1428,86 +1527,53 @@ export default function TestMaps1Page() {
                                     </div>
                                 </div>
 
-                                {/* Rating Section - Grab Style */}
-                                <div className="bg-gray-50 rounded-2xl p-4 mb-3 border border-gray-100">
-                                    <p className="text-center text-gray-600 text-sm mb-3">
-                                        {language === 'th' ? 'ให้คะแนนการเดินทาง' : 'Rate your trip'}
+                                {/* Celebration Text */}
+                                <div className="text-center mb-4">
+                                    <p className="text-2xl mb-1">🎉</p>
+                                    <p className="text-lg font-bold text-gray-900">
+                                        {language === 'th' ? 'ถึงปลายทางแล้ว!' : 'Trip Completed!'}
                                     </p>
+                                    <p className="text-sm text-gray-500">
+                                        {language === 'th' ? 'ขอบคุณที่ใช้บริการ TukTik' : 'Thank you for using TukTik'}
+                                    </p>
+                                </div>
 
-                                    {/* Driver Info */}
-                                    <div className="flex items-center justify-center gap-3 mb-4">
-                                        <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center text-2xl overflow-hidden ring-2 ring-[#00b14f]/20">
-                                            {assignedDriver?.photo ? (
-                                                <img src={assignedDriver.photo} alt="" className="w-full h-full object-cover" />
-                                            ) : (
-                                                '👨‍✈️'
-                                            )}
-                                        </div>
-                                        <div className="text-left">
-                                            <p className="font-semibold text-gray-900">
-                                                {assignedDriver?.name || activeBooking?.driver?.name || 'คนขับ'}
-                                            </p>
-                                            <p className="text-sm text-gray-500">{language === 'th' ? 'คนขับของคุณ' : 'Your driver'}</p>
-                                        </div>
+                                {/* Driver Quick Preview */}
+                                <div className="flex items-center justify-center gap-3 mb-4">
+                                    <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center text-2xl overflow-hidden ring-2 ring-[#00b14f]/20">
+                                        {assignedDriver?.photo ? (
+                                            <img src={assignedDriver.photo} alt="" className="w-full h-full object-cover" />
+                                        ) : (
+                                            '👨‍✈️'
+                                        )}
                                     </div>
-
-                                    {/* Star Rating */}
-                                    <div className="flex justify-center gap-2 mb-4">
-                                        {[1, 2, 3, 4, 5].map((star) => (
-                                            <button
-                                                key={star}
-                                                onClick={() => setRating(star)}
-                                                className={`text-3xl transition-all active:scale-110 ${
-                                                    star <= rating ? 'text-amber-400' : 'text-gray-300'
-                                                }`}
-                                            >
-                                                ★
-                                            </button>
-                                        ))}
+                                    <div className="text-left">
+                                        <p className="font-semibold text-gray-900">
+                                            {assignedDriver?.name || activeBooking?.driver?.name || 'คนขับ'}
+                                        </p>
+                                        <p className="text-sm text-gray-500">
+                                            {assignedDriver?.vehiclePlate || activeBooking?.driver?.vehiclePlate || ''}
+                                        </p>
                                     </div>
-
-                                    {/* Comment Input */}
-                                    <input
-                                        type="text"
-                                        id="rating-comment"
-                                        name="ratingComment"
-                                        value={ratingComment}
-                                        onChange={(e) => setRatingComment(e.target.value)}
-                                        placeholder={language === 'th' ? 'แสดงความคิดเห็น (ไม่บังคับ)...' : 'Comment (optional)...'}
-                                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00b14f]/50"
-                                    />
                                 </div>
 
                                 {/* Action Buttons - Grab Style */}
                                 <div className="flex gap-3">
                                     <button
                                         onClick={() => {
-                                            setRating(0);
-                                            setRatingComment('');
+                                            resetRatingForm();
                                             resetTrip();
                                         }}
                                         className="flex-1 h-12 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                                     >
-                                        {language === 'th' ? 'จองใหม่' : 'Book Again'}
+                                        {language === 'th' ? 'ข้าม' : 'Skip'}
                                     </button>
                                     <button
-                                        onClick={async () => {
-                                            setIsSubmittingRating(true);
-                                            console.log('Rating submitted:', { rating, comment: ratingComment });
-                                            await new Promise(resolve => setTimeout(resolve, 500));
-                                            setIsSubmittingRating(false);
-                                            setRating(0);
-                                            setRatingComment('');
-                                            resetTrip();
-                                        }}
-                                        disabled={isSubmittingRating}
-                                        className="flex-[2] h-12 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:bg-[#00b14f]/50"
+                                        onClick={() => setShowRatingModal(true)}
+                                        className="flex-[2] h-12 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                                     >
-                                        {isSubmittingRating ? (
-                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                        ) : (
-                                            <>{language === 'th' ? 'ส่งคะแนน' : 'Submit'}</>
-                                        )}
+                                        <span>⭐</span>
+                                        {language === 'th' ? 'ให้คะแนนคนขับ' : 'Rate Driver'}
                                     </button>
                                 </div>
                             </div>
@@ -1683,6 +1749,213 @@ export default function TestMaps1Page() {
                                     </div>
                                 </button>
                             ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Rating Modal Bottom Sheet */}
+            {showRatingModal && (
+                <div className="fixed inset-0 z-[100]">
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        onClick={() => !isSubmittingRating && setShowRatingModal(false)}
+                    />
+
+                    <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[90vh] flex flex-col animate-slide-up">
+                        {/* Handle */}
+                        <div className="flex justify-center py-3">
+                            <div className="w-10 h-1 bg-gray-300 rounded-full" />
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto px-4 pb-[max(16px,env(safe-area-inset-bottom))]">
+                            {/* Header */}
+                            <div className="text-center mb-6">
+                                <h2 className="text-xl font-bold text-gray-900">
+                                    {language === 'th' ? 'ให้คะแนนคนขับ' : 'Rate Your Driver'}
+                                </h2>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    {language === 'th' ? 'ความคิดเห็นของคุณช่วยพัฒนาบริการ' : 'Your feedback helps us improve'}
+                                </p>
+                            </div>
+
+                            {/* Driver Info */}
+                            <div className="flex items-center justify-center gap-3 mb-6">
+                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-3xl overflow-hidden ring-2 ring-[#00b14f]/20">
+                                    {assignedDriver?.photo ? (
+                                        <img src={assignedDriver.photo} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                        '👨‍✈️'
+                                    )}
+                                </div>
+                                <div className="text-left">
+                                    <p className="font-bold text-gray-900 text-lg">
+                                        {assignedDriver?.name || activeBooking?.driver?.name || 'คนขับ'}
+                                    </p>
+                                    <p className="text-sm text-gray-500">
+                                        {assignedDriver?.vehicleModel || activeBooking?.driver?.vehicleModel || ''} • {assignedDriver?.vehiclePlate || activeBooking?.driver?.vehiclePlate || ''}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Star Rating */}
+                            <div className="mb-6">
+                                <p className="text-center text-gray-600 text-sm mb-3">
+                                    {language === 'th' ? 'แตะเพื่อให้คะแนน' : 'Tap to rate'}
+                                </p>
+                                <div className="flex justify-center gap-3">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <button
+                                            key={star}
+                                            onClick={() => {
+                                                setRatingStars(star);
+                                                if (star > 3) setRatingReasons([]);
+                                            }}
+                                            className={`text-4xl transition-all active:scale-125 ${
+                                                star <= ratingStars ? 'text-amber-400' : 'text-gray-300'
+                                            }`}
+                                        >
+                                            ★
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="text-center text-sm mt-2 font-medium text-gray-700">
+                                    {ratingStars === 5 && (language === 'th' ? 'ยอดเยี่ยม!' : 'Excellent!')}
+                                    {ratingStars === 4 && (language === 'th' ? 'ดีมาก' : 'Very Good')}
+                                    {ratingStars === 3 && (language === 'th' ? 'ปานกลาง' : 'Average')}
+                                    {ratingStars === 2 && (language === 'th' ? 'ไม่ค่อยดี' : 'Below Average')}
+                                    {ratingStars === 1 && (language === 'th' ? 'ต้องปรับปรุง' : 'Poor')}
+                                </p>
+                            </div>
+
+                            {/* Low Rating Reasons - Show only when stars <= 3 */}
+                            {ratingStars <= 3 && (
+                                <div className="mb-6">
+                                    <p className="text-sm font-semibold text-gray-700 mb-3">
+                                        {language === 'th' ? 'เกิดปัญหาอะไรบ้าง? (เลือกได้หลายข้อ)' : 'What went wrong? (Select all that apply)'}
+                                        <span className="text-red-500 ml-1">*</span>
+                                    </p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {lowRatingReasons.map((reason) => (
+                                            <button
+                                                key={reason.code}
+                                                onClick={() => toggleRatingReason(reason.code)}
+                                                className={`px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all active:scale-[0.98] ${
+                                                    ratingReasons.includes(reason.code)
+                                                        ? 'border-red-500 bg-red-50 text-red-700'
+                                                        : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100'
+                                                }`}
+                                            >
+                                                {reason.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {ratingStars <= 3 && ratingReasons.length === 0 && (
+                                        <p className="text-xs text-red-500 mt-2">
+                                            {language === 'th' ? '* กรุณาเลือกอย่างน้อย 1 ข้อ' : '* Please select at least 1 reason'}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Tip Section */}
+                            <div className="mb-6">
+                                <p className="text-sm font-semibold text-gray-700 mb-3">
+                                    {language === 'th' ? '💰 ให้ทิปคนขับ (ไม่บังคับ)' : '💰 Tip your driver (optional)'}
+                                </p>
+                                <div className="grid grid-cols-4 gap-2 mb-3">
+                                    {tipOptions.map((tip) => (
+                                        <button
+                                            key={tip}
+                                            onClick={() => {
+                                                setSelectedTip(tip);
+                                                setCustomTip('');
+                                            }}
+                                            className={`py-3 rounded-xl border-2 text-sm font-bold transition-all active:scale-[0.98] ${
+                                                selectedTip === tip && !customTip
+                                                    ? 'border-[#00b14f] bg-[#00b14f]/10 text-[#00b14f]'
+                                                    : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100'
+                                            }`}
+                                        >
+                                            {tip === 0 ? (language === 'th' ? 'ไม่ให้' : 'No tip') : `฿${tip}`}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Custom Tip Input */}
+                                <div className="relative">
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">฿</span>
+                                    <input
+                                        type="number"
+                                        id="custom-tip"
+                                        name="customTip"
+                                        value={customTip}
+                                        onChange={(e) => {
+                                            setCustomTip(e.target.value);
+                                            setSelectedTip(0);
+                                        }}
+                                        placeholder={language === 'th' ? 'จำนวนอื่น...' : 'Other amount...'}
+                                        className={`w-full pl-10 pr-4 py-3 rounded-xl border-2 text-gray-900 placeholder-gray-400 focus:outline-none transition-all ${
+                                            customTip ? 'border-[#00b14f] bg-[#00b14f]/5' : 'border-gray-200 bg-gray-50 focus:border-[#00b14f]'
+                                        }`}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Comment */}
+                            <div className="mb-6">
+                                <p className="text-sm font-semibold text-gray-700 mb-3">
+                                    {language === 'th' ? '💬 ความคิดเห็นเพิ่มเติม (ไม่บังคับ)' : '💬 Additional comments (optional)'}
+                                </p>
+                                <textarea
+                                    id="rating-comment-modal"
+                                    name="ratingComment"
+                                    value={ratingComment}
+                                    onChange={(e) => setRatingComment(e.target.value)}
+                                    placeholder={language === 'th' ? 'เขียนความคิดเห็น...' : 'Write your comment...'}
+                                    rows={3}
+                                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#00b14f] transition-all resize-none"
+                                />
+                            </div>
+
+                            {/* Summary */}
+                            {(customTip || selectedTip > 0) && (
+                                <div className="bg-[#00b14f]/5 rounded-2xl p-4 mb-6 border border-[#00b14f]/20">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-gray-600">
+                                            {language === 'th' ? 'ทิปสำหรับคนขับ' : 'Tip for driver'}
+                                        </span>
+                                        <span className="font-bold text-[#00b14f] text-lg">
+                                            ฿{(customTip ? parseInt(customTip) || 0 : selectedTip).toLocaleString()}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => !isSubmittingRating && setShowRatingModal(false)}
+                                    disabled={isSubmittingRating}
+                                    className="flex-1 h-14 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-semibold transition-all active:scale-[0.98] disabled:opacity-50"
+                                >
+                                    {language === 'th' ? 'ยกเลิก' : 'Cancel'}
+                                </button>
+                                <button
+                                    onClick={submitRating}
+                                    disabled={isSubmittingRating || (ratingStars <= 3 && ratingReasons.length === 0)}
+                                    className="flex-[2] h-14 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                >
+                                    {isSubmittingRating ? (
+                                        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    ) : (
+                                        <>
+                                            <span>⭐</span>
+                                            {language === 'th' ? 'ส่งคะแนน' : 'Submit Rating'}
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -1,9 +1,9 @@
 # TukTik Car Rental - Project Documentation
 
 > **Last Updated:** 2025-12-31
-> **Version:** 7.3 (Live Mode Bug Fixes)
+> **Version:** 7.5 (Bayesian Average Rating)
 > **Status:** Production
-> **Lines:** ~3550+
+> **Lines:** ~3700+
 
 ---
 
@@ -2054,7 +2054,7 @@ STRIPE_WEBHOOK_SECRET=
 4. **Voucher Admin UI** - หน้า admin จัดการ voucher
 
 ### Medium Priority
-5. **Reviews/Ratings** - รีวิวหลังเสร็จงาน
+5. ~~**Reviews/Ratings** - รีวิวหลังเสร็จงาน~~ ✅ **DONE v7.4**
 6. **Recurring Bookings** - จองประจำ
 
 ### Nice to Have
@@ -2183,6 +2183,122 @@ estimatedDuration?: number; // minutes
 - [ ] สร้าง /api/driver/location endpoint
 - [ ] เพิ่ม map ในหน้า driver dashboard
 - [ ] เพิ่ม tracking map ในหน้า customer dashboard
+
+---
+
+## ⭐ Rating System (v7.4)
+
+> **Status:** Complete | **API:** `/api/booking/rate`
+
+### Overview
+
+ระบบให้คะแนนแบบสองทาง (Two-way Rating) เหมือน Grab/Uber:
+- ลูกค้าให้คะแนนคนขับ + ทิป
+- คนขับให้คะแนนลูกค้า
+
+### API Endpoint
+
+```typescript
+POST /api/booking/rate
+Authorization: Bearer <token>
+
+// Request Body
+{
+    bookingId: string,
+    ratingType: 'customerToDriver' | 'driverToCustomer',
+    stars: number,        // 1-5 (integer)
+    reasons?: string[],   // Required if stars <= 3
+    comment?: string,     // Max 500 chars, sanitized
+    tip?: number          // 0-10000 (customerToDriver only)
+}
+
+// Response
+{ success: true, message: 'บันทึกคะแนนเรียบร้อยแล้ว', data: {...} }
+{ success: false, error: 'Error message' }
+```
+
+### Valid Reason Codes
+
+| Code | ใช้โดย | Description |
+|------|--------|-------------|
+| `late` | Customer | คนขับมาสาย |
+| `dirty_car` | Customer | รถไม่สะอาด |
+| `bad_driving` | Customer | ขับรถไม่ดี |
+| `rude` | Customer | ไม่สุภาพ |
+| `wrong_route` | Customer | ไปผิดทาง |
+| `no_show` | Driver | ลูกค้าไม่มา |
+| `messy` | Driver | ทิ้งขยะ/ทำเลอะ |
+| `other` | Both | อื่นๆ |
+
+### Security Measures
+
+| Security | Description |
+|----------|-------------|
+| **Authentication** | ต้องมี Bearer token |
+| **Authorization** | Customer ให้คะแนนได้เฉพาะ booking ตัวเอง, Driver ให้คะแนนได้เฉพาะ booking ที่รับ |
+| **Rate Limiting** | 10 requests/minute per user |
+| **Tip Limit** | Max ฿10,000 |
+| **XSS Protection** | ลบ HTML tags จาก comment |
+| **Reason Validation** | ต้องอยู่ใน whitelist |
+| **Duplicate Prevention** | ให้คะแนนได้ครั้งเดียวต่อ booking |
+| **Status Check** | ให้คะแนนได้เฉพาะ booking ที่ completed |
+
+### Bayesian Average Rating Formula
+
+ใช้ Bayesian Average แทน Simple Average เพื่อความยุติธรรม:
+
+```typescript
+// Constants
+const BAYESIAN_PRIOR_MEAN = 4.0;  // C: ค่าเริ่มต้นระบบ
+const BAYESIAN_MIN_REVIEWS = 5;   // m: จำนวน review ขั้นต่ำที่เชื่อถือได้
+
+// Formula
+function calculateBayesianRating(currentRating, ratingCount, newStars) {
+    const totalSum = (currentRating * ratingCount) + newStars;
+    const totalCount = ratingCount + 1;
+    const bayesianRating = ((C * m) + totalSum) / (m + totalCount);
+    return Math.round(bayesianRating * 10) / 10;  // Round to 1 decimal
+}
+
+// ตัวอย่าง:
+// - คนขับใหม่ได้ 5 ดาว → 4.2 (ไม่ใช่ 5.0)
+// - คนขับมี 4.5 (10 reviews) + 5 ดาวใหม่ → 4.4
+```
+
+### Database Updates
+
+เมื่อให้คะแนนสำเร็จ API จะอัปเดต:
+
+```
+Customer → Driver:
+├── booking.ratings.customerToDriver = { stars, comment, tip, ratedAt }
+├── driver.rating = calculateBayesianRating(...)  // Bayesian Average
+├── driver.ratingCount++
+├── driver.totalTips += tip
+└── driver.totalEarnings += tip
+
+Driver → Customer:
+├── booking.ratings.driverToCustomer = { stars, reasons, comment, ratedAt }
+├── user.rating = calculateBayesianRating(...)  // Bayesian Average
+└── user.ratingCount++
+```
+
+### Test Script
+
+```bash
+# ทดสอบ Rating Flow
+node scripts/test-rating-flow.js
+
+# ทดสอบและลบ test data
+node scripts/test-rating-flow.js --cleanup
+```
+
+### Frontend Implementation
+
+| Page | Rating Type | Features |
+|------|-------------|----------|
+| `/test-maps1` | customerToDriver | ดาว + ทิป (฿0/20/50/100/custom) + comment |
+| `/demo-driver` | driverToCustomer | ดาว + เหตุผล + comment |
 
 ---
 
@@ -2358,6 +2474,53 @@ w-11 h-11 bg-gray-100 text-gray-600 rounded-full shadow-sm
 ---
 
 ## Changelog
+
+### 2025-12-31 v7.5 - Bayesian Average Rating ⭐📊
+- **เปลี่ยนระบบคำนวณคะแนนจาก Simple Average เป็น Bayesian Average**
+  - **สูตร:** `bayesianRating = ((C × m) + totalSum) / (m + totalCount)`
+  - **C (Prior Mean):** 4.0 - ค่าเริ่มต้นระบบ
+  - **m (Min Reviews):** 5 - จำนวน review ขั้นต่ำที่เชื่อถือได้
+- **ประโยชน์:**
+  - คนขับใหม่ที่ได้ 5 ดาวจาก 1 review ไม่แสดงเป็น 5.0 ทันที
+  - ป้องกันการปั่นคะแนนด้วย review จำนวนน้อย
+  - ยุติธรรมกับคนขับที่มี review จำนวนมาก
+- **ตัวอย่างการคำนวณ:**
+  - คนขับมี rating 4.5 (10 reviews) ได้รับ 5 ดาวใหม่ → 4.4 (ดึงเข้าหา 4.0)
+  - User ใหม่ได้รับ 3 ดาว → 3.8 (ไม่ใช่ 3.0 ตรงๆ)
+- **Files modified:**
+  - `app/api/booking/rate/route.ts` - เพิ่ม `calculateBayesianRating()` function
+  - `scripts/test-rating-flow.js` - อัปเดตให้ใช้ Bayesian formula เดียวกัน
+
+### 2025-12-31 v7.4 - Rating System + Security 🔒⭐
+- **ระบบให้คะแนนเต็มรูปแบบ (Grab/Uber Style):**
+  - ลูกค้าให้คะแนนคนขับ (1-5 ดาว) + ทิป + ความคิดเห็น
+  - คนขับให้คะแนนลูกค้า (1-5 ดาว) + เหตุผล + ความคิดเห็น
+  - บังคับเลือกเหตุผลถ้าคะแนน ≤3 ดาว
+  - อัปเดต rating เฉลี่ยอัตโนมัติ
+  - เพิ่มทิปเข้า `driver.totalTips` และ `totalEarnings`
+- **API `/api/booking/rate`:**
+  - POST endpoint สำหรับส่งคะแนน
+  - รองรับ `customerToDriver` และ `driverToCustomer`
+- **Security Hardening (4 ข้อ):**
+  1. **Rate Limiting**: จำกัด 10 requests/minute per user
+  2. **Tip Validation**: จำกัด max ฿10,000
+  3. **Comment Sanitization**: ลบ HTML/XSS tags, จำกัด 500 ตัวอักษร
+  4. **Reason Code Whitelist**: ตรวจสอบ reason codes ใน whitelist
+- **Rating Modal UI:**
+  - `test-maps1`: Rating Modal พร้อมทิป (฿0/฿20/฿50/฿100/custom)
+  - `demo-driver`: Rating Modal พร้อมเหตุผลสำหรับคะแนนต่ำ
+- **Test Script:**
+  - `scripts/test-rating-flow.js` - ทดสอบ rating flow ครบ
+  - รัน: `node scripts/test-rating-flow.js --cleanup`
+- **Types เพิ่ม:**
+  - `RatingReasonCode` enum
+  - `CustomerRating`, `DriverRating`, `BookingRatings` interfaces
+- **Files created/modified:**
+  - `app/api/booking/rate/route.ts` - NEW: Rating API
+  - `app/test-maps1/page.tsx` - Rating Modal (customer)
+  - `app/demo-driver/page.tsx` - Rating Modal (driver)
+  - `lib/types/index.ts` - Rating types
+  - `scripts/test-rating-flow.js` - NEW: Test script
 
 ### 2025-12-31 v7.3 - Live Mode Bug Fixes 🐛
 - **แก้ไข 3 บั๊กใน `/test-maps1` Live Mode:**
@@ -3106,5 +3269,5 @@ vercel --prod        # Deploy to production
 
 ---
 
-*Document maintained by development team. Last updated: 2025-12-30*
-*Lines: ~3450 | Version: 7.1 (Driver GPS Location Tracking) 📍*
+*Document maintained by development team. Last updated: 2025-12-31*
+*Lines: ~3700 | Version: 7.5 (Bayesian Average Rating) ⭐📊*

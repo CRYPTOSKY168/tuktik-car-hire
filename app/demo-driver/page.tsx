@@ -30,6 +30,10 @@ interface DriverData {
     vehicleColor?: string;
     status: DriverStatus | string;
     photo?: string;
+    rating?: number;
+    ratingCount?: number;
+    totalTrips?: number;
+    totalEarnings?: number;
 }
 
 interface Booking {
@@ -316,6 +320,10 @@ export default function DemoDriverPage() {
                             vehicleColor: driverData.vehicleColor,
                             status: driverData.status || DriverStatus.OFFLINE,
                             photo: driverData.photo,
+                            rating: driverData.rating,
+                            ratingCount: driverData.ratingCount,
+                            totalTrips: driverData.totalTrips,
+                            totalEarnings: driverData.totalEarnings,
                         };
                         setDriver(driverInfo);
                         setDriverStatus(driverInfo.status);
@@ -343,6 +351,10 @@ export default function DemoDriverPage() {
                             vehicleColor: driverData.vehicleColor,
                             status: driverData.status || DriverStatus.OFFLINE,
                             photo: driverData.photo,
+                            rating: driverData.rating,
+                            ratingCount: driverData.ratingCount,
+                            totalTrips: driverData.totalTrips,
+                            totalEarnings: driverData.totalEarnings,
                         };
                         setDriver(driverInfo);
                         setDriverStatus(driverInfo.status);
@@ -442,6 +454,22 @@ export default function DemoDriverPage() {
     // Recently completed booking (within last 5 minutes)
     const [recentlyCompleted, setRecentlyCompleted] = useState<Booking | null>(null);
     const [showCompletedModal, setShowCompletedModal] = useState(false);
+
+    // Rating Modal states
+    const [showRatingModal, setShowRatingModal] = useState(false);
+    const [ratingStars, setRatingStars] = useState(5);
+    const [ratingReasons, setRatingReasons] = useState<string[]>([]);
+    const [ratingComment, setRatingComment] = useState('');
+    const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+
+    // Low rating reasons for driver rating customer
+    const lowRatingReasons = [
+        { code: 'no_show', label: 'ไม่มาตามนัด' },
+        { code: 'late', label: 'มาสาย' },
+        { code: 'rude', label: 'ไม่สุภาพ' },
+        { code: 'messy', label: 'ทำรถสกปรก' },
+        { code: 'other', label: 'อื่นๆ' },
+    ];
 
     // GPS Location Tracking
     const locationTracking = useDriverLocationUpdates(
@@ -587,6 +615,74 @@ export default function DemoDriverPage() {
     const handleAcceptJob = async () => {
         if (!newJobAlert) return;
         await handleBookingAction(newJobAlert.id, 'driver_en_route');
+    };
+
+    // Submit rating for customer
+    const submitRating = async (skip: boolean = false) => {
+        if (!recentlyCompleted) return;
+
+        if (skip) {
+            // Skip rating - just close modals
+            setShowRatingModal(false);
+            setRecentlyCompleted(null);
+            resetRatingForm();
+            return;
+        }
+
+        // Validate low rating requires reasons
+        if (ratingStars <= 3 && ratingReasons.length === 0) {
+            alert('กรุณาเลือกเหตุผลสำหรับคะแนนต่ำ');
+            return;
+        }
+
+        setIsSubmittingRating(true);
+        try {
+            const token = await getAuthToken();
+            if (!token) throw new Error('กรุณาเข้าสู่ระบบใหม่');
+
+            const response = await fetch('/api/booking/rate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    bookingId: recentlyCompleted.id,
+                    ratingType: 'driverToCustomer',
+                    stars: ratingStars,
+                    reasons: ratingStars <= 3 ? ratingReasons : undefined,
+                    comment: ratingComment || undefined,
+                }),
+            });
+
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error);
+
+            // Success - close modal
+            setShowRatingModal(false);
+            setRecentlyCompleted(null);
+            resetRatingForm();
+        } catch (error: any) {
+            alert(error.message || 'ไม่สามารถบันทึกคะแนนได้');
+        } finally {
+            setIsSubmittingRating(false);
+        }
+    };
+
+    // Reset rating form
+    const resetRatingForm = () => {
+        setRatingStars(5);
+        setRatingReasons([]);
+        setRatingComment('');
+    };
+
+    // Toggle rating reason
+    const toggleRatingReason = (code: string) => {
+        setRatingReasons(prev =>
+            prev.includes(code)
+                ? prev.filter(r => r !== code)
+                : [...prev, code]
+        );
     };
 
     // Open external navigation (Google Maps / Apple Maps)
@@ -892,7 +988,9 @@ export default function DemoDriverPage() {
                                 </div>
                                 <div className="bg-amber-50 rounded-2xl p-3 text-center border border-amber-100 min-w-0 overflow-hidden">
                                     <p className="text-gray-500 text-xs mb-1">คะแนน</p>
-                                    <p className="text-2xl font-bold text-amber-500 truncate">4.9</p>
+                                    <p className="text-2xl font-bold text-amber-500 truncate">
+                                        {driver?.rating?.toFixed(1) || '-'}
+                                    </p>
                                 </div>
                             </div>
 
@@ -1224,25 +1322,141 @@ export default function DemoDriverPage() {
                                 <button
                                     onClick={() => {
                                         setShowCompletedModal(false);
-                                        setRecentlyCompleted(null);
+                                        setShowRatingModal(true);
+                                        resetRatingForm();
                                     }}
                                     className="w-full h-14 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg"
                                 >
-                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                                     </svg>
-                                    รับงานต่อ
+                                    ให้คะแนนลูกค้า
                                 </button>
 
                                 <button
                                     onClick={() => {
                                         setShowCompletedModal(false);
                                         setRecentlyCompleted(null);
-                                        router.push('/driver/history');
                                     }}
                                     className="w-full h-12 mt-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl font-medium flex items-center justify-center gap-2"
                                 >
-                                    ดูประวัติงาน
+                                    ข้ามไปก่อน
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* === RATING MODAL - Driver rates Customer === */}
+                {showRatingModal && recentlyCompleted && (
+                    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="w-full max-w-[380px] bg-white rounded-3xl animate-scale-up shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+                            {/* Header */}
+                            <div className="bg-gray-50 p-5 text-center border-b border-gray-100">
+                                <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <svg className="w-8 h-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                </div>
+                                <h2 className="text-gray-900 text-xl font-bold">{recentlyCompleted.firstName} {recentlyCompleted.lastName}</h2>
+                                <p className="text-gray-500 text-sm mt-1">ให้คะแนนลูกค้า</p>
+                            </div>
+
+                            <div className="p-5">
+                                {/* Star Rating */}
+                                <div className="flex justify-center gap-2 mb-6">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <button
+                                            key={star}
+                                            onClick={() => {
+                                                setRatingStars(star);
+                                                if (star > 3) setRatingReasons([]);
+                                            }}
+                                            className="p-1 transition-transform active:scale-90"
+                                        >
+                                            <svg
+                                                className={`w-12 h-12 ${star <= ratingStars ? 'text-amber-400' : 'text-gray-300'}`}
+                                                fill="currentColor"
+                                                viewBox="0 0 20 20"
+                                            >
+                                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                            </svg>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Rating Label */}
+                                <p className="text-center text-gray-600 mb-4">
+                                    {ratingStars === 5 && 'ยอดเยี่ยม!'}
+                                    {ratingStars === 4 && 'ดีมาก'}
+                                    {ratingStars === 3 && 'พอใช้'}
+                                    {ratingStars === 2 && 'ต้องปรับปรุง'}
+                                    {ratingStars === 1 && 'แย่มาก'}
+                                </p>
+
+                                {/* Low Rating Reasons */}
+                                {ratingStars <= 3 && (
+                                    <div className="mb-4">
+                                        <p className="text-gray-700 font-medium mb-3">เกิดอะไรขึ้น? <span className="text-red-500">*</span></p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {lowRatingReasons.map((reason) => (
+                                                <button
+                                                    key={reason.code}
+                                                    onClick={() => toggleRatingReason(reason.code)}
+                                                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                                                        ratingReasons.includes(reason.code)
+                                                            ? 'bg-red-500 text-white'
+                                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                    }`}
+                                                >
+                                                    {reason.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Comment */}
+                                <div className="mb-6">
+                                    <label htmlFor="rating-comment" className="text-gray-700 font-medium mb-2 block">
+                                        ความคิดเห็นเพิ่มเติม (ไม่บังคับ)
+                                    </label>
+                                    <textarea
+                                        id="rating-comment"
+                                        name="rating-comment"
+                                        value={ratingComment}
+                                        onChange={(e) => setRatingComment(e.target.value)}
+                                        placeholder="พิมพ์ความคิดเห็น..."
+                                        rows={3}
+                                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00b14f]/50 focus:border-[#00b14f] resize-none"
+                                    />
+                                </div>
+
+                                {/* Submit Button */}
+                                <button
+                                    onClick={() => submitRating(false)}
+                                    disabled={isSubmittingRating || (ratingStars <= 3 && ratingReasons.length === 0)}
+                                    className="w-full h-14 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isSubmittingRating ? (
+                                        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    ) : (
+                                        <>
+                                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                            </svg>
+                                            ส่งคะแนน
+                                        </>
+                                    )}
+                                </button>
+
+                                {/* Skip Button */}
+                                <button
+                                    onClick={() => submitRating(true)}
+                                    disabled={isSubmittingRating}
+                                    className="w-full h-12 mt-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                    ข้ามไปก่อน
                                 </button>
                             </div>
                         </div>

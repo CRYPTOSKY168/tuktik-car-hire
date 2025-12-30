@@ -62,6 +62,21 @@ export enum NotificationType {
     PROMOTION = 'promotion',
 }
 
+// Rating reason codes (for low ratings ≤3 stars)
+export enum RatingReasonCode {
+    // Customer to Driver reasons
+    LATE = 'late',
+    DIRTY_CAR = 'dirty_car',
+    BAD_DRIVING = 'bad_driving',
+    RUDE = 'rude',
+    WRONG_ROUTE = 'wrong_route',
+    // Driver to Customer reasons
+    NO_SHOW = 'no_show',
+    MESSY = 'messy',
+    // Common
+    OTHER = 'other',
+}
+
 // ============ INTERFACES ============
 
 // Location coordinates interface for tracking
@@ -83,6 +98,29 @@ export interface StatusHistoryEntry {
     status: string;
     timestamp: Timestamp | { seconds: number };
     note?: string;
+}
+
+// Rating from customer to driver
+export interface CustomerRating {
+    stars: number;               // 1-5
+    reasons?: RatingReasonCode[];  // Required if stars <= 3
+    comment?: string;
+    tip?: number;                // Amount in THB
+    ratedAt: Timestamp | Date;
+}
+
+// Rating from driver to customer (optional)
+export interface DriverRating {
+    stars: number;               // 1-5
+    reasons?: RatingReasonCode[];
+    comment?: string;
+    ratedAt: Timestamp | Date;
+}
+
+// Combined ratings for a booking
+export interface BookingRatings {
+    customerToDriver?: CustomerRating;
+    driverToCustomer?: DriverRating;
 }
 
 export interface BookingDriver {
@@ -122,6 +160,7 @@ export interface Booking {
     slipUrl?: string;
     driver?: BookingDriver;
     statusHistory?: StatusHistoryEntry[];
+    ratings?: BookingRatings;           // Rating system
     notes?: string;
     createdAt: Timestamp | Date | string;
     updatedAt?: Timestamp | Date;
@@ -145,6 +184,7 @@ export interface Driver {
     setupStatus?: DriverSetupStatus | string;
     totalTrips: number;
     totalEarnings: number;  // รายได้รวมทั้งหมด (บาท)
+    totalTips?: number;     // ทิปรวมทั้งหมด (บาท)
     rating: number;
     ratingCount: number;
     isActive: boolean;
