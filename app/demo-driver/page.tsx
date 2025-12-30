@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase/config';
-import { doc, getDoc, query, collection, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, query, collection, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { FirestoreService } from '@/lib/firebase/firestore';
 import { DriverStatus } from '@/lib/types';
 import { useDriverLocationUpdates } from '@/lib/hooks/useGeolocation';
@@ -292,6 +292,7 @@ export default function DemoDriverPage() {
         }
 
         let unsubscribeBookings: (() => void) | null = null;
+        let unsubscribeDriver: (() => void) | null = null;
 
         const unsubscribeAuth = onAuthStateChanged(auth, async (authUser) => {
             if (!authUser) {
@@ -362,11 +363,29 @@ export default function DemoDriverPage() {
                     }
                 }
 
-                // Subscribe to bookings
+                // Subscribe to bookings and driver document (real-time)
                 if (foundDriverId) {
+                    // Subscribe to bookings
                     unsubscribeBookings = FirestoreService.subscribeToDriverBookings(foundDriverId, (driverBookings) => {
                         setBookings(driverBookings);
                         checkForNewBookings(driverBookings);
+                    });
+
+                    // Subscribe to driver document for real-time rating/stats updates
+                    const driverDocRef = doc(db!, 'drivers', foundDriverId);
+                    unsubscribeDriver = onSnapshot(driverDocRef, (snapshot) => {
+                        if (snapshot.exists()) {
+                            const driverData = snapshot.data();
+                            setDriver(prev => prev ? {
+                                ...prev,
+                                status: driverData.status || DriverStatus.OFFLINE,
+                                rating: driverData.rating,
+                                ratingCount: driverData.ratingCount,
+                                totalTrips: driverData.totalTrips,
+                                totalEarnings: driverData.totalEarnings,
+                            } : null);
+                            setDriverStatus(driverData.status || DriverStatus.OFFLINE);
+                        }
                     });
                 }
 
@@ -380,6 +399,7 @@ export default function DemoDriverPage() {
         return () => {
             unsubscribeAuth();
             if (unsubscribeBookings) unsubscribeBookings();
+            if (unsubscribeDriver) unsubscribeDriver();
         };
     }, [router, checkForNewBookings]);
 
