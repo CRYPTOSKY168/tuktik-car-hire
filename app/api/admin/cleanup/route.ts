@@ -57,6 +57,51 @@ export async function POST(request: NextRequest) {
                 });
             }
 
+            case 'deleteAllBookings': {
+                // Delete all bookings (for production reset)
+                const bookingsSnapshot = await adminDb.collection('bookings').get();
+
+                if (bookingsSnapshot.empty) {
+                    return NextResponse.json({
+                        success: true,
+                        message: 'No bookings to delete',
+                        deletedCount: 0
+                    });
+                }
+
+                // Delete in batches (Firestore limit: 500 per batch)
+                const batchSize = 500;
+                let deletedCount = 0;
+                const batches = [];
+                let currentBatch = adminDb.batch();
+                let operationCount = 0;
+
+                for (const doc of bookingsSnapshot.docs) {
+                    currentBatch.delete(doc.ref);
+                    operationCount++;
+                    deletedCount++;
+
+                    if (operationCount >= batchSize) {
+                        batches.push(currentBatch.commit());
+                        currentBatch = adminDb.batch();
+                        operationCount = 0;
+                    }
+                }
+
+                // Commit remaining operations
+                if (operationCount > 0) {
+                    batches.push(currentBatch.commit());
+                }
+
+                await Promise.all(batches);
+
+                return NextResponse.json({
+                    success: true,
+                    message: `ลบ booking ทั้งหมด ${deletedCount} รายการเรียบร้อยแล้ว`,
+                    deletedCount
+                });
+            }
+
             case 'fixStaleDriverStatus': {
                 // Find all drivers with 'busy' status but no active bookings
                 const driversSnapshot = await adminDb.collection('drivers')
@@ -98,7 +143,7 @@ export async function POST(request: NextRequest) {
 
             default:
                 return NextResponse.json(
-                    { success: false, error: 'Invalid action. Use "removeWrongAdmins" or "fixStaleDriverStatus"' },
+                    { success: false, error: 'Invalid action. Use "removeWrongAdmins", "fixStaleDriverStatus", or "deleteAllBookings"' },
                     { status: 400 }
                 );
         }

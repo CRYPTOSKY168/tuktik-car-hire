@@ -491,5 +491,59 @@ export const BookingService = {
         } catch {
             return { totalBookings: 0, totalSpent: 0, completedTrips: 0 };
         }
+    },
+
+    /**
+     * Subscribe to user bookings matched by userId, email, or phone
+     * This is more accurate as it matches bookings the same way admin page does
+     */
+    subscribeToUserBookingsComprehensive(
+        userId: string,
+        userEmail: string | null,
+        userPhone: string | null,
+        callback: (bookings: Booking[]) => void
+    ): () => void {
+        if (!db) {
+            callback([]);
+            return () => {};
+        }
+
+        // Subscribe to all bookings and filter client-side
+        // This matches the admin customers page logic exactly
+        return onSnapshot(
+            query(collection(db!, COLLECTION_NAME)),
+            (snapshot) => {
+                const allBookings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Booking[];
+
+                // Filter bookings that match this user by userId, email, or phone
+                const normalizedEmail = userEmail?.toLowerCase();
+                const normalizedPhone = userPhone?.replace(/[^0-9+]/g, '');
+
+                const userBookings = allBookings.filter((booking: any) => {
+                    // Match by userId
+                    if (booking.userId === userId) return true;
+
+                    // Match by email
+                    if (normalizedEmail && booking.email?.toLowerCase() === normalizedEmail) return true;
+
+                    // Match by phone
+                    if (normalizedPhone && booking.phone?.replace(/[^0-9+]/g, '') === normalizedPhone) return true;
+
+                    return false;
+                });
+
+                // Sort by createdAt descending
+                userBookings.sort((a: any, b: any) => {
+                    const dateA = a.createdAt?.seconds || 0;
+                    const dateB = b.createdAt?.seconds || 0;
+                    return dateB - dateA;
+                });
+
+                callback(userBookings);
+            },
+            () => {
+                callback([]);
+            }
+        );
     }
 };

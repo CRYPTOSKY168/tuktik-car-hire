@@ -39,6 +39,7 @@ export const FirestoreService = {
     addBooking: BookingService.addBooking.bind(BookingService),
     getUserBookings: BookingService.getUserBookings.bind(BookingService),
     subscribeToUserBookings: BookingService.subscribeToUserBookings.bind(BookingService),
+    subscribeToUserBookingsComprehensive: BookingService.subscribeToUserBookingsComprehensive.bind(BookingService),
     getBooking: BookingService.getBooking.bind(BookingService),
     getBookings: BookingService.getBookings.bind(BookingService),
     subscribeToAllBookings: BookingService.subscribeToAllBookings.bind(BookingService),

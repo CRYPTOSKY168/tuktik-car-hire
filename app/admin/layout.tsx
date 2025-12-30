@@ -20,6 +20,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+    const [userPhotoURL, setUserPhotoURL] = useState<string | null>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -34,6 +35,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     const userData = await FirestoreService.getUser(user.uid);
                     if (userData?.role === 'admin') {
                         setIsAdmin(true);
+                        // Get photo from Firestore or Firebase Auth
+                        setUserPhotoURL(userData?.photoURL || user?.photoURL || null);
                     } else {
                         router.push('/dashboard');
                     }
@@ -243,9 +246,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         ${sidebarCollapsed ? 'lg:justify-center' : ''}
                     `}>
                         <div className="relative">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm shadow-md">
-                                {user?.displayName?.charAt(0) || 'A'}
-                            </div>
+                            {userPhotoURL ? (
+                                <img
+                                    src={userPhotoURL}
+                                    alt={user?.displayName || 'Admin'}
+                                    className="w-10 h-10 rounded-full object-cover shadow-md"
+                                />
+                            ) : (
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                                    {user?.displayName?.charAt(0) || 'A'}
+                                </div>
+                            )}
                             <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white"></div>
                         </div>
                         {!sidebarCollapsed && (
@@ -304,9 +315,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                 onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
                                 className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-xl hover:bg-gray-100 transition-colors"
                             >
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xs">
-                                    {user?.displayName?.charAt(0) || 'A'}
-                                </div>
+                                {userPhotoURL ? (
+                                    <img
+                                        src={userPhotoURL}
+                                        alt={user?.displayName || 'Admin'}
+                                        className="w-8 h-8 rounded-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xs">
+                                        {user?.displayName?.charAt(0) || 'A'}
+                                    </div>
+                                )}
                                 <span className="hidden md:block text-sm font-medium text-gray-700">{user?.displayName?.split(' ')[0] || 'Admin'}</span>
                                 <span className={`material-symbols-outlined text-gray-400 text-lg transition-transform ${profileDropdownOpen ? 'rotate-180' : ''}`}>
                                     expand_more
@@ -316,9 +335,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             {/* Dropdown Menu */}
                             {profileDropdownOpen && (
                                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
-                                    <div className="px-4 py-3 border-b border-gray-100">
-                                        <p className="text-sm font-semibold text-gray-800">{user?.displayName || 'Admin'}</p>
-                                        <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                                    <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
+                                        {userPhotoURL ? (
+                                            <img
+                                                src={userPhotoURL}
+                                                alt={user?.displayName || 'Admin'}
+                                                className="w-10 h-10 rounded-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm">
+                                                {user?.displayName?.charAt(0) || 'A'}
+                                            </div>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-gray-800 truncate">{user?.displayName || 'Admin'}</p>
+                                            <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                                        </div>
                                     </div>
 
                                     <div className="py-1">

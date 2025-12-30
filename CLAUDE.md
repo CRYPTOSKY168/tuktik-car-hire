@@ -1,9 +1,9 @@
 # TukTik Car Rental - Project Documentation
 
-> **Last Updated:** 2025-12-29
-> **Version:** 6.2 (Admin i18n Complete)
+> **Last Updated:** 2025-12-30
+> **Version:** 6.9 (Custom SVG Markers)
 > **Status:** Production
-> **Lines:** ~2900+
+> **Lines:** ~3250+
 
 ---
 
@@ -111,6 +111,46 @@ Prototype pages เป็นแค่ DEMO ทดลองดีไซน์ ห
 - สร้าง prototype ใหม่ใน /driver/prototype-* เพื่อทดลองดีไซน์
 - ลบ prototype ที่ไม่ต้องการ
 - ถ้าจะเอาธีมจาก prototype ไปใช้จริง ต้องถามก่อนเสมอ!
+```
+
+### 🧪 Mobile App Theme (กำลังทดสอบ)
+
+```markdown
+⚠️ Theme นี้อยู่ระหว่างการทดสอบ - ยังไม่ใช่ Production!
+
+| Path | Description | Status |
+|------|-------------|--------|
+| `/vehicles-test1` | หน้าเลือกรถ (Uber/Grab style) | 🧪 Testing |
+| `/vehicles-test1-dashboard` | หน้า Dashboard ลูกค้า (real-time booking) | 🧪 Testing |
+| `/vehicles-test1-profile` | หน้าโปรไฟล์ลูกค้า | 🧪 Testing |
+| `/vehicles-test1-driver` | หน้า Driver Dashboard | 🧪 Testing |
+| `/vehicles-test1-history` | หน้าประวัติการเดินทาง | 🧪 Testing |
+| `/vehicles-test` | Demo A+B tier system | 🧪 Testing |
+| `/vehicles-test2` | Dark glassmorphism theme | 🧪 Testing |
+
+**Design System (vehicles-test1):**
+- Background: `bg-gray-100`
+- Cards: `bg-white rounded-2xl border border-gray-200`
+- Max width: `max-w-[430px]` (mobile-first)
+- Icons: SVG inline (ไม่ใช่ emoji)
+- Selected state: `border-blue-500 bg-blue-50` หรือ `border-amber-400 bg-amber-50` (VIP)
+- Layout: List view แบบ Uber/Grab
+
+**Features ที่ทำแล้ว:**
+- ✅ Vehicle selection (list view)
+- ✅ Connected route (จุดรับ-ส่งมีเส้นเชื่อม)
+- ✅ Customer Dashboard (real-time subscription, stats, active booking)
+- ✅ Profile page
+- ✅ Driver Dashboard
+- ✅ Trip History (ประวัติการเดินทาง)
+- ✅ Safe area support (iOS)
+- ✅ Cross-platform compatible
+
+**TODO (ถ้าจะใช้จริง):**
+- [ ] เพิ่ม Map component
+- [ ] Real-time price calculation
+- [ ] Animation/Transitions
+- [ ] Error & Empty states
 ```
 
 ### Code Style
@@ -1943,23 +1983,266 @@ STRIPE_WEBHOOK_SECRET=
 ## Pending Features ⏳
 
 ### High Priority
-1. **Email/SMS Notifications** - แจ้งเตือนผ่าน email/sms
-2. **Reports/Analytics** - รายงานรายได้, trends
-3. **Voucher Admin UI** - หน้า admin จัดการ voucher
+1. **Real-time Maps Tracking** - ติดตามคนขับแบบ real-time (Google Maps) 🗺️
+2. **Email/SMS Notifications** - แจ้งเตือนผ่าน email/sms
+3. **Reports/Analytics** - รายงานรายได้, trends
+4. **Voucher Admin UI** - หน้า admin จัดการ voucher
 
 ### Medium Priority
-4. **Reviews/Ratings** - รีวิวหลังเสร็จงาน
-5. **Recurring Bookings** - จองประจำ
+5. **Reviews/Ratings** - รีวิวหลังเสร็จงาน
+6. **Recurring Bookings** - จองประจำ
 
 ### Nice to Have
-6. **Real-time Tracking** - แสดงตำแหน่งคนขับ
 7. **Chat** - แชทลูกค้า-คนขับ
 8. **Invoice/Receipt** - ใบเสร็จ PDF
 9. **Referral System** - แนะนำเพื่อน
 
 ---
 
+## 🗺️ Real-Time Maps (In Progress)
+
+> **Status:** Test Page Ready | **Technology:** Google Maps Platform
+
+### Test Page (Grab/Uber Style) 🚗
+
+**URL:** `/test-maps` (http://localhost:3000/test-maps)
+
+**ฟีเจอร์ที่ทำแล้ว:**
+| Feature | Description | Implementation |
+|---------|-------------|----------------|
+| Smooth Animation | รถเคลื่อนที่ตามเส้นทางแบบ smooth | `interpolate` + `requestAnimationFrame` |
+| Car Rotation | รถหมุนตามทิศทางการเลี้ยว | `calculateBearing()` function |
+| Map Following | แผนที่เลื่อนตามรถอัตโนมัติ | `map.panTo()` (toggle) |
+| ETA Display | แสดงเวลาถึงแบบ real-time | คำนวณจากระยะทาง/ความเร็ว |
+| Progress Bar | แสดงความคืบหน้าการเดินทาง | % ของระยะทางที่ผ่านมา |
+| **Places Autocomplete** | ค้นหาจุดรับ-ส่งจริง | `<Autocomplete>` component |
+| **GPS Pickup** | ใช้ตำแหน่งปัจจุบันเป็นจุดรับ | `navigator.geolocation` |
+| **Draggable Markers** | ลากหมุดจุดรับ+จุดส่งได้ทั้งคู่ | `draggable={status === 'searching'}` |
+| **Real-time Address** | ที่อยู่อัปเดตขณะลาก (ไม่ต้องปล่อยหมุด) | `onDrag` + debounce 200ms |
+| **Large Markers** | หมุดใหญ่ 44x55px กดง่าย | Custom SVG markers |
+| **Custom Modern Markers** | หมุด gradient สวยๆ + shadow | SVG data URL |
+| **Lock on Trip** | ล็อคหมุดเมื่อรถเริ่มวิ่ง | `draggable={status === 'searching'}` |
+| **Map Controls** | ปุ่มซูมไปรถ/ตำแหน่งฉัน/ดูเส้นทาง | Custom buttons |
+
+**วิธีทดสอบ:**
+```markdown
+1. พิมพ์ค้นหาจุดรับในช่อง หรือ กดปุ่ม 📍 GPS
+2. ลากหมุด A เพื่อปรับตำแหน่ง (ที่อยู่อัปเดต real-time)
+3. พิมพ์ค้นหาจุดส่ง หรือ เลือกจากปุ่มสถานที่ยอดนิยม
+4. กดปุ่ม "จำลองหาคนขับ"
+5. ใช้ปุ่ม 🚗 ซูมไปที่รถ, 📍 ตำแหน่งฉัน, 🗺️ ดูทั้งเส้นทาง
+```
+
+**Key Code (app/test-maps/page.tsx):**
+```typescript
+// Bearing calculation for car rotation
+function calculateBearing(from: Coordinates, to: Coordinates): number {
+    const lat1 = (from.lat * Math.PI) / 180;
+    const lat2 = (to.lat * Math.PI) / 180;
+    const dLng = ((to.lng - from.lng) * Math.PI) / 180;
+    const y = Math.sin(dLng) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+    return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+
+// CarMarker component with rotation
+<OverlayView position={position} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}>
+    <div style={{ transform: `rotate(${bearing}deg)` }}>
+        {/* Car body */}
+    </div>
+</OverlayView>
+```
+
+### Google Maps APIs
+
+| API | ใช้ทำอะไร | ราคา |
+|-----|---------|------|
+| Maps JavaScript | แสดงแผนที่ | $7/1,000 loads |
+| Directions | เส้นทาง | $5/1,000 requests |
+| Distance Matrix | ระยะทาง/ETA | $5/1,000 requests |
+| Places | Autocomplete | $2.83/1,000 requests |
+
+### Environment Variables
+
+```bash
+# Google Maps API Key (เพิ่มแล้ว)
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyCHhKlIqlU4nTq_8VbHyROPSz3BUG1P9Xc
+```
+
+**Project:** Tuktik Project (`y9kwjw47a2jytykyv2mlbyok4qw47i`)
+
+### Dependencies (ติดตั้งแล้ว ✅)
+
+```bash
+npm install @react-google-maps/api  # ติดตั้งแล้ว
+```
+
+### Database Schema (ต้องเพิ่ม)
+
+**drivers collection:**
+```typescript
+currentLocation?: { lat: number; lng: number; timestamp: Timestamp; }
+```
+
+**bookings collection:**
+```typescript
+pickupCoordinates?: { lat: number; lng: number; }
+dropoffCoordinates?: { lat: number; lng: number; }
+distance?: number;          // km
+estimatedDuration?: number; // minutes
+```
+
+### Files Created/To Create
+
+| ไฟล์ | หน้าที่ | Status |
+|-----|--------|--------|
+| `app/test-maps/page.tsx` | Test page (Grab/Uber style) | ✅ Done |
+| `components/map/MapContainer.tsx` | แสดงแผนที่ (basic) | ✅ Done |
+| `components/map/index.ts` | Export file | ✅ Done |
+| `components/map/DriverMarker.tsx` | Marker คนขับ | ⏳ Pending |
+| `lib/hooks/useGeolocation.ts` | GPS hook | ⏳ Pending |
+| `lib/firebase/services/LocationTrackingService.ts` | Location updates | ⏳ Pending |
+| `app/api/driver/location/route.ts` | Location API | ⏳ Pending |
+
+### Implementation Checklist
+
+- [x] สมัคร Google Maps API Key ✅
+- [x] ติดตั้ง @react-google-maps/api ✅
+- [x] สร้าง MapContainer component ✅
+- [x] สร้าง Test Page (Grab/Uber style animation) ✅
+- [x] Address autocomplete (Places API) ✅
+- [x] GPS pickup location ✅
+- [x] Draggable marker + Real-time address ✅
+- [x] Map control buttons (zoom to car/location/route) ✅
+- [ ] เพิ่ม currentLocation field ใน drivers
+- [ ] สร้าง /api/driver/location endpoint
+- [ ] เพิ่ม map ในหน้า driver dashboard
+- [ ] เพิ่ม tracking map ในหน้า customer dashboard
+
+---
+
 ## Changelog
+
+### 2025-12-30 v6.9 - Custom SVG Markers (Modern Design) 🎨
+- **Custom SVG Markers สวยๆ โมเดิร์น** - ไม่ใช้ Google Maps icons เดิมอีกต่อไป
+- **Pickup Marker (จุดรับ):**
+  - รูปหยดน้ำ (pin shape) 48x60px
+  - Gradient สีเขียว `#34d399` → `#059669`
+  - Drop shadow สวยงาม
+  - วงกลมสีขาวตรงกลาง + จุดสีเขียว
+- **Dropoff Marker (จุดส่ง):**
+  - รูปหยดน้ำ (pin shape) 48x60px
+  - Gradient สีแดง `#f87171` → `#dc2626`
+  - Drop shadow สวยงาม
+  - สี่เหลี่ยมสีแดงตรงกลาง (แตกต่างจากจุดรับ)
+- **Car Marker (รถ):**
+  - วงกลม gradient ม่วง `violet-500` → `purple-700`
+  - Glow effect รอบๆ (blur + opacity)
+  - ลูกศรทิศทางด้านบน
+  - หมุนตามทิศทางรถ (rotation)
+- **Implementation:**
+  - ใช้ inline SVG → data URL
+  - `createMarkerIcon()` helper function
+  - Size 44px (scaledSize: 44x55)
+- **Files modified:** `app/test-maps/page.tsx`
+
+### 2025-12-30 v6.8 - Real-time Drag & Lock Markers 🔒
+- **Real-time Address ขณะลาก** - เมื่อลากหมุด ที่อยู่แสดงบน overlay ทันที (ไม่ต้องปล่อยหมุดก่อน)
+  - ใช้ `onDrag` event แทน `onDragEnd` เพียงอย่างเดียว
+  - Debounce 200ms ป้องกัน API เรียกถี่เกินไป
+  - Overlay สีเขียว (จุดรับ) / สีแดง (จุดส่ง) แสดงที่อยู่ real-time
+- **ลากได้ทั้งจุดรับและจุดส่ง** - หมุด A และ B ลากปรับตำแหน่งได้ทั้งคู่
+- **หมุดใหญ่ขึ้น กดง่าย** - เปลี่ยนเป็น Google Maps standard markers 50x50px
+  - จุดรับ: `green-dot.png` (สีเขียว)
+  - จุดส่ง: `red-dot.png` (สีแดง)
+- **ล็อคหมุดเมื่อรถวิ่ง** - `draggable={status === 'searching'}`
+  - ✅ ลากได้เมื่อสถานะ "กำลังหาคนขับ..."
+  - 🔒 ล็อคเมื่อกดจำลองหาคนขับแล้ว / รถวิ่งแล้ว
+  - กด "เริ่มใหม่" → ปลดล็อคหมุด
+- **Files modified:** `app/test-maps/page.tsx`
+
+### 2025-12-30 v6.7 - Maps Drag Pin & Places Autocomplete 📍
+- **Google Places Autocomplete** - กรอกค้นหาจุดรับ-ส่งจริงได้
+  - พิมพ์ชื่อสถานที่ → แสดง dropdown ให้เลือก
+  - จำกัดผลลัพธ์เฉพาะประเทศไทย (`componentRestrictions: { country: 'th' }`)
+- **GPS Button** - กดปุ่ม 📍 เพื่อใช้ตำแหน่งปัจจุบันเป็นจุดรับ
+- **Draggable Pickup Marker** - ลากหมุดจุดรับปรับตำแหน่งได้
+  - แตะค้างที่หมุด A แล้วลากไปตำแหน่งที่ต้องการ
+  - ที่อยู่อัปเดต real-time หลังปล่อยหมุด (Reverse Geocoding)
+  - ไม่ต้องกดปุ่มยืนยัน - ง่ายแบบ Grab/Uber
+- **Minimal Pin Design** - ใช้หมุดปกติมี label A (จุดรับ) และ B (จุดส่ง)
+- **Quick Locations** - ปุ่มเลือกสถานที่ยอดนิยมเร็วๆ
+- **Map Control Buttons:**
+  - 🗺️ ดูทั้งเส้นทาง
+  - 🚗 ซูมไปที่รถ (เมื่อจำลองวิ่ง)
+  - 📍 ซูมไปตำแหน่งของฉัน
+- **Fix:** แผนที่เลื่อน/ซูมได้แล้ว (ปิด followCar เริ่มต้น)
+- **Files modified:** `app/test-maps/page.tsx`
+
+### 2025-12-30 v6.6 - Real-Time Maps Test Page 🚗
+- สร้าง `/test-maps` page สำหรับทดสอบ real-time tracking แบบ Grab/Uber
+- **Smooth Animation:** รถเคลื่อนที่ตามเส้นทางแบบ smooth ด้วย interpolation
+- **Car Rotation:** รถหมุนตามทิศทางด้วย `calculateBearing()` function
+- **Map Following:** แผนที่เลื่อนตามรถด้วย `panTo()` (toggle ได้)
+- **ETA Display:** แสดงเวลาถึงแบบ real-time countdown
+- **Progress Bar:** แสดงความคืบหน้าการเดินทาง
+- **Speed Control:** ปรับความเร็วจำลอง 20-120 km/h
+- ใช้ `requestAnimationFrame` สำหรับ 60fps animation
+- ใช้ `OverlayView` สำหรับ custom car marker ที่หมุนได้
+- รองรับ GPS location ของผู้ใช้
+
+### 2025-12-30 v6.5 - Real-Time Maps Setup 🗺️
+- เพิ่ม documentation สำหรับ Real-Time Maps feature (Google Maps Platform)
+- กำหนด database schema, APIs, และ implementation checklist
+- ย้าย "Real-time Tracking" จาก "Nice to Have" เป็น "High Priority"
+- ติดตั้ง `@react-google-maps/api` library
+- สร้าง Google Maps API Key (Project: Tuktik Project)
+- Enable APIs: Maps JavaScript, Places, Directions, Geocoding
+- สร้าง `components/map/MapContainer.tsx` component
+- เพิ่ม API Key ใน `.env.local` และ Vercel
+
+### 2025-12-30 v6.4 - Photo Sync Fix 📸🔧
+- **Bug Fix: รูปโปรไฟล์ไม่แสดงในหน้าคนขับ**
+  - **สาเหตุ:** `/driver/login` ไม่ได้ sync `photoURL` จาก Google → Firestore
+  - **แก้ไข:** เพิ่ม `setDoc` หลัง Google login เพื่อ sync photoURL
+- **Driver Profile Page Update**
+  - เพิ่ม `photo` field ใน DriverData interface
+  - ดึง photoURL จาก `driver.photo` หรือ `user.photoURL` (priority logic)
+  - แสดงรูปจริงแทน icon ในหน้า `/driver/profile`
+- **Photo Sync Script**
+  - สร้าง `scripts/sync-user-photos.js` สำหรับ sync photoURL จาก Firebase Auth → Firestore
+  - ใช้เมื่อมี user ที่ login ก่อนหน้าที่ photoURL ไม่ได้ถูก sync
+- **Photo Priority Logic (ทุกหน้าใช้เหมือนกัน):**
+  ```typescript
+  const photoURL = driver.photo || user.photoURL || null;
+  ```
+- **Files modified:**
+  - `app/driver/login/page.tsx` - เพิ่ม sync photoURL หลัง Google login
+  - `app/driver/profile/page.tsx` - แสดงรูปโปรไฟล์จริง
+  - `scripts/sync-user-photos.js` - script sync photos (new)
+
+### 2025-12-30 v6.3 - Driver Earnings & Profile Photos 💰📸
+- **Driver Earnings System**
+  - เพิ่ม `totalEarnings` field ใน Driver interface
+  - แสดงรายได้ในหน้า `/admin/drivers`:
+    - Stats Card: เที่ยวทั้งหมด (สีม่วง) + รายได้รวม (สีเขียว)
+    - Driver Card: แสดง 3 กล่อง (trips/earned/rating)
+  - Auto-update earnings เมื่อ booking status เป็น `completed`
+  - อัปเดตใน `/api/driver/bookings` route
+- **Profile Photos**
+  - Admin Layout: แสดงรูปโปรไฟล์จาก Google/Firestore (3 จุด: sidebar, header, dropdown)
+  - Driver Cards: แสดงรูปถ้ามี `driver.photo`
+  - ดึง `photoURL` จาก Firestore หรือ Firebase Auth
+- **Cleanup Scripts**
+  - `scripts/cleanup-bookings.js` - ลบ bookings ทั้งหมด
+  - `scripts/cleanup-notifications.js` - ลบ notifications ทั้งหมด
+  - `scripts/reset-drivers.js` - reset สถานะคนขับ + earnings
+  - `scripts/check-photos.js` - เช็ครูปโปรไฟล์ใน database
+- **Files modified:**
+  - `lib/types/index.ts` - เพิ่ม `totalEarnings` ใน Driver interface
+  - `app/admin/drivers/page.tsx` - Stats cards + Driver cards redesign
+  - `app/admin/layout.tsx` - Profile photo display
+  - `app/api/driver/bookings/route.ts` - Auto-update earnings on completion
 
 ### 2025-12-29 v6.2 - Admin i18n Complete 🌐
 - **Complete i18n translations for ALL admin pages**
@@ -2513,5 +2796,5 @@ vercel --prod        # Deploy to production
 
 ---
 
-*Document maintained by development team. Last updated: 2025-12-29*
-*Lines: ~2600 | Version: 6.1 (Push Notification & Payment Form Redesign) 🔔*
+*Document maintained by development team. Last updated: 2025-12-30*
+*Lines: ~2700 | Version: 6.9 (Custom SVG Markers) 🎨*

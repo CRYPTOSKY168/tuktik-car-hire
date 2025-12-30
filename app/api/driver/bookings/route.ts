@@ -218,16 +218,20 @@ export async function POST(request: NextRequest) {
                     updatedAt: FieldValue.serverTimestamp()
                 });
 
-                // Update driver status when completed
+                // Update driver status and earnings when completed
                 if (status === 'completed') {
                     try {
                         const driverRef = adminDb.collection('drivers').doc(driverId);
                         const driverSnap = await driverRef.get();
                         const driverData = driverSnap.data();
 
+                        // Get booking total cost for earnings
+                        const bookingEarnings = Number(currentData?.totalCost) || 0;
+
                         await driverRef.update({
                             status: 'available',
                             totalTrips: (driverData?.totalTrips || 0) + 1,
+                            totalEarnings: (driverData?.totalEarnings || 0) + bookingEarnings,
                             updatedAt: FieldValue.serverTimestamp()
                         });
                     } catch (e) {

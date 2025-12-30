@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { FirestoreService } from '@/lib/firebase/firestore';
+import { StorageService } from '@/lib/firebase/storage';
 import { Driver, DriverStatus } from '@/lib/types';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 
@@ -14,6 +15,18 @@ export default function AdminDriversPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState<'all' | DriverStatus | string>('all');
     const [saving, setSaving] = useState(false);
+    const [photoFile, setPhotoFile] = useState<File | null>(null);
+    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+    const [uploadingPhoto, setUploadingPhoto] = useState(false);
+    const [userPhotos, setUserPhotos] = useState<Record<string, string>>({}); // Map driverId -> userPhotoURL
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Get driver photo with priority: driver.photo > user.photoURL > null
+    const getDriverPhoto = (driver: Driver): string | null => {
+        if (driver.photo) return driver.photo;
+        if (userPhotos[driver.id]) return userPhotos[driver.id];
+        return null;
+    };
 
     // Status config with language support
     const getStatusConfig = (status: string) => {
@@ -34,13 +47,35 @@ export default function AdminDriversPage() {
         vehicleColor: '',
         licenseNumber: '',
         status: DriverStatus.AVAILABLE as DriverStatus,
-        notes: ''
+        notes: '',
+        photo: ''
     });
 
     useEffect(() => {
-        const unsubscribe = FirestoreService.subscribeToDrivers((data) => {
+        const unsubscribe = FirestoreService.subscribeToDrivers(async (data) => {
             setDrivers(data);
             setLoading(false);
+
+            // Auto-sync: Fetch user photos for drivers with userId but no photo
+            const driversNeedingPhoto = data.filter(d => d.userId && !d.photo);
+            if (driversNeedingPhoto.length > 0) {
+                const photos: Record<string, string> = {};
+                for (const driver of driversNeedingPhoto) {
+                    if (driver.userId) {
+                        try {
+                            const user = await FirestoreService.getUser(driver.userId);
+                            if (user?.photoURL) {
+                                photos[driver.id] = user.photoURL;
+                            }
+                        } catch (e) {
+                            // Ignore errors
+                        }
+                    }
+                }
+                if (Object.keys(photos).length > 0) {
+                    setUserPhotos(prev => ({ ...prev, ...photos }));
+                }
+            }
         });
 
         return () => unsubscribe();
@@ -56,9 +91,12 @@ export default function AdminDriversPage() {
             vehicleColor: '',
             licenseNumber: '',
             status: DriverStatus.AVAILABLE,
-            notes: ''
+            notes: '',
+            photo: ''
         });
         setEditingDriver(null);
+        setPhotoFile(null);
+        setPhotoPreview(null);
     };
 
     const openModal = (driver?: Driver) => {
@@ -73,12 +111,44 @@ export default function AdminDriversPage() {
                 vehicleColor: driver.vehicleColor || '',
                 licenseNumber: driver.licenseNumber || '',
                 status: (driver.status as DriverStatus) || DriverStatus.AVAILABLE,
-                notes: driver.notes || ''
+                notes: driver.notes || '',
+                photo: driver.photo || ''
             });
+            // Set photo preview (driver.photo or user.photoURL)
+            const driverPhoto = driver.photo || userPhotos[driver.id];
+            if (driverPhoto) {
+                setPhotoPreview(driverPhoto);
+            }
         } else {
             resetForm();
         }
         setShowModal(true);
+    };
+
+    const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            alert('กรุณาเลือกไฟล์รูปภาพ');
+            return;
+        }
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('ไฟล์ใหญ่เกิน 5MB');
+            return;
+        }
+
+        setPhotoFile(file);
+
+        // Create preview
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setPhotoPreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -87,16 +157,29 @@ export default function AdminDriversPage() {
 
         setSaving(true);
         try {
+            let photoUrl = formData.photo;
+
+            // Upload new photo if selected
+            if (photoFile) {
+                setUploadingPhoto(true);
+                const driverId = editingDriver?.id || `new-${Date.now()}`;
+                photoUrl = await StorageService.uploadProfileImage(photoFile, `driver-${driverId}`);
+                setUploadingPhoto(false);
+            }
+
+            const driverData = { ...formData, photo: photoUrl };
+
             if (editingDriver) {
-                await FirestoreService.updateDriver(editingDriver.id, formData);
+                await FirestoreService.updateDriver(editingDriver.id, driverData);
             } else {
-                await FirestoreService.addDriver(formData);
+                await FirestoreService.addDriver(driverData);
             }
             setShowModal(false);
             resetForm();
         } catch (error) {
             console.error("Error saving driver:", error);
             alert('Failed to save driver');
+            setUploadingPhoto(false);
         } finally {
             setSaving(false);
         }
@@ -144,7 +227,9 @@ export default function AdminDriversPage() {
         total: drivers.length,
         available: drivers.filter(d => d.status === DriverStatus.AVAILABLE).length,
         busy: drivers.filter(d => d.status === DriverStatus.BUSY).length,
-        offline: drivers.filter(d => d.status === DriverStatus.OFFLINE).length
+        offline: drivers.filter(d => d.status === DriverStatus.OFFLINE).length,
+        totalTrips: drivers.reduce((sum, d) => sum + (d.totalTrips || 0), 0),
+        totalEarnings: drivers.reduce((sum, d) => sum + (d.totalEarnings || 0), 0)
     };
 
     if (loading) {
@@ -179,7 +264,7 @@ export default function AdminDriversPage() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -221,6 +306,28 @@ export default function AdminDriversPage() {
                         <div>
                             <p className="text-2xl font-bold text-gray-500">{stats.offline}</p>
                             <p className="text-xs text-gray-500">{t.admin.drivers.stats.offline}</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-4 shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                            <span className="material-symbols-outlined text-white">route</span>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-white">{stats.totalTrips.toLocaleString()}</p>
+                            <p className="text-xs text-white/80">{language === 'th' ? 'เที่ยวทั้งหมด' : 'Total Trips'}</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl p-4 shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                            <span className="material-symbols-outlined text-white">account_balance_wallet</span>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-white">฿{stats.totalEarnings.toLocaleString()}</p>
+                            <p className="text-xs text-white/80">{language === 'th' ? 'รายได้รวม' : 'Total Earnings'}</p>
                         </div>
                     </div>
                 </div>
@@ -297,9 +404,17 @@ export default function AdminDriversPage() {
                                 <div className="flex items-start gap-4">
                                     {/* Avatar */}
                                     <div className="relative flex-shrink-0">
-                                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-md">
-                                            {driver.name.charAt(0).toUpperCase()}
-                                        </div>
+                                        {getDriverPhoto(driver) ? (
+                                            <img
+                                                src={getDriverPhoto(driver)!}
+                                                alt={driver.name}
+                                                className="w-14 h-14 rounded-full object-cover shadow-md"
+                                            />
+                                        ) : (
+                                            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-md">
+                                                {driver.name.charAt(0).toUpperCase()}
+                                            </div>
+                                        )}
                                         <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${getStatusConfig(driver.status).dot}`}></div>
                                     </div>
 
@@ -341,17 +456,21 @@ export default function AdminDriversPage() {
                                 )}
 
                                 {/* Stats */}
-                                <div className="mt-4 flex items-center gap-4 text-sm">
-                                    <div className="flex items-center gap-1 text-gray-500">
-                                        <span className="material-symbols-outlined text-lg">route</span>
-                                        <span>{driver.totalTrips || 0} trips</span>
+                                <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
+                                    <div className="flex flex-col items-center p-2 bg-blue-50 rounded-lg">
+                                        <span className="material-symbols-outlined text-blue-500 text-lg">route</span>
+                                        <span className="font-semibold text-gray-800">{driver.totalTrips || 0}</span>
+                                        <span className="text-xs text-gray-500">trips</span>
                                     </div>
-                                    <div className="flex items-center gap-1 text-amber-500">
-                                        <span className="material-symbols-outlined text-lg">star</span>
-                                        <span>{driver.rating?.toFixed(1) || '5.0'}</span>
-                                        {driver.ratingCount > 0 && (
-                                            <span className="text-gray-400">({driver.ratingCount})</span>
-                                        )}
+                                    <div className="flex flex-col items-center p-2 bg-green-50 rounded-lg">
+                                        <span className="material-symbols-outlined text-green-500 text-lg">payments</span>
+                                        <span className="font-semibold text-gray-800">฿{(driver.totalEarnings || 0).toLocaleString()}</span>
+                                        <span className="text-xs text-gray-500">earned</span>
+                                    </div>
+                                    <div className="flex flex-col items-center p-2 bg-amber-50 rounded-lg">
+                                        <span className="material-symbols-outlined text-amber-500 text-lg">star</span>
+                                        <span className="font-semibold text-gray-800">{driver.rating?.toFixed(1) || '5.0'}</span>
+                                        <span className="text-xs text-gray-500">rating</span>
                                     </div>
                                 </div>
                             </div>
@@ -423,6 +542,60 @@ export default function AdminDriversPage() {
 
                         {/* Modal Body */}
                         <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-140px)]">
+                            {/* Photo Upload */}
+                            <div className="flex justify-center">
+                                <div className="relative">
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        onChange={handlePhotoChange}
+                                        accept="image/*"
+                                        className="hidden"
+                                        id="driver-photo"
+                                        name="driverPhoto"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="relative group"
+                                    >
+                                        {photoPreview ? (
+                                            <img
+                                                src={photoPreview}
+                                                alt="Preview"
+                                                className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+                                            />
+                                        ) : (
+                                            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
+                                                {formData.name ? formData.name.charAt(0).toUpperCase() : '?'}
+                                            </div>
+                                        )}
+                                        <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <span className="material-symbols-outlined text-white text-2xl">photo_camera</span>
+                                        </div>
+                                        {uploadingPhoto && (
+                                            <div className="absolute inset-0 rounded-full bg-black/60 flex items-center justify-center">
+                                                <div className="w-8 h-8 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                            </div>
+                                        )}
+                                    </button>
+                                    {photoPreview && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setPhotoFile(null);
+                                                setPhotoPreview(null);
+                                                setFormData({ ...formData, photo: '' });
+                                            }}
+                                            className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 transition-colors shadow-md"
+                                        >
+                                            <span className="material-symbols-outlined text-sm">close</span>
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                            <p className="text-center text-xs text-gray-500">คลิกเพื่ออัพโหลดรูปโปรไฟล์</p>
+
                             {/* Name & Phone */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>

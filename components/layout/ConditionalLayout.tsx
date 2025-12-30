@@ -8,11 +8,12 @@ import { Breadcrumb, BookingProgress } from '@/components/navigation';
 export default function ConditionalLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
 
-    // Don't show Header/Footer on admin and driver pages - they have their own layouts
+    // Don't show Header/Footer on admin, driver, and demo/test pages - they have their own layouts
     const isAdminPage = pathname?.startsWith('/admin');
     const isDriverPage = pathname?.startsWith('/driver');
+    const isDemoPage = pathname?.startsWith('/vehicles-test');
 
-    if (isAdminPage || isDriverPage) {
+    if (isAdminPage || isDriverPage || isDemoPage) {
         return <>{children}</>;
     }
 

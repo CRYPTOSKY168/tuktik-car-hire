@@ -11,6 +11,7 @@ interface DriverData {
     name: string;
     phone: string;
     email?: string;
+    photo?: string;
     vehiclePlate?: string;
     vehicleModel?: string;
     vehicleColor?: string;
@@ -49,11 +50,14 @@ export default function DriverProfilePage() {
                     const driverDoc = await getDoc(doc(db!, 'drivers', userData.driverId));
                     if (driverDoc.exists()) {
                         const driverData = driverDoc.data();
+                        // Priority: driver.photo > user.photoURL
+                        const photoURL = driverData.photo || userData.photoURL || null;
                         setDriver({
                             id: driverDoc.id,
                             name: driverData.name,
                             phone: driverData.phone,
                             email: driverData.email || currentUser.email || '',
+                            photo: photoURL,
                             vehiclePlate: driverData.vehiclePlate,
                             vehicleModel: driverData.vehicleModel,
                             vehicleColor: driverData.vehicleColor,
@@ -77,11 +81,14 @@ export default function DriverProfilePage() {
                 if (!driversSnap.empty) {
                     const driverDoc = driversSnap.docs[0];
                     const driverData = driverDoc.data();
+                    // Priority: driver.photo > user.photoURL
+                    const photoURL = driverData.photo || userData?.photoURL || null;
                     setDriver({
                         id: driverDoc.id,
                         name: driverData.name,
                         phone: driverData.phone,
                         email: driverData.email || currentUser.email || '',
+                        photo: photoURL,
                         vehiclePlate: driverData.vehiclePlate,
                         vehicleModel: driverData.vehicleModel,
                         vehicleColor: driverData.vehicleColor,
@@ -135,9 +142,17 @@ export default function DriverProfilePage() {
         <div className="space-y-6">
             {/* Profile Header */}
             <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 text-white text-center">
-                <div className="w-24 h-24 bg-white/20 rounded-full mx-auto mb-4 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-5xl">person</span>
-                </div>
+                {driver.photo ? (
+                    <img
+                        src={driver.photo}
+                        alt={driver.name}
+                        className="w-24 h-24 rounded-full mx-auto mb-4 object-cover border-4 border-white/30"
+                    />
+                ) : (
+                    <div className="w-24 h-24 bg-white/20 rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-5xl">person</span>
+                    </div>
+                )}
                 <h2 className="text-2xl font-bold mb-1">{driver.name}</h2>
                 <p className="text-white/70">{driver.email || driver.phone}</p>
 

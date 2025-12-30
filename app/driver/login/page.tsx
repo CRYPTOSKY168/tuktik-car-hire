@@ -10,7 +10,7 @@ import {
     User
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import Link from 'next/link';
 
@@ -115,6 +115,19 @@ export default function DriverLoginPage() {
         try {
             const provider = new GoogleAuthProvider();
             const result = await signInWithPopup(auth, provider);
+
+            // Sync user data including photoURL to Firestore
+            if (db && result.user) {
+                const userRef = doc(db, 'users', result.user.uid);
+                await setDoc(userRef, {
+                    email: result.user.email || null,
+                    displayName: result.user.displayName || null,
+                    photoURL: result.user.photoURL || null,
+                    provider: 'google',
+                    updatedAt: Timestamp.now()
+                }, { merge: true });
+            }
+
             await checkDriverStatus(result.user);
         } catch (err: any) {
             console.error('Google login error:', err);

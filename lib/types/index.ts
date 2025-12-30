@@ -123,6 +123,7 @@ export interface Driver {
     status: DriverStatus | string;
     setupStatus?: DriverSetupStatus | string;
     totalTrips: number;
+    totalEarnings: number;  // รายได้รวมทั้งหมด (บาท)
     rating: number;
     ratingCount: number;
     isActive: boolean;
