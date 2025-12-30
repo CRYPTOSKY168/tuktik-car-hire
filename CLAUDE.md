@@ -1,9 +1,9 @@
 # TukTik Car Rental - Project Documentation
 
 > **Last Updated:** 2025-12-31
-> **Version:** 7.6 (Real-time Driver Stats)
+> **Version:** 7.7 (Cancel Booking in Live Mode)
 > **Status:** Production
-> **Lines:** ~3800+
+> **Lines:** ~3850+
 
 ---
 
@@ -2328,6 +2328,7 @@ node scripts/test-rating-flow.js --cleanup
 | Driver assignment | Simulation | ✅ Real driver |
 | Driver tracking | Simulation | ✅ Real-time GPS |
 | Active booking check | ❌ | ✅ Prevents double booking |
+| Cancel booking | ❌ | ✅ ยกเลิกได้ (pending/confirmed) |
 
 ### Live Mode Features
 
@@ -2369,6 +2370,17 @@ useDriverTracking(driverId)
 - ถ้ามี → แสดงข้อมูล booking และซ่อนปุ่มจองใหม่
 - Active statuses: `pending`, `confirmed`, `driver_assigned`, `driver_en_route`, `in_progress`
 
+**7. Cancel Booking (ยกเลิกการจอง) ✅ NEW**
+```typescript
+// ยกเลิก booking ที่ยังไม่มีคนขับมา
+cancelLiveBooking()
+// เรียก BookingService.updateBookingStatus(id, 'cancelled')
+```
+- ยกเลิกได้เฉพาะ: `pending`, `confirmed`
+- ยกเลิกไม่ได้: `driver_assigned`, `driver_en_route`, `in_progress`
+- มี confirm dialog + loading state
+- รองรับ 2 ภาษา (TH/EN)
+
 ### State Management
 
 ```typescript
@@ -2384,6 +2396,7 @@ const [bookingId, setBookingId] = useState<string | null>(null);
 const [routePrice, setRoutePrice] = useState<number | null>(null);
 const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
 const [isLoadingActiveBooking, setIsLoadingActiveBooking] = useState(false);
+const [isCancellingBooking, setIsCancellingBooking] = useState(false);
 ```
 
 ### Files
@@ -2617,6 +2630,19 @@ main().catch(err => {
 ---
 
 ## Changelog
+
+### 2025-12-31 v7.7 - Cancel Booking in Live Mode ❌📱
+- **เพิ่มปุ่มยกเลิกการจองใน `/test-maps1` Live Mode**
+  - ยกเลิกได้เฉพาะ status: `pending`, `confirmed`
+  - ถ้าคนขับกำลังมาแล้ว (driver_assigned+) → แจ้งว่ายกเลิกไม่ได้
+  - มี confirm dialog ก่อนยกเลิก
+  - รองรับ 2 ภาษา (TH/EN)
+- **Implementation:**
+  - State: `isCancellingBooking` สำหรับ loading
+  - Function: `cancelLiveBooking()` เรียก `BookingService.updateBookingStatus()`
+  - UI: ปุ่มสีแดงใน Active Booking Card
+- **Files modified:**
+  - `app/test-maps1/page.tsx` - เพิ่ม cancel booking feature
 
 ### 2025-12-31 v7.6 - Real-time Driver Stats + Auto Test Scripts 🔄🧪
 - **Real-time Driver Stats ใน `/demo-driver`**

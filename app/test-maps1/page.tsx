@@ -235,6 +235,8 @@ export default function TestMaps1Page() {
     const [showVehiclePicker, setShowVehiclePicker] = useState(false);
     const [isLoadingActiveBooking, setIsLoadingActiveBooking] = useState(false);
     const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
+    const [isCancellingBooking, setIsCancellingBooking] = useState(false);
+    const [showCancelModal, setShowCancelModal] = useState(false);
 
     // Rating state for completed trips
     const [showRatingModal, setShowRatingModal] = useState(false);
@@ -771,6 +773,57 @@ export default function TestMaps1Page() {
             return null;
         } finally {
             setIsCreatingBooking(false);
+        }
+    };
+
+    // === NEW: Cancel live booking ===
+    const handleCancelClick = () => {
+        if (!activeBooking?.id) return;
+
+        // Only allow cancellation for pending, confirmed, and driver_assigned status
+        // (driver_assigned = driver hasn't accepted yet, still cancellable)
+        const cancellableStatuses = ['pending', 'confirmed', 'driver_assigned'];
+        if (!cancellableStatuses.includes(activeBooking.status)) {
+            // Show error in modal style
+            return;
+        }
+
+        setShowCancelModal(true);
+    };
+
+    const confirmCancelBooking = async () => {
+        if (!activeBooking?.id) return;
+
+        setIsCancellingBooking(true);
+        try {
+            // 1. Update booking status to cancelled
+            await BookingService.updateBookingStatus(
+                activeBooking.id,
+                'cancelled',
+                language === 'th' ? 'ผู้ใช้ยกเลิกการจอง' : 'User cancelled the booking'
+            );
+
+            // 2. If driver was assigned, set driver status back to available
+            if (activeBooking.driver?.driverId) {
+                try {
+                    await DriverService.updateDriverStatus(activeBooking.driver.driverId, 'available' as any);
+                    console.log('✅ Driver status updated to available');
+                } catch (driverError) {
+                    console.error('Error updating driver status:', driverError);
+                    // Continue even if driver update fails
+                }
+            }
+
+            // 3. Reset state
+            setActiveBooking(null);
+            setBookingId(null);
+            setAssignedDriver(null);
+            setStatus('selecting');
+            setShowCancelModal(false);
+        } catch (error) {
+            console.error('Error cancelling booking:', error);
+        } finally {
+            setIsCancellingBooking(false);
         }
     };
 
@@ -1353,13 +1406,13 @@ export default function TestMaps1Page() {
                         {mode === 'live' && status === 'selecting' && selectedVehicle && !isLoadingActiveBooking && !activeBooking && (
                             <button
                                 onClick={() => setShowVehiclePicker(true)}
-                                className="w-full bg-white border border-gray-200 rounded-2xl p-4 flex items-center justify-between hover:bg-gray-50 transition-colors shadow-sm"
+                                className="w-full bg-white border border-gray-200 rounded-2xl p-4 flex items-center justify-between hover:bg-gray-50 transition-colors shadow-sm active:scale-[0.98]"
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-[#00b14f]/10 rounded-xl flex items-center justify-center">
-                                        <svg className="w-6 h-6 text-[#00b14f]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                                        </svg>
+                                    <div className="w-12 h-12 bg-[#00b14f]/10 rounded-xl flex items-center justify-center text-2xl">
+                                        {selectedVehicle.type === 'sedan' ? '🚗' :
+                                         selectedVehicle.type === 'suv' ? '🚙' :
+                                         selectedVehicle.type === 'van' ? '🚐' : '🚘'}
                                     </div>
                                     <div className="text-left">
                                         <p className="font-semibold text-gray-900">{selectedVehicle.name}</p>
@@ -1421,6 +1474,25 @@ export default function TestMaps1Page() {
                                         </div>
                                     </div>
                                 </div>
+                                {/* Cancel Button - For pending/confirmed/driver_assigned (before driver accepts) */}
+                                {['pending', 'confirmed', 'driver_assigned'].includes(activeBooking.status) && (
+                                    <button
+                                        onClick={handleCancelClick}
+                                        disabled={isCancellingBooking}
+                                        className="w-full mt-3 h-11 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed border border-red-200"
+                                    >
+                                        {isCancellingBooking ? (
+                                            <div className="w-4 h-4 border-2 border-red-600/30 border-t-red-600 rounded-full animate-spin"></div>
+                                        ) : (
+                                            <>
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                                {language === 'th' ? 'ยกเลิกการจอง' : 'Cancel Booking'}
+                                            </>
+                                        )}
+                                    </button>
+                                )}
                             </div>
                         )}
 
@@ -1624,48 +1696,96 @@ export default function TestMaps1Page() {
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     placeholder={language === 'th' ? 'ค้นหาสถานที่...' : 'Search locations...'}
-                                    className="w-full pl-12 pr-4 py-3 bg-gray-100 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                                    className="w-full pl-12 pr-4 py-3.5 bg-gray-100 rounded-2xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#00b14f] focus:bg-white transition-all"
                                     autoFocus
                                 />
                             </div>
+
+                            {/* Quick Location Chips */}
+                            {!searchQuery && (
+                                <div className="mt-4">
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                                        {language === 'th' ? 'สถานที่ยอดนิยม' : 'Popular'}
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {filteredLocations.filter(loc => loc.isPopular || loc.type === 'airport').slice(0, 4).map((loc) => {
+                                            const locName = language === 'th' ? loc.name?.th : loc.name?.en;
+                                            return (
+                                                <button
+                                                    key={`quick-${loc.id}`}
+                                                    onClick={() => handleLocationSelect(loc)}
+                                                    className="px-4 py-2 bg-[#00b14f]/10 hover:bg-[#00b14f]/20 text-[#00b14f] rounded-full text-sm font-medium transition-all active:scale-95 flex items-center gap-1.5"
+                                                >
+                                                    {loc.type === 'airport' ? '✈️' : '📍'}
+                                                    <span>{locName}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex-1 overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">
                             {filteredLocations.length > 0 ? (
                                 <div className="p-4 space-y-2">
+                                    {/* Section Header */}
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-1">
+                                        {searchQuery
+                                            ? (language === 'th' ? 'ผลการค้นหา' : 'Search Results')
+                                            : (language === 'th' ? 'สถานที่ทั้งหมด' : 'All Locations')
+                                        }
+                                    </p>
                                     {filteredLocations.map((loc) => {
                                         const locName = language === 'th' ? loc.name?.th : loc.name?.en;
+                                        const typeLabel = loc.type === 'airport'
+                                            ? (language === 'th' ? 'สนามบิน' : 'Airport')
+                                            : loc.type === 'hotel'
+                                            ? (language === 'th' ? 'โรงแรม' : 'Hotel')
+                                            : loc.type === 'city'
+                                            ? (language === 'th' ? 'เมือง' : 'City')
+                                            : (language === 'th' ? 'สถานที่' : 'Location');
 
                                         return (
                                             <button
                                                 key={loc.id}
                                                 onClick={() => handleLocationSelect(loc)}
-                                                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-gray-50 border-2 border-transparent hover:bg-gray-100 transition-all active:scale-[0.98]"
+                                                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white border border-gray-100 hover:border-[#00b14f]/30 hover:bg-[#00b14f]/5 transition-all active:scale-[0.98] shadow-sm"
                                             >
                                                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                                                    loc.type === 'airport' ? 'bg-blue-100 text-blue-600' :
-                                                    loc.type === 'hotel' ? 'bg-amber-100 text-amber-600' :
-                                                    'bg-gray-200 text-gray-600'
+                                                    loc.type === 'airport' ? 'bg-blue-500/10 text-blue-600' :
+                                                    loc.type === 'hotel' ? 'bg-amber-500/10 text-amber-600' :
+                                                    loc.type === 'city' ? 'bg-purple-500/10 text-purple-600' :
+                                                    'bg-gray-100 text-gray-600'
                                                 }`}>
                                                     {loc.type === 'airport' ? (
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                                                         </svg>
                                                     ) : loc.type === 'hotel' ? (
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                        </svg>
+                                                    ) : loc.type === 'city' ? (
+                                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                                         </svg>
                                                     ) : (
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                                                         </svg>
                                                     )}
                                                 </div>
 
                                                 <div className="flex-1 text-left">
                                                     <p className="font-semibold text-gray-900">{locName}</p>
-                                                    <p className="text-sm text-gray-500 capitalize">{loc.type}</p>
+                                                    <p className="text-sm text-gray-500">{typeLabel}</p>
                                                 </div>
+
+                                                <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                </svg>
                                             </button>
                                         );
                                     })}
@@ -1722,13 +1842,15 @@ export default function TestMaps1Page() {
                                         setSelectedVehicle(vehicle);
                                         setShowVehiclePicker(false);
                                     }}
-                                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${
+                                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all active:scale-[0.98] ${
                                         selectedVehicle?.id === vehicle.id
-                                            ? 'border-blue-500 bg-blue-50'
-                                            : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
+                                            ? 'border-[#00b14f] bg-[#00b14f]/5 shadow-md'
+                                            : 'border-gray-100 bg-white hover:border-[#00b14f]/30 hover:bg-[#00b14f]/5 shadow-sm'
                                     }`}
                                 >
-                                    <div className="w-16 h-16 bg-gray-200 rounded-xl flex items-center justify-center text-3xl">
+                                    <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-3xl ${
+                                        selectedVehicle?.id === vehicle.id ? 'bg-[#00b14f]/10' : 'bg-gray-100'
+                                    }`}>
                                         {vehicle.type === 'sedan' ? '🚗' :
                                          vehicle.type === 'suv' ? '🚙' :
                                          vehicle.type === 'van' ? '🚐' : '🚘'}
@@ -1736,7 +1858,12 @@ export default function TestMaps1Page() {
                                     <div className="flex-1 text-left">
                                         <p className="font-bold text-gray-900">{vehicle.name}</p>
                                         <p className="text-sm text-gray-500">
-                                            {vehicle.seats} {language === 'th' ? 'ที่นั่ง' : 'seats'} • {vehicle.type}
+                                            {vehicle.seats} {language === 'th' ? 'ที่นั่ง' : 'seats'} • {
+                                                vehicle.type === 'sedan' ? (language === 'th' ? 'รถเก๋ง' : 'Sedan') :
+                                                vehicle.type === 'suv' ? 'SUV' :
+                                                vehicle.type === 'van' ? (language === 'th' ? 'รถตู้' : 'Van') :
+                                                vehicle.type
+                                            }
                                         </p>
                                         {vehicle.features && vehicle.features.length > 0 && (
                                             <p className="text-xs text-gray-400 mt-1">
@@ -1744,11 +1871,75 @@ export default function TestMaps1Page() {
                                             </p>
                                         )}
                                     </div>
-                                    <div className="text-right">
-                                        <p className="font-bold text-blue-600 text-lg">฿{vehicle.price.toLocaleString()}</p>
+                                    <div className="text-right flex flex-col items-end">
+                                        <p className={`font-bold text-lg ${selectedVehicle?.id === vehicle.id ? 'text-[#00b14f]' : 'text-gray-900'}`}>
+                                            ฿{vehicle.price.toLocaleString()}
+                                        </p>
+                                        {selectedVehicle?.id === vehicle.id && (
+                                            <div className="w-6 h-6 bg-[#00b14f] rounded-full flex items-center justify-center mt-1">
+                                                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </div>
+                                        )}
                                     </div>
                                 </button>
                             ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Cancel Booking Confirmation Modal */}
+            {showCancelModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center">
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        onClick={() => !isCancellingBooking && setShowCancelModal(false)}
+                    />
+
+                    <div className="relative bg-white rounded-3xl mx-4 w-full max-w-sm overflow-hidden shadow-2xl animate-slide-up">
+                        {/* Icon */}
+                        <div className="pt-8 pb-4 flex justify-center">
+                            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                                <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="px-6 pb-6 text-center">
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">
+                                {language === 'th' ? 'ยกเลิกการจอง?' : 'Cancel Booking?'}
+                            </h3>
+                            <p className="text-gray-500 text-sm">
+                                {language === 'th'
+                                    ? 'คุณแน่ใจหรือไม่ที่จะยกเลิกการจองนี้ การดำเนินการนี้ไม่สามารถย้อนกลับได้'
+                                    : 'Are you sure you want to cancel this booking? This action cannot be undone.'}
+                            </p>
+                        </div>
+
+                        {/* Buttons */}
+                        <div className="px-6 pb-6 flex gap-3">
+                            <button
+                                onClick={() => setShowCancelModal(false)}
+                                disabled={isCancellingBooking}
+                                className="flex-1 h-12 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-semibold transition-all active:scale-[0.98] disabled:opacity-50"
+                            >
+                                {language === 'th' ? 'ไม่ใช่' : 'No'}
+                            </button>
+                            <button
+                                onClick={confirmCancelBooking}
+                                disabled={isCancellingBooking}
+                                className="flex-1 h-12 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-semibold transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {isCancellingBooking ? (
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                ) : (
+                                    language === 'th' ? 'ยกเลิกเลย' : 'Yes, Cancel'
+                                )}
+                            </button>
                         </div>
                     </div>
                 </div>
