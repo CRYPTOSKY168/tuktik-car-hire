@@ -2487,8 +2487,13 @@ w-11 h-11 bg-gray-100 text-gray-600 rounded-full shadow-sm
 - **ตัวอย่างการคำนวณ:**
   - คนขับมี rating 4.5 (10 reviews) ได้รับ 5 ดาวใหม่ → 4.4 (ดึงเข้าหา 4.0)
   - User ใหม่ได้รับ 3 ดาว → 3.8 (ไม่ใช่ 3.0 ตรงๆ)
+- **Bug Fix: demo-driver คะแนนแสดงไม่ตรง**
+  - **ปัญหา:** คะแนน 4.9 ถูก hardcode ในโค้ด ไม่ได้ดึงจาก database
+  - **แก้ไข:** เพิ่ม `rating`, `ratingCount`, `totalTrips`, `totalEarnings` ใน DriverData interface
+  - **แก้ไข:** ดึงข้อมูลจาก Firestore และแสดง `driver?.rating?.toFixed(1) || '-'`
 - **Files modified:**
   - `app/api/booking/rate/route.ts` - เพิ่ม `calculateBayesianRating()` function
+  - `app/demo-driver/page.tsx` - แก้ไข hardcoded rating → ดึงจาก database
   - `scripts/test-rating-flow.js` - อัปเดตให้ใช้ Bayesian formula เดียวกัน
 
 ### 2025-12-31 v7.4 - Rating System + Security 🔒⭐
