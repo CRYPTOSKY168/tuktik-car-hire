@@ -64,6 +64,21 @@ export enum NotificationType {
 
 // ============ INTERFACES ============
 
+// Location coordinates interface for tracking
+export interface GeoCoordinates {
+    lat: number;
+    lng: number;
+}
+
+// Driver current location with tracking info
+export interface DriverLocation {
+    lat: number;
+    lng: number;
+    heading?: number;      // Direction (0-360 degrees)
+    speed?: number;        // Speed in km/h
+    timestamp: Timestamp | Date;
+}
+
 export interface StatusHistoryEntry {
     status: string;
     timestamp: Timestamp | { seconds: number };
@@ -88,6 +103,10 @@ export interface Booking {
     phone: string;
     pickupLocation: string;
     dropoffLocation: string;
+    pickupCoordinates?: GeoCoordinates;   // GPS coordinates of pickup
+    dropoffCoordinates?: GeoCoordinates;  // GPS coordinates of dropoff
+    distance?: number;                     // Distance in km
+    estimatedDuration?: number;            // Estimated duration in minutes
     pickupDate: string;
     pickupTime: string;
     vehicleId: string;
@@ -127,6 +146,7 @@ export interface Driver {
     rating: number;
     ratingCount: number;
     isActive: boolean;
+    currentLocation?: DriverLocation;  // Real-time GPS location
     createdAt?: Timestamp | Date;
     updatedAt?: Timestamp | Date;
 }

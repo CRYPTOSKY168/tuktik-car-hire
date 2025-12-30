@@ -12,8 +12,10 @@ export default function ConditionalLayout({ children }: { children: React.ReactN
     const isAdminPage = pathname?.startsWith('/admin');
     const isDriverPage = pathname?.startsWith('/driver');
     const isDemoPage = pathname?.startsWith('/vehicles-test');
+    const isTestMapsPage = pathname?.startsWith('/test-maps');
+    const isDemoDriverPage = pathname?.startsWith('/demo-driver');
 
-    if (isAdminPage || isDriverPage || isDemoPage) {
+    if (isAdminPage || isDriverPage || isDemoPage || isTestMapsPage || isDemoDriverPage) {
         return <>{children}</>;
     }
 

@@ -1,9 +1,9 @@
 # TukTik Car Rental - Project Documentation
 
 > **Last Updated:** 2025-12-30
-> **Version:** 6.9 (Custom SVG Markers)
+> **Version:** 7.2 (Demo Driver + Log Checker)
 > **Status:** Production
-> **Lines:** ~3250+
+> **Lines:** ~3550+
 
 ---
 
@@ -16,6 +16,12 @@ npm run dev          # Start dev server at localhost:3000
 # Build & Deploy
 npm run build        # Build for production
 vercel --prod        # Deploy to Vercel
+
+# Debug & Monitoring
+node scripts/check-logs.js          # ตรวจสอบ bugs ทั้งหมด
+node scripts/check-logs.js --code   # ตรวจสอบ code issues
+node scripts/monitor-logs.js        # Monitor logs แบบ real-time
+node scripts/monitor-logs.js --dev  # Monitor dev server
 
 # Other
 npm run lint         # Run ESLint
@@ -255,6 +261,9 @@ car-rental/
 │   │   ├── history/          # Trip history
 │   │   └── pending/          # Pending approval
 │   │
+│   ├── demo-driver/          # Demo driver (real backend + Google Maps)
+│   │   └── page.tsx          # Mobile-first driver UI
+│   │
 │   └── api/                  # API routes
 │       ├── admin/
 │       │   ├── bookings/     # Booking API
@@ -363,6 +372,12 @@ car-rental/
 │   ├── firebase-messaging-sw.js  # FCM service worker
 │   ├── icons/                # App icons
 │   └── images/               # Static images
+│
+├── scripts/                  # Utility scripts
+│   ├── check-logs.js         # Bug checker (Vercel, Firebase, Code)
+│   ├── monitor-logs.js       # Real-time log monitor
+│   ├── check-database.js     # Database status checker
+│   └── cleanup-*.js          # Cleanup scripts
 │
 ├── CLAUDE.md                 # This documentation
 ├── package.json
@@ -1253,6 +1268,56 @@ statusHistory.push({
 
 ---
 
+## 🔍 Debug & Monitoring Scripts
+
+### scripts/check-logs.js - ตรวจสอบ Bugs
+
+ใช้ตรวจสอบ bugs ในระบบครั้งเดียว:
+
+```bash
+# ตรวจสอบทั้งหมด (Vercel logs, Firebase, Code issues, TypeScript)
+node scripts/check-logs.js
+
+# ตรวจสอบเฉพาะ Vercel production logs
+node scripts/check-logs.js --vercel
+
+# ตรวจสอบเฉพาะ Firebase configuration
+node scripts/check-logs.js --firebase
+
+# ตรวจสอบเฉพาะ code issues
+node scripts/check-logs.js --code
+```
+
+**สิ่งที่ตรวจสอบ:**
+| Check | Description |
+|-------|-------------|
+| Vercel Logs | ดึง 50 logs ล่าสุดและหา error patterns |
+| Firebase | เช็ค env vars ครบหรือไม่ |
+| Code Issues | หา `any` type, `console.log`, `TODO`, `@ts-ignore` |
+| TypeScript | รัน `tsc --noEmit` เพื่อหา type errors |
+| API Routes | เช็คว่าไฟล์ route.ts มีอยู่ |
+
+### scripts/monitor-logs.js - ติดตาม Logs แบบ Real-time
+
+ใช้ติดตาม logs ตลอดเวลาและแจ้งเตือนเมื่อพบ error:
+
+```bash
+# Monitor Vercel production logs (ต้อง vercel login ก่อน)
+node scripts/monitor-logs.js
+
+# Monitor dev server (localhost:3000)
+node scripts/monitor-logs.js --dev
+```
+
+**Features:**
+- 🔴 แจ้งเตือนทันที (พร้อมเสียง) เมื่อพบ error
+- 🟡 ไฮไลท์ warnings
+- 🟢 แสดง success messages
+- กด `s` เพื่อดูสถิติ live (errors, warnings, runtime)
+- กด `Ctrl+C` เพื่อหยุดและดู summary
+
+---
+
 ## 🧪 Testing Guide
 
 ### ก่อน Deploy ต้องทดสอบ
@@ -2121,7 +2186,180 @@ estimatedDuration?: number; // minutes
 
 ---
 
+## 🗺️ Test Maps 1 - Full Booking Flow (Mobile App Style)
+
+> **Status:** In Development | **URL:** `/test-maps1`
+
+### Overview
+
+หน้า `/test-maps1` เป็น enhanced version ของ `/test-maps` ที่:
+- **UI Style:** Mobile-first design แบบ Uber/Grab (max-width 430px)
+- **Two Modes:** Demo Mode (simulation) และ Live Mode (real database)
+- **Full Integration:** เชื่อมต่อกับ database จริงทั้งหมด
+
+### Features
+
+| Feature | Demo Mode | Live Mode |
+|---------|-----------|-----------|
+| แผนที่ Google Maps | ✅ | ✅ |
+| เลือกจุดรับ-ส่ง | ✅ | ✅ |
+| Draggable markers | ✅ | ✅ |
+| Route calculation | ✅ | ✅ |
+| Vehicle selection | Mock | ✅ Real from `vehicles` |
+| Pricing | Mock | ✅ Real from `routes` |
+| Create booking | ❌ | ✅ Real in Firestore |
+| Driver assignment | Simulation | ✅ Real driver |
+| Driver tracking | Simulation | ✅ Real-time GPS |
+| Active booking check | ❌ | ✅ Prevents double booking |
+
+### Live Mode Features
+
+**1. Routes Collection (ราคาจริง)**
+```typescript
+// ดึงราคาจาก routes collection
+LocationService.getRoutePrice(pickup.id, dropoff.id)
+```
+
+**2. Vehicle Selection (รถจริง)**
+```typescript
+// ดึง vehicles จาก database
+VehicleService.getVehicles()
+// Vehicle Picker Bottom Sheet
+```
+
+**3. Create Booking (สร้าง booking จริง)**
+```typescript
+// สร้าง booking ใน Firestore
+BookingService.addBooking(bookingData, price, userId)
+```
+
+**4. Driver Assignment (มอบหมายคนขับจริง)**
+```typescript
+// ดึงคนขับที่ว่าง
+DriverService.subscribeToDrivers()
+// Assign driver
+BookingService.assignDriver(bookingId, driverInfo)
+```
+
+**5. Real-time Tracking**
+```typescript
+// Subscribe to driver location
+useDriverTracking(driverId)
+```
+
+**6. Active Booking Check (ป้องกันจองซ้ำ)**
+- เมื่อเข้า Live Mode → ตรวจสอบว่ามี booking ที่ยังไม่เสร็จอยู่หรือไม่
+- ถ้ามี → แสดงข้อมูล booking และซ่อนปุ่มจองใหม่
+- Active statuses: `pending`, `confirmed`, `driver_assigned`, `driver_en_route`, `in_progress`
+
+### State Management
+
+```typescript
+// Mode: demo or live
+const [mode, setMode] = useState<'demo' | 'live'>('demo');
+
+// Live Mode States
+const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+const [availableDrivers, setAvailableDrivers] = useState<Driver[]>([]);
+const [assignedDriver, setAssignedDriver] = useState<Driver | null>(null);
+const [bookingId, setBookingId] = useState<string | null>(null);
+const [routePrice, setRoutePrice] = useState<number | null>(null);
+const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
+const [isLoadingActiveBooking, setIsLoadingActiveBooking] = useState(false);
+```
+
+### Files
+
+| File | Description |
+|------|-------------|
+| `app/test-maps1/page.tsx` | Main page (~1400 lines) |
+| `lib/hooks/useDriverTracking.ts` | Real-time driver tracking hook |
+| `lib/firebase/services/BookingService.ts` | Booking CRUD |
+| `lib/firebase/services/DriverService.ts` | Driver CRUD |
+| `lib/firebase/services/VehicleService.ts` | Vehicle CRUD |
+| `lib/firebase/services/LocationService.ts` | Location & route pricing |
+
+### Known Issues / TODO
+
+- [ ] ต้องแก้ไข: เมื่อมี active booking และ reload หน้า, coordinates ของ pickup/dropoff ยังไม่ถูก restore (ใช้ default coordinates)
+- [ ] ต้องเพิ่ม: ปุ่มยกเลิก booking ใน Live Mode
+- [ ] ต้องเพิ่ม: Real-time subscription สำหรับ booking status updates
+- [ ] ต้องเพิ่ม: Subscribe to booking changes (เมื่อ admin assign driver)
+
+### How to Test
+
+**Demo Mode:**
+1. ไปที่ http://localhost:3000/test-maps1
+2. เลือกจุดรับ-จุดส่ง
+3. กด "ค้นหาคนขับ" → simulation จะเริ่มทำงาน
+
+**Live Mode:**
+1. Login ก่อน (ต้องมี account)
+2. กดเปลี่ยนเป็น "Live" mode
+3. ถ้าไม่มี active booking → จะเห็น vehicle picker และปุ่ม "จองรถตอนนี้"
+4. ถ้ามี active booking → จะเห็นกล่องแจ้งเตือนและสถานะปัจจุบัน
+
+---
+
 ## Changelog
+
+### 2025-12-30 v7.2 - Demo Driver + Log Checker 🔍
+- **สร้างหน้า `/demo-driver`** - Driver app UI ใหม่ + Google Maps + Real Backend
+  - Mobile-first design (max-width 430px) แบบ Uber/Grab
+  - เชื่อมต่อ Firebase Auth จริง (ต้อง login)
+  - Subscribe to bookings จริง (real-time)
+  - ใช้ API จริง (`/api/driver/status`, `/api/driver/bookings`)
+  - GPS tracking เมื่อมีงาน
+  - Job notification modal พร้อม countdown 15 วินาที
+- **Scripts สำหรับ Debug & Monitoring:**
+  - `scripts/check-logs.js` - ตรวจสอบ bugs ในระบบ (Vercel logs, Firebase, Code issues)
+  - `scripts/monitor-logs.js` - Monitor logs แบบ real-time พร้อมเสียงแจ้งเตือน
+- **Features ของ check-logs.js:**
+  - ตรวจสอบ Vercel production logs
+  - ตรวจสอบ Firebase configuration
+  - หา code smells (console.log, any type, TODO, @ts-ignore)
+  - TypeScript error check
+  - API routes health check
+  - สรุปผลแบบสวยงาม
+- **Files created:**
+  - `app/demo-driver/page.tsx` - Demo driver page
+  - `scripts/check-logs.js` - Bug checker script
+  - `scripts/monitor-logs.js` - Real-time log monitor
+
+### 2025-12-30 v7.1 - Driver GPS Location Tracking 📍
+- **Driver App ส่ง GPS Location ได้แล้ว!**
+- **เมื่อคนขับมีงาน (driver_en_route หรือ in_progress):**
+  - GPS จะเริ่มทำงานอัตโนมัติ
+  - ส่งตำแหน่งไปที่ `/api/driver/location` ทุก 5 วินาที
+  - อัปเดต `currentLocation` ใน Firestore
+- **GPS Status Indicator บนหน้า Driver:**
+  - สีเขียว: กำลังส่งตำแหน่ง + แสดง "LIVE"
+  - สีเหลือง: กำลังเชื่อมต่อ GPS
+  - สีแดง: ไม่สามารถติดตามได้ (ไม่ได้อนุญาต)
+- **Hooks ที่ใช้:**
+  - `useDriverLocationUpdates()` - ส่ง location ไป API
+  - `useGeolocation()` - ดึง GPS จาก browser
+- **Files modified:** `app/driver/page.tsx`
+
+### 2025-12-30 v7.0 - Test Maps 1 Full Booking Flow 🚀
+- **สร้างหน้า `/test-maps1`** - Mobile App Style + Real Database Integration
+- **Two Modes:**
+  - Demo Mode: Simulation เหมือน test-maps
+  - Live Mode: เชื่อมต่อ database จริงทั้งหมด
+- **Live Mode Features:**
+  - ✅ Routes Collection: ดึงราคาจริงจาก `routes` collection
+  - ✅ Vehicle Selection: ดึงรถจาก `vehicles` collection + Vehicle Picker Bottom Sheet
+  - ✅ Create Booking: สร้าง booking จริงใน Firestore
+  - ✅ Driver Assignment: ดึงคนขับที่ว่างและ assign ให้ booking
+  - ✅ Real-time Tracking: ใช้ `useDriverTracking` hook
+  - ✅ Active Booking Check: ตรวจสอบว่ามี booking ที่กำลังดำเนินการ → ป้องกันจองซ้ำ
+- **Active Booking Flow:**
+  - เมื่อเข้า Live Mode → เช็ค active booking ของ user
+  - ถ้ามี → แสดงกล่องแจ้งเตือน + ซ่อนปุ่มจองใหม่
+  - ถ้าไม่มี → แสดง UI ปกติให้จองได้
+- **Files modified:** `app/test-maps1/page.tsx`
+- **Documentation:** เพิ่ม section "Test Maps 1 - Full Booking Flow" ใน CLAUDE.md
 
 ### 2025-12-30 v6.9 - Custom SVG Markers (Modern Design) 🎨
 - **Custom SVG Markers สวยๆ โมเดิร์น** - ไม่ใช้ Google Maps icons เดิมอีกต่อไป
@@ -2797,4 +3035,4 @@ vercel --prod        # Deploy to production
 ---
 
 *Document maintained by development team. Last updated: 2025-12-30*
-*Lines: ~2700 | Version: 6.9 (Custom SVG Markers) 🎨*
+*Lines: ~3450 | Version: 7.1 (Driver GPS Location Tracking) 📍*

@@ -233,9 +233,8 @@ export default function TestMapsPage() {
     const geocoderRef = useRef<google.maps.Geocoder | null>(null);
     const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Throttle for map pan (smooth follow)
+    // Throttle for smooth pan (ไม่ pan ถี่เกินไป)
     const lastPanTimeRef = useRef<number>(0);
-    const isUserInteractingRef = useRef<boolean>(false);
 
     // Trip state
     const [status, setStatus] = useState<string>('searching');
@@ -259,6 +258,9 @@ export default function TestMapsPage() {
 
     // Traffic layer
     const [showTraffic, setShowTraffic] = useState(true);
+
+    // Map type (roadmap / satellite)
+    const [mapType, setMapType] = useState<'roadmap' | 'satellite'>('roadmap');
 
     // User location
     const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
@@ -360,8 +362,6 @@ export default function TestMapsPage() {
         setDriverLocation(routePath[0]);
         setRemainingPath(routePath.map(p => ({ lat: p.lat, lng: p.lng })));
         setFollowCar(true);
-        isUserInteractingRef.current = false;
-        lastPanTimeRef.current = 0;
 
         // ซูมไปที่จุดเริ่มต้นและซูมเข้าใกล้
         if (mapRef.current) {
@@ -419,13 +419,6 @@ export default function TestMapsPage() {
                 } else if (progressPercent >= 10) {
                     setStatus('arrived');
                 }
-
-                // *** Smooth pan - throttle ทุก 300ms และไม่ pan ถ้า user กำลังเลื่อนแผนที่ ***
-                const now = Date.now();
-                if (mapRef.current && !isUserInteractingRef.current && (now - lastPanTimeRef.current > 300)) {
-                    lastPanTimeRef.current = now;
-                    mapRef.current.panTo(currentPosition);
-                }
             }
 
             if (progressPercent < 100) {
@@ -480,23 +473,22 @@ export default function TestMapsPage() {
         });
     };
 
-    // เมื่อ user เลื่อนแผนที่ → หยุด auto-follow ชั่วคราว
+    // เมื่อ user เลื่อนแผนที่ → หยุด follow ทันที (ไม่ auto-resume)
     const onMapDragStart = () => {
-        isUserInteractingRef.current = true;
         if (isSimulating) {
             setFollowCar(false);
         }
     };
 
-    // เมื่อ user หยุดเลื่อน → เปิด auto-follow กลับมาหลัง 3 วินาที
+    // เมื่อ user หยุดเลื่อน → ไม่ต้องทำอะไร (user ต้องกดปุ่มเอง)
     const onMapDragEnd = () => {
-        if (isSimulating) {
-            setTimeout(() => {
-                isUserInteractingRef.current = false;
-                setFollowCar(true);
-            }, 3000); // กลับมา follow หลัง 3 วินาที
-        } else {
-            isUserInteractingRef.current = false;
+        // ไม่ auto-resume - user ต้องกดปุ่ม 🚗 เพื่อกลับมาติดตามรถ
+    };
+
+    // เมื่อ user zoom แผนที่ → หยุด follow ทันที
+    const onZoomChanged = () => {
+        if (isSimulating && followCar) {
+            setFollowCar(false);
         }
     };
 
@@ -653,6 +645,18 @@ export default function TestMapsPage() {
             geocoderRef.current = new google.maps.Geocoder();
         }
     }, [isLoaded]);
+
+    // *** Follow car smoothly - pan เมื่อ followCar เปิด (throttle 500ms) ***
+    useEffect(() => {
+        if (!followCar || !driverLocation || !mapRef.current || !isSimulating) return;
+
+        // Throttle - pan ทุก 500ms เท่านั้น (ไม่ถี่เกินไป)
+        const now = Date.now();
+        if (now - lastPanTimeRef.current < 500) return;
+
+        lastPanTimeRef.current = now;
+        mapRef.current.panTo(driverLocation);
+    }, [followCar, driverLocation, isSimulating]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -818,10 +822,11 @@ export default function TestMapsPage() {
                     mapContainerStyle={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}
                     center={pickup}
                     zoom={13}
-                    options={mapOptions}
+                    options={{ ...mapOptions, mapTypeId: mapType }}
                     onLoad={onMapLoad}
                     onDragStart={onMapDragStart}
                     onDragEnd={onMapDragEnd}
+                    onZoomChanged={onZoomChanged}
                 >
                     {/* Traffic Layer - แสดงสถานการณ์จราจร */}
                     {showTraffic && <TrafficLayer />}
@@ -900,10 +905,31 @@ export default function TestMapsPage() {
                 </GoogleMap>
 
                 {/* ETA Overlay */}
-                {eta !== null && isSimulating && (
+                {eta !== null && isSimulating && followCar && (
                     <div className="absolute top-4 left-4 bg-white rounded-2xl shadow-lg p-4">
                         <p className="text-xs text-gray-500">ถึงใน</p>
                         <p className="text-2xl font-bold text-indigo-600">{eta} นาที</p>
+                    </div>
+                )}
+
+                {/* Follow Stopped Indicator - แสดงเมื่อหยุดติดตามรถ */}
+                {isSimulating && !followCar && (
+                    <div className="absolute top-4 left-4 right-16 z-20">
+                        <button
+                            onClick={() => {
+                                zoomToCar();
+                                setFollowCar(true);
+                            }}
+                            className="w-full bg-indigo-600 text-white rounded-2xl shadow-lg p-3 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+                        >
+                            <span className="text-lg">🚗</span>
+                            <span className="font-medium">กดเพื่อกลับไปติดตามรถ</span>
+                            {eta !== null && (
+                                <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm">
+                                    {eta} นาที
+                                </span>
+                            )}
+                        </button>
                     </div>
                 )}
 
@@ -949,6 +975,17 @@ export default function TestMapsPage() {
                         </div>
                     </button>
 
+                    {/* Satellite Toggle */}
+                    <button
+                        onClick={() => setMapType(mapType === 'roadmap' ? 'satellite' : 'roadmap')}
+                        className={`w-11 h-11 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-all ${
+                            mapType === 'satellite' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'
+                        }`}
+                        title={mapType === 'satellite' ? 'แผนที่ปกติ' : 'แผนที่ดาวเทียม'}
+                    >
+                        <span className="text-lg">🛰️</span>
+                    </button>
+
                     {/* Traffic Toggle */}
                     <button
                         onClick={() => setShowTraffic(!showTraffic)}
@@ -977,9 +1014,11 @@ export default function TestMapsPage() {
                                 setFollowCar(true);
                             }}
                             className={`w-11 h-11 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-all ${
-                                followCar ? 'bg-indigo-600 ring-2 ring-indigo-300' : 'bg-indigo-600'
+                                followCar
+                                    ? 'bg-indigo-600 ring-2 ring-indigo-300'
+                                    : 'bg-white border-2 border-indigo-600 animate-pulse'
                             }`}
-                            title={followCar ? 'กำลังติดตามรถ' : 'ซูมไปที่รถ'}
+                            title={followCar ? 'กำลังติดตามรถ' : 'กดเพื่อกลับไปติดตามรถ'}
                         >
                             <span className="text-lg">🚗</span>
                         </button>
@@ -1223,20 +1262,6 @@ export default function TestMapsPage() {
                     </div>
                 </div>
 
-                {/* Follow Toggle */}
-                <div className="flex items-center justify-between pt-2">
-                    <span className="text-sm text-gray-600">แผนที่ตามรถ</span>
-                    <button
-                        onClick={() => setFollowCar(!followCar)}
-                        className={`w-12 h-6 rounded-full transition-colors ${
-                            followCar ? 'bg-indigo-600' : 'bg-gray-300'
-                        }`}
-                    >
-                        <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                            followCar ? 'translate-x-6' : 'translate-x-0.5'
-                        }`}></div>
-                    </button>
-                </div>
             </div>
         </div>
     );

@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase/config';
 import { doc, getDoc, query, collection, where, getDocs } from 'firebase/firestore';
 import { FirestoreService } from '@/lib/firebase/firestore';
 import { DriverStatus } from '@/lib/types';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
+import { useDriverLocationUpdates } from '@/lib/hooks/useGeolocation';
 import Link from 'next/link';
 
 interface DriverData {
@@ -223,6 +224,29 @@ export default function DriverDashboard() {
             return null;
         }
     };
+
+    // Helper function to get auth headers for API calls
+    const getAuthHeaders = useCallback(async (): Promise<HeadersInit> => {
+        const token = await getAuthToken();
+        return {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : '',
+        };
+    }, []);
+
+    // Check if driver has an active job that requires location tracking
+    const hasActiveJob = useMemo(() => {
+        return bookings.some(b =>
+            ['driver_en_route', 'in_progress'].includes(b.status)
+        );
+    }, [bookings]);
+
+    // GPS Location Tracking - Active when driver has a job in progress
+    const locationTracking = useDriverLocationUpdates(
+        driver?.id || null,
+        hasActiveJob, // Only track when driver has active job
+        getAuthHeaders
+    );
 
     const handleStatusChange = async (newStatus: DriverStatus) => {
         if (!driver) return;
@@ -515,6 +539,81 @@ export default function DriverDashboard() {
                     </div>
                 )}
             </div>
+
+            {/* GPS Location Tracking Indicator */}
+            {hasActiveJob && (
+                <div className={`rounded-2xl p-4 flex items-center gap-3 ${
+                    locationTracking.error
+                        ? 'bg-red-50 border border-red-200'
+                        : locationTracking.latitude
+                            ? 'bg-green-50 border border-green-200'
+                            : 'bg-yellow-50 border border-yellow-200'
+                }`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        locationTracking.error
+                            ? 'bg-red-100'
+                            : locationTracking.latitude
+                                ? 'bg-green-100'
+                                : 'bg-yellow-100'
+                    }`}>
+                        {locationTracking.isLoading || locationTracking.isUpdating ? (
+                            <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                            <span className={`material-symbols-outlined ${
+                                locationTracking.error
+                                    ? 'text-red-600'
+                                    : locationTracking.latitude
+                                        ? 'text-green-600'
+                                        : 'text-yellow-600'
+                            }`}>
+                                {locationTracking.error ? 'location_off' : 'location_on'}
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex-1">
+                        <p className={`font-medium text-sm ${
+                            locationTracking.error
+                                ? 'text-red-800'
+                                : locationTracking.latitude
+                                    ? 'text-green-800'
+                                    : 'text-yellow-800'
+                        }`}>
+                            {locationTracking.error
+                                ? (language === 'th' ? 'ไม่สามารถติดตาม GPS' : 'GPS Tracking Failed')
+                                : locationTracking.latitude
+                                    ? (language === 'th' ? 'กำลังส่งตำแหน่ง GPS' : 'GPS Location Active')
+                                    : (language === 'th' ? 'กำลังเชื่อมต่อ GPS...' : 'Connecting GPS...')
+                            }
+                        </p>
+                        <p className={`text-xs ${
+                            locationTracking.error
+                                ? 'text-red-600'
+                                : locationTracking.latitude
+                                    ? 'text-green-600'
+                                    : 'text-yellow-600'
+                        }`}>
+                            {locationTracking.error
+                                ? locationTracking.error
+                                : locationTracking.latitude
+                                    ? (language === 'th'
+                                        ? `ลูกค้าสามารถติดตามตำแหน่งของคุณได้`
+                                        : `Customer can track your location`)
+                                    : (language === 'th'
+                                        ? 'กรุณาอนุญาตการเข้าถึงตำแหน่ง'
+                                        : 'Please allow location access')
+                            }
+                        </p>
+                    </div>
+                    {locationTracking.latitude && (
+                        <div className="text-right">
+                            <div className="flex items-center gap-1 text-xs text-green-600">
+                                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                                LIVE
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-2 gap-4">
