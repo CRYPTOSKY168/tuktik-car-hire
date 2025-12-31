@@ -163,6 +163,26 @@ function CarMarker({ position, bearing }: { position: Coordinates; bearing: numb
     );
 }
 
+// Searching Ripple Animation Component
+function SearchingRipple({ position }: { position: Coordinates }) {
+    return (
+        <OverlayView position={position} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}>
+            <div className="relative" style={{ transform: 'translate(-50%, -50%)' }}>
+                {/* Ripple waves */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="absolute w-32 h-32 rounded-full bg-[#00b14f]/20 animate-ping" style={{ animationDuration: '2s' }}></div>
+                    <div className="absolute w-24 h-24 rounded-full bg-[#00b14f]/30 animate-ping" style={{ animationDuration: '2s', animationDelay: '0.5s' }}></div>
+                    <div className="absolute w-16 h-16 rounded-full bg-[#00b14f]/40 animate-ping" style={{ animationDuration: '2s', animationDelay: '1s' }}></div>
+                </div>
+                {/* Center dot */}
+                <div className="relative w-6 h-6 bg-[#00b14f] rounded-full border-4 border-white shadow-lg flex items-center justify-center">
+                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                </div>
+            </div>
+        </OverlayView>
+    );
+}
+
 // Map options
 const mapOptions: google.maps.MapOptions = {
     disableDefaultUI: true,
@@ -237,6 +257,10 @@ export default function TestMaps1Page() {
     const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
     const [isCancellingBooking, setIsCancellingBooking] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
+
+    // === NEW: Live Mode Map Features ===
+    const [driverToPickupRoute, setDriverToPickupRoute] = useState<google.maps.DirectionsResult | null>(null);
+    const [liveEta, setLiveEta] = useState<{ toPickup: number | null; toDropoff: number | null }>({ toPickup: null, toDropoff: null });
 
     // Rating state for completed trips
     const [showRatingModal, setShowRatingModal] = useState(false);
@@ -542,6 +566,66 @@ export default function TestMaps1Page() {
             }
         }
     }, [mode, liveDriverLocation]);
+
+    // === NEW: Calculate Driver-to-Pickup Route & Live ETA ===
+    useEffect(() => {
+        if (mode !== 'live' || !isLoaded || !driverLocation) return;
+
+        const calculateDriverRoute = async () => {
+            const directionsService = new google.maps.DirectionsService();
+
+            // Calculate route from driver to pickup (when driver_en_route)
+            if (status === 'driver_assigned' || status === 'driver_en_route') {
+                try {
+                    const result = await directionsService.route({
+                        origin: driverLocation,
+                        destination: pickup,
+                        travelMode: google.maps.TravelMode.DRIVING,
+                    });
+                    setDriverToPickupRoute(result);
+
+                    // Extract ETA to pickup
+                    const leg = result.routes[0]?.legs[0];
+                    if (leg?.duration?.value) {
+                        setLiveEta(prev => ({ ...prev, toPickup: Math.ceil(leg.duration!.value / 60) }));
+                    }
+                } catch (error) {
+                    console.error('Error calculating driver route:', error);
+                }
+            }
+
+            // Calculate ETA to dropoff (when in_progress)
+            if (status === 'in_progress') {
+                try {
+                    const result = await directionsService.route({
+                        origin: driverLocation,
+                        destination: dropoff,
+                        travelMode: google.maps.TravelMode.DRIVING,
+                    });
+
+                    // Extract ETA to dropoff
+                    const leg = result.routes[0]?.legs[0];
+                    if (leg?.duration?.value) {
+                        setLiveEta(prev => ({ ...prev, toDropoff: Math.ceil(leg.duration!.value / 60) }));
+                    }
+                } catch (error) {
+                    console.error('Error calculating ETA:', error);
+                }
+            }
+        };
+
+        calculateDriverRoute();
+    }, [mode, isLoaded, driverLocation, status, pickup, dropoff]);
+
+    // Clear driver route when status changes
+    useEffect(() => {
+        if (status === 'in_progress' || status === 'completed' || status === 'selecting') {
+            setDriverToPickupRoute(null);
+        }
+        if (status === 'selecting' || status === 'completed') {
+            setLiveEta({ toPickup: null, toDropoff: null });
+        }
+    }, [status]);
 
     // Get directions
     const getDirections = useCallback(async () => {
@@ -1124,13 +1208,43 @@ export default function TestMaps1Page() {
                             title={dropoff.name}
                         />
 
+                        {/* === NEW: Searching Ripple Animation === */}
+                        {status === 'searching' && (
+                            <SearchingRipple position={pickup} />
+                        )}
+
+                        {/* === NEW: Driver-to-Pickup Route (dashed line) === */}
+                        {driverToPickupRoute && (status === 'driver_assigned' || status === 'driver_en_route') && (
+                            <DirectionsRenderer
+                                directions={driverToPickupRoute}
+                                options={{
+                                    suppressMarkers: true,
+                                    polylineOptions: {
+                                        strokeColor: '#00b14f',
+                                        strokeWeight: 4,
+                                        strokeOpacity: 0,
+                                        icons: [{
+                                            icon: {
+                                                path: 'M 0,-1 0,1',
+                                                strokeOpacity: 1,
+                                                strokeColor: '#00b14f',
+                                                scale: 4,
+                                            },
+                                            offset: '0',
+                                            repeat: '20px',
+                                        }],
+                                    },
+                                }}
+                            />
+                        )}
+
                         {/* Driver Car */}
                         {driverLocation && (
                             <CarMarker position={driverLocation} bearing={driverBearing} />
                         )}
                     </GoogleMap>
 
-                    {/* ETA Badge */}
+                    {/* ETA Badge - Demo Mode */}
                     {eta !== null && isSimulating && followCar && (
                         <div className="absolute top-4 left-4 bg-white rounded-2xl shadow-lg p-3">
                             <p className="text-xs text-gray-500">{language === 'th' ? 'ถึงใน' : 'ETA'}</p>
@@ -1140,6 +1254,39 @@ export default function TestMaps1Page() {
                                     : `${eta} ${language === 'th' ? 'นาที' : 'min'}`
                                 }
                             </p>
+                        </div>
+                    )}
+
+                    {/* === NEW: Live ETA Badge === */}
+                    {mode === 'live' && (status === 'driver_en_route' || status === 'in_progress') && (
+                        <div className="absolute top-4 left-4 bg-white rounded-2xl shadow-lg p-3 border-l-4 border-[#00b14f]">
+                            <div className="flex items-center gap-2 mb-1">
+                                <div className="w-2 h-2 bg-[#00b14f] rounded-full animate-pulse"></div>
+                                <p className="text-xs text-gray-500 font-medium">
+                                    {status === 'driver_en_route'
+                                        ? (language === 'th' ? 'คนขับถึงจุดรับใน' : 'Driver arrives in')
+                                        : (language === 'th' ? 'ถึงปลายทางใน' : 'Arriving in')
+                                    }
+                                </p>
+                            </div>
+                            <p className="text-2xl font-bold text-[#00b14f]">
+                                {status === 'driver_en_route' && liveEta.toPickup !== null ? (
+                                    liveEta.toPickup >= 60
+                                        ? `${Math.floor(liveEta.toPickup / 60)} ${language === 'th' ? 'ชม.' : 'hr'} ${liveEta.toPickup % 60} ${language === 'th' ? 'น.' : 'min'}`
+                                        : `${liveEta.toPickup} ${language === 'th' ? 'นาที' : 'min'}`
+                                ) : status === 'in_progress' && liveEta.toDropoff !== null ? (
+                                    liveEta.toDropoff >= 60
+                                        ? `${Math.floor(liveEta.toDropoff / 60)} ${language === 'th' ? 'ชม.' : 'hr'} ${liveEta.toDropoff % 60} ${language === 'th' ? 'น.' : 'min'}`
+                                        : `${liveEta.toDropoff} ${language === 'th' ? 'นาที' : 'min'}`
+                                ) : (
+                                    <span className="text-gray-400 text-sm">{language === 'th' ? 'กำลังคำนวณ...' : 'Calculating...'}</span>
+                                )}
+                            </p>
+                            {assignedDriver && (
+                                <p className="text-xs text-gray-400 mt-1 truncate max-w-[150px]">
+                                    🚗 {assignedDriver.name}
+                                </p>
+                            )}
                         </div>
                     )}
 
