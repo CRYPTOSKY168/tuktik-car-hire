@@ -2303,187 +2303,592 @@ node scripts/test-rating-flow.js --cleanup
 
 ---
 
-## 🗺️ Test Maps 1 - Full Booking Flow (Mobile App Style)
+## 🗺️ Live Mode - Complete Technical Documentation
 
-> **Status:** In Development | **URL:** `/test-maps1`
+> **Version:** 8.0 | **Status:** Production Ready | **Last Updated:** 2025-12-31
 
-### Overview
+### 📋 Overview & Architecture
 
-หน้า `/test-maps1` เป็น enhanced version ของ `/test-maps` ที่:
-- **UI Style:** Mobile-first design แบบ Uber/Grab (max-width 430px)
-- **Two Modes:** Demo Mode (simulation) และ Live Mode (real database)
-- **Full Integration:** เชื่อมต่อกับ database จริงทั้งหมด
+Live Mode คือระบบจองรถแบบ Real-time ที่เชื่อมต่อกับ Backend จริงทั้งหมด ประกอบด้วย 2 ส่วนหลัก:
 
-### Features
-
-| Feature | Demo Mode | Live Mode |
-|---------|-----------|-----------|
-| แผนที่ Google Maps | ✅ | ✅ |
-| เลือกจุดรับ-ส่ง | ✅ | ✅ |
-| Draggable markers | ✅ | ✅ |
-| Route calculation | ✅ | ✅ |
-| Vehicle selection | Mock | ✅ Real from `vehicles` |
-| Pricing | Mock | ✅ Real from `routes` |
-| Create booking | ❌ | ✅ Real in Firestore |
-| Driver assignment | Simulation | ✅ Real driver |
-| Driver tracking | Simulation | ✅ Real-time GPS |
-| Active booking check | ❌ | ✅ Prevents double booking |
-| Cancel booking | ❌ | ✅ ยกเลิกได้ (pending/confirmed) |
-
-### Live Mode Features
-
-**1. Routes Collection (ราคาจริง)**
-```typescript
-// ดึงราคาจาก routes collection
-LocationService.getRoutePrice(pickup.id, dropoff.id)
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          LIVE MODE ARCHITECTURE                          │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌──────────────────┐          ┌──────────────────┐                     │
+│  │   Customer App   │          │    Driver App    │                     │
+│  │  /test-maps1     │          │   /demo-driver   │                     │
+│  └────────┬─────────┘          └────────┬─────────┘                     │
+│           │                             │                                │
+│           │ useDriverTracking()         │ useDriverLocationUpdates()    │
+│           │ onSnapshot(bookings)        │ onSnapshot(bookings)          │
+│           ▼                             ▼                                │
+│  ┌──────────────────────────────────────────────────────────────┐       │
+│  │                    FIREBASE FIRESTORE                         │       │
+│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────────────┐  │       │
+│  │  │bookings │  │ drivers │  │vehicles │  │admin_notifications│ │       │
+│  │  └─────────┘  └─────────┘  └─────────┘  └─────────────────┘  │       │
+│  └──────────────────────────────────────────────────────────────┘       │
+│           ▲                             ▲                                │
+│           │                             │                                │
+│  ┌────────┴─────────┐          ┌────────┴─────────┐                     │
+│  │  API Endpoints   │          │  API Endpoints   │                     │
+│  │ /api/booking/*   │          │ /api/driver/*    │                     │
+│  └──────────────────┘          └──────────────────┘                     │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-**2. Vehicle Selection (รถจริง)**
-```typescript
-// ดึง vehicles จาก database
-VehicleService.getVehicles()
-// Vehicle Picker Bottom Sheet
+### 🔄 Complete Booking Flow (8 Steps)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         LIVE BOOKING FLOW                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  STEP 1: ลูกค้าสร้าง Booking                                             │
+│  ┌──────────────────────────────────────────────────────────────┐       │
+│  │ Frontend: createLiveBooking()                                 │       │
+│  │ → BookingService.addBooking(data, price, userId)              │       │
+│  │ → Status: PENDING                                             │       │
+│  │ → Creates notification for admin                              │       │
+│  └──────────────────────────────────────────────────────────────┘       │
+│                              ↓                                           │
+│  STEP 2: (Optional) Admin ยืนยัน                                        │
+│  ┌──────────────────────────────────────────────────────────────┐       │
+│  │ Admin Dashboard: Update status                                │       │
+│  │ → Status: PENDING → CONFIRMED                                 │       │
+│  │ → Customer receives notification                              │       │
+│  └──────────────────────────────────────────────────────────────┘       │
+│                              ↓                                           │
+│  STEP 3: มอบหมายคนขับ                                                   │
+│  ┌──────────────────────────────────────────────────────────────┐       │
+│  │ Frontend: findAndAssignDriver() OR Admin Dashboard            │       │
+│  │ → BookingService.assignDriver(bookingId, driverInfo)          │       │
+│  │ → Status: CONFIRMED → DRIVER_ASSIGNED                         │       │
+│  │ → Driver status: available → busy                             │       │
+│  │ → Driver sees job notification modal (15s countdown)          │       │
+│  └──────────────────────────────────────────────────────────────┘       │
+│                              ↓                                           │
+│  STEP 4: คนขับกดรับงาน                                                  │
+│  ┌──────────────────────────────────────────────────────────────┐       │
+│  │ Driver App: Accept job                                        │       │
+│  │ → POST /api/driver/bookings { action: 'updateStatus' }        │       │
+│  │ → Status: DRIVER_ASSIGNED → DRIVER_EN_ROUTE                   │       │
+│  │ → GPS tracking starts (useDriverLocationUpdates)              │       │
+│  │ → Customer sees driver on map                                 │       │
+│  └──────────────────────────────────────────────────────────────┘       │
+│                              ↓                                           │
+│  STEP 5: คนขับถึงจุดรับ → เริ่มเดินทาง                                   │
+│  ┌──────────────────────────────────────────────────────────────┐       │
+│  │ Driver App: Start trip                                        │       │
+│  │ → POST /api/driver/bookings { action: 'updateStatus' }        │       │
+│  │ → Status: DRIVER_EN_ROUTE → IN_PROGRESS                       │       │
+│  │ → Customer notification: "เริ่มเดินทางแล้ว"                    │       │
+│  └──────────────────────────────────────────────────────────────┘       │
+│                              ↓                                           │
+│  STEP 6: ถึงปลายทาง                                                     │
+│  ┌──────────────────────────────────────────────────────────────┐       │
+│  │ Driver App: Complete trip                                     │       │
+│  │ → POST /api/driver/bookings { action: 'updateStatus' }        │       │
+│  │ → Status: IN_PROGRESS → COMPLETED                             │       │
+│  │ → Driver status: busy → available                             │       │
+│  │ → Driver earnings updated: +totalCost                         │       │
+│  │ → Driver totalTrips++                                         │       │
+│  │ → Customer notification: "ถึงปลายทางแล้ว"                      │       │
+│  └──────────────────────────────────────────────────────────────┘       │
+│                              ↓                                           │
+│  STEP 7: ลูกค้าให้คะแนน + ทิป                                           │
+│  ┌──────────────────────────────────────────────────────────────┐       │
+│  │ Customer App: Rating Modal                                    │       │
+│  │ → POST /api/booking/rate { stars, tip, comment }              │       │
+│  │ → booking.ratings.customerToDriver updated                    │       │
+│  │ → driver.rating recalculated (Bayesian Average)               │       │
+│  │ → driver.totalTips += tip                                     │       │
+│  │ → driver.totalEarnings += tip                                 │       │
+│  └──────────────────────────────────────────────────────────────┘       │
+│                              ↓                                           │
+│  STEP 8: (Optional) คนขับให้คะแนนลูกค้า                                 │
+│  ┌──────────────────────────────────────────────────────────────┐       │
+│  │ Driver App: Rating Modal                                      │       │
+│  │ → POST /api/booking/rate { ratingType: 'driverToCustomer' }   │       │
+│  │ → booking.ratings.driverToCustomer updated                    │       │
+│  │ → user.rating recalculated (Bayesian Average)                 │       │
+│  └──────────────────────────────────────────────────────────────┘       │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-**3. Create Booking (สร้าง booking จริง)**
-```typescript
-// สร้าง booking ใน Firestore
-BookingService.addBooking(bookingData, price, userId)
+### 📊 Status Flow & Conditions
+
+```
+┌───────────────────────────────────────────────────────────────────┐
+│                    BOOKING STATUS TRANSITIONS                     │
+├───────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  ┌─────────────┐                                                  │
+│  │   pending   │ ← Initial status (Cash/QR payment)              │
+│  └──────┬──────┘                                                  │
+│         │ Admin confirms                                          │
+│         ▼                                                         │
+│  ┌─────────────┐      ┌───────────────────────────────────────┐  │
+│  │  confirmed  │──────│ CANCEL CONDITIONS:                     │  │
+│  └──────┬──────┘      │ • ลูกค้า: ยกเลิกได้ถ้า status เป็น     │  │
+│         │              │   pending, confirmed, driver_assigned  │  │
+│         │ Assign driver│ • คนขับปฏิเสธ: กลับเป็น confirmed     │  │
+│         ▼              │ • Admin: ยกเลิกได้ทุกสถานะ             │  │
+│  ┌─────────────────┐  └───────────────────────────────────────┘  │
+│  │ driver_assigned │                                              │
+│  └──────┬──────────┘                                              │
+│         │                                                         │
+│         │ Driver accepts (updateStatus)                           │
+│         │ ❌ Driver rejects → back to confirmed                  │
+│         ▼                                                         │
+│  ┌─────────────────┐  ┌───────────────────────────────────────┐  │
+│  │ driver_en_route │  │ GPS TRACKING ACTIVE                    │  │
+│  └──────┬──────────┘  │ • useDriverLocationUpdates sends       │  │
+│         │              │   location every 5 seconds             │  │
+│         │ Driver starts trip│ • Customer tracks via             │  │
+│         ▼              │   useDriverTracking                     │  │
+│  ┌─────────────────┐  └───────────────────────────────────────┘  │
+│  │   in_progress   │                                              │
+│  └──────┬──────────┘                                              │
+│         │ Driver completes                                        │
+│         ▼                                                         │
+│  ┌─────────────────┐  ┌───────────────────────────────────────┐  │
+│  │    completed    │  │ ON COMPLETION:                         │  │
+│  └─────────────────┘  │ • driver.status → available            │  │
+│                       │ • driver.totalTrips++                   │  │
+│                       │ • driver.totalEarnings += booking.cost  │  │
+│                       │ • Rating modals shown                   │  │
+│                       └───────────────────────────────────────┘  │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
-**4. Driver Assignment (มอบหมายคนขับจริง)**
+### 🔒 Validation Rules (Backend)
+
 ```typescript
-// ดึงคนขับที่ว่าง
-DriverService.subscribeToDrivers()
-// Assign driver
-BookingService.assignDriver(bookingId, driverInfo)
+// ===== BookingService.assignDriver() =====
+
+// RULE 1: คนขับต้องไม่มีงานอยู่
+const activeBookingsQuery = query(
+    collection(db, 'bookings'),
+    where('driver.driverId', '==', driverId),
+    where('status', 'in', ['driver_assigned', 'driver_en_route', 'in_progress'])
+);
+if (!activeBookingsSnap.empty) {
+    throw new Error('คนขับกำลังมีงานอยู่ ไม่สามารถรับงานซ้อนได้');
+}
+
+// RULE 2: คนขับไม่สามารถรับงานตัวเอง
+if (driverData?.userId === booking.userId) {
+    throw new Error('คนขับไม่สามารถรับงานของตัวเองได้');
+}
+
+// ===== /api/driver/bookings POST (updateStatus) =====
+
+// RULE 3: Status transitions ต้องถูกต้อง
+const validTransitions: Record<string, string[]> = {
+    'driver_assigned': ['driver_en_route'],  // รับงาน
+    'driver_en_route': ['in_progress'],       // ถึงจุดรับ
+    'in_progress': ['completed']              // ถึงปลายทาง
+};
+if (!validTransitions[currentStatus]?.includes(newStatus)) {
+    throw new Error(`Cannot change status from ${currentStatus} to ${newStatus}`);
+}
+
+// RULE 4: คนขับปฏิเสธได้เฉพาะ driver_assigned
+if (action === 'rejectJob' && currentStatus !== 'driver_assigned') {
+    throw new Error('สามารถปฏิเสธงานได้เฉพาะงานที่ยังไม่ได้เริ่ม');
+}
+
+// ===== /api/driver/status POST =====
+
+// RULE 5: คนขับมีงานอยู่ไม่สามารถ offline
+if (status === 'offline') {
+    const activeBookingsSnap = await adminDb.collection('bookings')
+        .where('driver.driverId', '==', driverId)
+        .where('status', 'in', ['driver_assigned', 'driver_en_route', 'in_progress'])
+        .get();
+    if (!activeBookingsSnap.empty) {
+        throw new Error('คุณมีงานอยู่ ต้องเสร็จงานก่อนถึงจะปิดสถานะได้');
+    }
+}
+
+// ===== Cancel Booking (Frontend) =====
+
+// RULE 6: ลูกค้ายกเลิกได้เฉพาะสถานะที่กำหนด
+const cancellableStatuses = ['pending', 'confirmed', 'driver_assigned'];
+if (!cancellableStatuses.includes(activeBooking.status)) {
+    // Cannot cancel - driver already on the way
+}
 ```
 
-**5. Real-time Tracking**
+### 🔌 Real-time Subscriptions
+
 ```typescript
-// Subscribe to driver location
-useDriverTracking(driverId)
+// ===== 1. Booking Status Subscription (Customer) =====
+// Location: app/test-maps1/page.tsx (lines 441-498)
+
+useEffect(() => {
+    if (mode !== 'live' || !bookingId || !db) return;
+
+    const unsubscribe = onSnapshot(
+        doc(db, 'bookings', bookingId),
+        (docSnap) => {
+            const bookingData = docSnap.data();
+
+            // Map booking status to UI status
+            const statusMap = {
+                'pending': 'searching',
+                'confirmed': 'searching',
+                'driver_assigned': 'driver_assigned',
+                'driver_en_route': 'driver_en_route',
+                'in_progress': 'in_progress',
+                'completed': 'completed',
+            };
+            setStatus(statusMap[bookingData.status]);
+
+            // Update driver info when assigned
+            if (bookingData.driver && !assignedDriver) {
+                DriverService.getDriverById(bookingData.driver.driverId)
+                    .then(setAssignedDriver);
+            }
+        }
+    );
+
+    return () => unsubscribe();
+}, [mode, bookingId]);
+
+// ===== 2. Driver Location Subscription (Customer) =====
+// Location: lib/hooks/useDriverTracking.ts
+
+const { location: liveDriverLocation } = useDriverTracking(
+    mode === 'live' && assignedDriver?.id ? assignedDriver.id : null,
+    { autoStart: true }
+);
+
+// Hook internals:
+const unsubscribe = onSnapshot(
+    doc(db, 'drivers', driverId),
+    (docSnap) => {
+        const currentLocation = docSnap.data().currentLocation;
+        setState({
+            location: {
+                lat: currentLocation.lat,
+                lng: currentLocation.lng,
+                heading: currentLocation.heading,
+                speed: currentLocation.speed,
+            }
+        });
+    }
+);
+
+// ===== 3. Available Drivers Subscription =====
+// Location: app/test-maps1/page.tsx (lines 500-519)
+
+useEffect(() => {
+    if (mode !== 'live') return;
+
+    const unsubscribe = DriverService.subscribeToDrivers((drivers) => {
+        const available = drivers.filter(d => d.status === 'available');
+        setAvailableDrivers(available);
+    });
+
+    return () => unsubscribe();
+}, [mode]);
+
+// ===== 4. Driver Bookings Subscription (Driver App) =====
+// Location: app/demo-driver/page.tsx
+
+useEffect(() => {
+    if (!driverId || !db) return;
+
+    const q = query(
+        collection(db, 'bookings'),
+        where('driver.driverId', '==', driverId),
+        where('status', 'in', ['driver_assigned', 'driver_en_route', 'in_progress'])
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const bookings = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        setActiveBookings(bookings);
+
+        // Show job modal if new driver_assigned
+        if (bookings.some(b => b.status === 'driver_assigned')) {
+            setShowJobModal(true);
+        }
+    });
+
+    return () => unsubscribe();
+}, [driverId]);
 ```
 
-**6. Active Booking Check (ป้องกันจองซ้ำ)**
-- เมื่อเข้า Live Mode → ตรวจสอบว่ามี booking ที่ยังไม่เสร็จอยู่หรือไม่
-- ถ้ามี → แสดงข้อมูล booking และซ่อนปุ่มจองใหม่
-- Active statuses: `pending`, `confirmed`, `driver_assigned`, `driver_en_route`, `in_progress`
-
-**7. Cancel Booking (ยกเลิกการจอง) ✅ NEW**
-```typescript
-// ยกเลิก booking ที่ยังไม่มีคนขับมา
-cancelLiveBooking()
-// เรียก BookingService.updateBookingStatus(id, 'cancelled')
-```
-- ยกเลิกได้เฉพาะ: `pending`, `confirmed`
-- ยกเลิกไม่ได้: `driver_assigned`, `driver_en_route`, `in_progress`
-- มี confirm dialog + loading state
-- รองรับ 2 ภาษา (TH/EN)
-
-### State Management
+### 📱 Frontend Components (test-maps1)
 
 ```typescript
-// Mode: demo or live
+// ===== Key State Variables =====
+
+// Mode & Status
 const [mode, setMode] = useState<'demo' | 'live'>('demo');
+const [status, setStatus] = useState<
+    'selecting' | 'searching' | 'driver_assigned' |
+    'driver_en_route' | 'in_progress' | 'completed'
+>('selecting');
 
-// Live Mode States
+// Live Mode Data
 const [vehicles, setVehicles] = useState<Vehicle[]>([]);
 const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
 const [availableDrivers, setAvailableDrivers] = useState<Driver[]>([]);
 const [assignedDriver, setAssignedDriver] = useState<Driver | null>(null);
 const [bookingId, setBookingId] = useState<string | null>(null);
-const [routePrice, setRoutePrice] = useState<number | null>(null);
 const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
+const [routePrice, setRoutePrice] = useState<number | null>(null);
+
+// Loading States
+const [isCreatingBooking, setIsCreatingBooking] = useState(false);
 const [isLoadingActiveBooking, setIsLoadingActiveBooking] = useState(false);
 const [isCancellingBooking, setIsCancellingBooking] = useState(false);
+
+// ===== Key Functions =====
+
+// 1. Check for existing active booking on Live Mode enter
+const checkActiveBooking = async () => {
+    const bookings = await BookingService.getUserBookings(user.uid);
+    const activeStatuses = ['pending', 'confirmed', 'driver_assigned',
+                           'driver_en_route', 'in_progress'];
+    const active = bookings.find(b => activeStatuses.includes(b.status));
+    if (active) {
+        setActiveBooking(active);
+        // Restore pickup/dropoff coordinates from booking
+        if (active.pickupCoordinates) {
+            setPickup({ ...active.pickupCoordinates, name: active.pickupLocation });
+        }
+    }
+};
+
+// 2. Create booking
+const createLiveBooking = async (): Promise<string | null> => {
+    const bookingData = {
+        pickupLocation: pickup.name,
+        dropoffLocation: dropoff.name,
+        pickupCoordinates: { lat: pickup.lat, lng: pickup.lng },
+        dropoffCoordinates: { lat: dropoff.lat, lng: dropoff.lng },
+        vehicle: selectedVehicle,
+        // ... other data
+    };
+    const newBookingId = await BookingService.addBooking(
+        bookingData, tripInfo.price, user.uid
+    );
+    setBookingId(newBookingId);
+    return newBookingId;
+};
+
+// 3. Find and assign driver
+const findAndAssignDriver = async (bookingId: string): Promise<boolean> => {
+    // Filter out self (can't accept own booking)
+    const eligibleDrivers = availableDrivers.filter(
+        d => d.userId !== user?.uid
+    );
+    if (eligibleDrivers.length === 0) return false;
+
+    const driver = eligibleDrivers[Math.floor(Math.random() * eligibleDrivers.length)];
+    await BookingService.assignDriver(bookingId, {
+        driverId: driver.id,
+        name: driver.name,
+        phone: driver.phone,
+        vehiclePlate: driver.vehiclePlate,
+        vehicleModel: driver.vehicleModel,
+    });
+    await DriverService.updateDriverStatus(driver.id, 'busy');
+    setAssignedDriver(driver);
+    return true;
+};
+
+// 4. Cancel booking
+const confirmCancelBooking = async () => {
+    await BookingService.updateBookingStatus(activeBooking.id, 'cancelled');
+    if (activeBooking.driver?.driverId) {
+        await DriverService.updateDriverStatus(activeBooking.driver.driverId, 'available');
+    }
+    resetTrip();
+};
 ```
 
-### Files
+### 🌐 API Endpoints
 
-| File | Description |
-|------|-------------|
-| `app/test-maps1/page.tsx` | Main page (~1400 lines) |
-| `lib/hooks/useDriverTracking.ts` | Real-time driver tracking hook |
-| `lib/firebase/services/BookingService.ts` | Booking CRUD |
-| `lib/firebase/services/DriverService.ts` | Driver CRUD |
-| `lib/firebase/services/VehicleService.ts` | Vehicle CRUD |
-| `lib/firebase/services/LocationService.ts` | Location & route pricing |
+```typescript
+// ===== POST /api/driver/location =====
+// Driver sends GPS location
 
-### Known Issues / TODO
+Request:
+{
+    driverId: string,
+    lat: number,
+    lng: number,
+    heading?: number,  // 0-360
+    speed?: number     // km/h
+}
 
-- [ ] ต้องแก้ไข: เมื่อมี active booking และ reload หน้า, coordinates ของ pickup/dropoff ยังไม่ถูก restore (ใช้ default coordinates)
-- [ ] ต้องเพิ่ม: ปุ่มยกเลิก booking ใน Live Mode
-- [ ] ต้องเพิ่ม: Real-time subscription สำหรับ booking status updates
-- [ ] ต้องเพิ่ม: Subscribe to booking changes (เมื่อ admin assign driver)
+Response:
+{ success: true, data: { driverId, location } }
 
-### How to Test
+Action:
+→ Update drivers/{driverId}/currentLocation in Firestore
 
-**Demo Mode:**
-1. ไปที่ http://localhost:3000/test-maps1
-2. เลือกจุดรับ-จุดส่ง
-3. กด "ค้นหาคนขับ" → simulation จะเริ่มทำงาน
+// ===== GET /api/driver/location =====
+// Customer fetches driver location (fallback if onSnapshot fails)
 
-**Live Mode:**
-1. Login ก่อน (ต้องมี account)
-2. กดเปลี่ยนเป็น "Live" mode
-3. ถ้าไม่มี active booking → จะเห็น vehicle picker และปุ่ม "จองรถตอนนี้"
-4. ถ้ามี active booking → จะเห็นกล่องแจ้งเตือนและสถานะปัจจุบัน
+Request: ?driverId=xxx
 
-### Design System (Grab Style - Light Theme)
+Response:
+{
+    success: true,
+    data: {
+        currentLocation: { lat, lng, heading, speed, timestamp },
+        status: 'busy',
+        name: 'Driver Name',
+        vehiclePlate: 'กข 1234'
+    }
+}
 
-> **Updated:** 2025-12-31 | **Style:** Grab-inspired Light Theme
+// ===== POST /api/driver/bookings =====
+// Driver updates booking status
 
-**Color Palette:**
-| Color | Hex | Usage |
-|-------|-----|-------|
-| Primary Green | `#00b14f` | CTA buttons, status badges, accent |
-| Background | `white` / `gray-50` | Page & card backgrounds |
-| Card Border | `gray-100` / `gray-200` | Card borders |
-| Text Primary | `gray-900` | Main text |
-| Text Secondary | `gray-500` | Labels, descriptions |
-| Pickup Dot | `#00b14f` (green) | Pickup location indicator |
-| Dropoff Dot | `orange-500` | Dropoff location indicator |
+Request:
+{
+    action: 'updateStatus' | 'rejectJob',
+    bookingId: string,
+    driverId: string,
+    data?: { status: string, note?: string }
+}
 
-**Component Styles:**
-```css
-/* Bottom Sheet */
-bg-white rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.08)]
+Response:
+{ success: true, message: 'Status updated' }
 
-/* Route Info Card */
-bg-gray-50 rounded-2xl p-4 border border-gray-100
+Actions per status:
+• driver_en_route: Create notification "คนขับกำลังเดินทางมา"
+• in_progress: Create notification "เริ่มเดินทางแล้ว"
+• completed:
+  - driver.status → available
+  - driver.totalTrips++
+  - driver.totalEarnings += booking.totalCost
+  - Create notification "ถึงปลายทางแล้ว"
 
-/* Driver Info Card */
-bg-white rounded-2xl p-4 shadow-md border border-gray-100
+// ===== POST /api/booking/rate =====
+// Customer/Driver rates the other party
 
-/* Status Badge */
-px-4 py-1.5 rounded-full text-sm font-semibold
-- selecting: bg-gray-100 text-gray-600
-- searching: bg-[#00b14f]/10 text-[#00b14f]
-- driver_assigned: bg-blue-50 text-blue-600
-- driver_en_route: bg-[#00b14f]/10 text-[#00b14f]
-- in_progress: bg-[#00b14f] text-white
-- completed: bg-[#00b14f] text-white
+Request:
+{
+    bookingId: string,
+    ratingType: 'customerToDriver' | 'driverToCustomer',
+    stars: number,          // 1-5
+    reasons?: string[],     // Required if stars <= 3
+    comment?: string,       // Max 500 chars
+    tip?: number            // 0-10000 (customerToDriver only)
+}
 
-/* CTA Button (Primary) */
-h-14 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-bold
+Response:
+{ success: true, message: 'บันทึกคะแนนเรียบร้อย' }
 
-/* Secondary Button */
-h-12 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-semibold
-
-/* Connection Line (Route) */
-Pickup: w-3 h-3 rounded-full bg-[#00b14f] ring-4 ring-[#00b14f]/20
-Line: w-0.5 h-10 bg-gray-300
-Dropoff: w-3 h-3 rounded-sm bg-orange-500 ring-4 ring-orange-500/20
-
-/* Call Button */
-w-11 h-11 bg-[#00b14f] text-white rounded-full shadow-md
-
-/* Chat Button */
-w-11 h-11 bg-gray-100 text-gray-600 rounded-full shadow-sm
+Security:
+• Rate limiting: 10 requests/minute per user
+• Comment sanitization: HTML tags removed
+• Reason codes whitelist validated
+• Bayesian Average rating calculation
 ```
 
-**Icons:** Use SVG inline icons (not emoji) for professional look
+### 🪝 Hooks Reference
+
+```typescript
+// ===== useDriverTracking(driverId, options) =====
+// For customer to track driver location in real-time
+
+import { useDriverTracking } from '@/lib/hooks';
+
+const {
+    location,      // { lat, lng, heading, speed, timestamp }
+    isLoading,     // boolean
+    error,         // string | null
+    lastUpdate,    // Date
+    startTracking, // () => void
+    stopTracking,  // () => void
+} = useDriverTracking(driverId, { autoStart: true });
+
+// Internally uses Firestore onSnapshot on drivers/{driverId}
+
+// ===== useBookingDriverTracking(bookingId) =====
+// Combines booking subscription + driver tracking
+
+const {
+    location,
+    driverId,
+    bookingStatus,
+    shouldTrack,  // true when driver_assigned/en_route/in_progress
+} = useBookingDriverTracking(bookingId);
+
+// ===== useDriverLocationUpdates(driverId, isOnline, getAuthHeaders) =====
+// For driver app to send GPS location to server
+
+const {
+    latitude,
+    longitude,
+    heading,
+    speed,
+    isUpdating,
+    lastError,
+    startWatching,
+    stopWatching,
+} = useDriverLocationUpdates(driverId, isOnline, getAuthHeaders);
+
+// Internally:
+// - Uses navigator.geolocation.watchPosition
+// - Sends POST to /api/driver/location every 5 seconds
+// - Only active when isOnline && driverId is set
+```
+
+### 📁 Files Reference
+
+| File | Lines | Description |
+|------|-------|-------------|
+| `app/test-maps1/page.tsx` | ~1800 | Customer app - Live Mode UI |
+| `app/demo-driver/page.tsx` | ~1200 | Driver app - GPS tracking + job handling |
+| `lib/hooks/useDriverTracking.ts` | ~295 | Real-time driver location hook |
+| `lib/hooks/useGeolocation.ts` | ~275 | GPS tracking + location updates hook |
+| `lib/firebase/services/BookingService.ts` | ~400 | Booking CRUD + assign driver |
+| `lib/firebase/services/DriverService.ts` | ~250 | Driver CRUD + status management |
+| `app/api/driver/location/route.ts` | ~189 | Driver GPS update API |
+| `app/api/driver/bookings/route.ts` | ~280 | Driver booking status API |
+| `app/api/booking/rate/route.ts` | ~350 | Rating API with Bayesian formula |
+
+### ✅ Completed Features
+
+- [x] สร้าง Booking จริง (BookingService.addBooking)
+- [x] Real-time Booking Subscription (onSnapshot)
+- [x] มอบหมายคนขับจริง (BookingService.assignDriver)
+- [x] Real-time Driver Location Tracking (useDriverTracking)
+- [x] Driver GPS Updates (useDriverLocationUpdates)
+- [x] Status transitions ทั้ง flow
+- [x] Rating system (Bayesian Average)
+- [x] Cancel booking (pending/confirmed/driver_assigned)
+- [x] Coordinates restore on page reload
+- [x] Prevent double booking (active booking check)
+
+### 🎨 Design System (Grab Style)
+
+| Element | Style |
+|---------|-------|
+| Primary Color | `#00b14f` (Grab Green) |
+| Pickup Dot | `bg-[#00b14f]` green circle |
+| Dropoff Dot | `bg-orange-500` orange square |
+| CTA Button | `h-14 bg-[#00b14f] rounded-2xl font-bold` |
+| Status Badge | `px-4 py-1.5 rounded-full text-sm font-semibold` |
+| Bottom Sheet | `rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.08)]` |
+| Driver Card | `bg-white rounded-2xl p-4 shadow-md border border-gray-100` |
 
 ---
 
