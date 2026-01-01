@@ -198,6 +198,8 @@ const mapOptions: google.maps.MapOptions = {
     rotateControl: false,
     styles: mapStyles,
     gestureHandling: 'greedy',
+    minZoom: 12,    // ไม่ให้ซูมออกเยอะเกินไป
+    maxZoom: 19,    // ไม่ให้ซูมเข้าเยอะเกินไป
 };
 
 export default function TestMaps1Page() {
@@ -1814,6 +1816,14 @@ export default function TestMaps1Page() {
         bounds.extend(dropoff);
         if (driverLocation) bounds.extend(driverLocation);
         mapRef.current.fitBounds(bounds, 80);
+
+        // ป้องกันไม่ให้ซูมออกเยอะเกินไป (min zoom 14)
+        setTimeout(() => {
+            const currentZoom = mapRef.current?.getZoom();
+            if (currentZoom && currentZoom < 14) {
+                mapRef.current?.setZoom(14);
+            }
+        }, 100);
     };
 
     const zoomToCar = () => {
@@ -1990,7 +2000,7 @@ export default function TestMaps1Page() {
                     <GoogleMap
                         mapContainerStyle={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}
                         center={pickup}
-                        zoom={13}
+                        zoom={15}
                         options={{ ...mapOptions, mapTypeId: mapType }}
                         onLoad={onMapLoad}
                         onDragStart={onMapDragStart}
