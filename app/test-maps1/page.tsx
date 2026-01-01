@@ -257,6 +257,7 @@ export default function TestMaps1Page() {
     const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
     const [isCancellingBooking, setIsCancellingBooking] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
+    const [connectionError, setConnectionError] = useState<string | null>(null);
 
     // === NEW: Live Mode Map Features ===
     const [driverToPickupRoute, setDriverToPickupRoute] = useState<google.maps.DirectionsResult | null>(null);
@@ -382,10 +383,31 @@ export default function TestMaps1Page() {
     useEffect(() => {
         if (mode !== 'live' || !user) return;
 
+        let timeoutId: NodeJS.Timeout | null = null;
+        let isMounted = true;
+
         const checkActiveBooking = async () => {
             setIsLoadingActiveBooking(true);
+
+            // Set a timeout to prevent indefinite loading (10 seconds)
+            timeoutId = setTimeout(() => {
+                if (isMounted) {
+                    setIsLoadingActiveBooking(false);
+                    setConnectionError(
+                        language === 'th'
+                            ? 'การโหลดข้อมูลช้าเกินไป กรุณาลองใหม่'
+                            : 'Loading timed out. Please try again.'
+                    );
+                }
+            }, 10000);
+
             try {
                 const bookings = await BookingService.getUserBookings(user.uid);
+
+                // Clear timeout since we got response
+                if (timeoutId) clearTimeout(timeoutId);
+
+                if (!isMounted) return;
 
                 // Find active booking (not completed or cancelled)
                 const activeStatuses = ['pending', 'confirmed', 'driver_assigned', 'driver_en_route', 'in_progress'];
@@ -409,7 +431,7 @@ export default function TestMaps1Page() {
                     if (active.driver) {
                         // Fetch full driver info
                         const driverDoc = await DriverService.getDriverById(active.driver.driverId);
-                        if (driverDoc) {
+                        if (driverDoc && isMounted) {
                             setAssignedDriver(driverDoc);
                         }
                     }
@@ -454,13 +476,28 @@ export default function TestMaps1Page() {
                 }
             } catch (error) {
                 console.error('Error checking active booking:', error);
+                if (isMounted) {
+                    setConnectionError(
+                        language === 'th'
+                            ? 'ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่'
+                            : 'Failed to load data. Please try again.'
+                    );
+                }
             } finally {
-                setIsLoadingActiveBooking(false);
+                if (timeoutId) clearTimeout(timeoutId);
+                if (isMounted) {
+                    setIsLoadingActiveBooking(false);
+                }
             }
         };
 
         checkActiveBooking();
-    }, [mode, user]);
+
+        return () => {
+            isMounted = false;
+            if (timeoutId) clearTimeout(timeoutId);
+        };
+    }, [mode, user, language]);
 
     // === Real-time subscription for booking status changes ===
     useEffect(() => {
@@ -512,8 +549,12 @@ export default function TestMaps1Page() {
             },
             (error) => {
                 console.error('Error listening to booking:', error);
+                setConnectionError(language === 'th' ? 'ขาดการเชื่อมต่อ กรุณารีเฟรชหน้า' : 'Connection lost. Please refresh.');
             }
         );
+
+        // Clear connection error when subscription is active
+        setConnectionError(null);
 
         return () => {
             console.log('🔌 Unsubscribing from booking updates');
@@ -581,13 +622,19 @@ export default function TestMaps1Page() {
                         origin: driverLocation,
                         destination: pickup,
                         travelMode: google.maps.TravelMode.DRIVING,
+                        // Add traffic consideration for more accurate ETA
+                        drivingOptions: {
+                            departureTime: new Date(),
+                            trafficModel: google.maps.TrafficModel.BEST_GUESS,
+                        },
                     });
                     setDriverToPickupRoute(result);
 
-                    // Extract ETA to pickup
+                    // Extract ETA to pickup (prefer duration_in_traffic if available)
                     const leg = result.routes[0]?.legs[0];
-                    if (leg?.duration?.value) {
-                        setLiveEta(prev => ({ ...prev, toPickup: Math.ceil(leg.duration!.value / 60) }));
+                    const durationSeconds = (leg as any)?.duration_in_traffic?.value || leg?.duration?.value;
+                    if (durationSeconds) {
+                        setLiveEta(prev => ({ ...prev, toPickup: Math.ceil(durationSeconds / 60) }));
                     }
                 } catch (error) {
                     console.error('Error calculating driver route:', error);
@@ -601,12 +648,18 @@ export default function TestMaps1Page() {
                         origin: driverLocation,
                         destination: dropoff,
                         travelMode: google.maps.TravelMode.DRIVING,
+                        // Add traffic consideration for more accurate ETA
+                        drivingOptions: {
+                            departureTime: new Date(),
+                            trafficModel: google.maps.TrafficModel.BEST_GUESS,
+                        },
                     });
 
-                    // Extract ETA to dropoff
+                    // Extract ETA to dropoff (prefer duration_in_traffic if available)
                     const leg = result.routes[0]?.legs[0];
-                    if (leg?.duration?.value) {
-                        setLiveEta(prev => ({ ...prev, toDropoff: Math.ceil(leg.duration!.value / 60) }));
+                    const durationSeconds = (leg as any)?.duration_in_traffic?.value || leg?.duration?.value;
+                    if (durationSeconds) {
+                        setLiveEta(prev => ({ ...prev, toDropoff: Math.ceil(durationSeconds / 60) }));
                     }
                 } catch (error) {
                     console.error('Error calculating ETA:', error);
@@ -875,6 +928,28 @@ export default function TestMaps1Page() {
         setShowCancelModal(true);
     };
 
+    // Helper: Retry function with exponential backoff
+    const retryWithBackoff = async <T,>(
+        fn: () => Promise<T>,
+        maxRetries: number = 3,
+        baseDelay: number = 1000
+    ): Promise<T> => {
+        let lastError: Error | null = null;
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                return await fn();
+            } catch (error: any) {
+                lastError = error;
+                if (i < maxRetries - 1) {
+                    const delay = baseDelay * Math.pow(2, i);
+                    console.log(`⏳ Retry ${i + 1}/${maxRetries} in ${delay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+        throw lastError;
+    };
+
     const confirmCancelBooking = async () => {
         if (!activeBooking?.id) return;
 
@@ -887,14 +962,23 @@ export default function TestMaps1Page() {
                 language === 'th' ? 'ผู้ใช้ยกเลิกการจอง' : 'User cancelled the booking'
             );
 
-            // 2. If driver was assigned, set driver status back to available
+            // 2. If driver was assigned, set driver status back to available (with retry)
             if (activeBooking.driver?.driverId) {
                 try {
-                    await DriverService.updateDriverStatus(activeBooking.driver.driverId, 'available' as any);
+                    await retryWithBackoff(
+                        () => DriverService.updateDriverStatus(activeBooking.driver!.driverId, 'available' as any),
+                        3,
+                        1000
+                    );
                     console.log('✅ Driver status updated to available');
                 } catch (driverError) {
-                    console.error('Error updating driver status:', driverError);
-                    // Continue even if driver update fails
+                    console.error('❌ Failed to update driver status after retries:', driverError);
+                    // Show warning to user but continue
+                    setConnectionError(
+                        language === 'th'
+                            ? 'ไม่สามารถอัปเดตสถานะคนขับ กรุณาแจ้งแอดมิน'
+                            : 'Failed to update driver status. Please contact admin.'
+                    );
                 }
             }
 
@@ -906,6 +990,7 @@ export default function TestMaps1Page() {
             setShowCancelModal(false);
         } catch (error) {
             console.error('Error cancelling booking:', error);
+            alert(language === 'th' ? 'ไม่สามารถยกเลิกการจองได้' : 'Failed to cancel booking');
         } finally {
             setIsCancellingBooking(false);
         }
@@ -965,6 +1050,18 @@ export default function TestMaps1Page() {
         // Find and assign driver
         const assigned = await findAndAssignDriver(newBookingId);
         if (!assigned) {
+            // Cancel the booking that was just created since no driver available
+            try {
+                await BookingService.updateBookingStatus(
+                    newBookingId,
+                    'cancelled',
+                    language === 'th' ? 'ไม่พบคนขับที่ว่าง' : 'No available drivers found'
+                );
+                console.log('🗑️ Booking cancelled due to no available drivers');
+            } catch (cancelError) {
+                console.error('Failed to cancel booking:', cancelError);
+            }
+            setBookingId(null);
             setStatus('selecting');
             return;
         }
@@ -1151,6 +1248,24 @@ export default function TestMaps1Page() {
                         </div>
                     </div>
                 </header>
+
+                {/* Connection Error Banner */}
+                {connectionError && (
+                    <div className="bg-red-500 text-white px-4 py-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <span className="text-sm font-medium">{connectionError}</span>
+                        </div>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="px-3 py-1 bg-white/20 rounded-lg text-sm font-medium hover:bg-white/30 transition-colors"
+                        >
+                            {language === 'th' ? 'รีเฟรช' : 'Refresh'}
+                        </button>
+                    </div>
+                )}
 
                 {/* Map Area */}
                 <div className="relative flex-1 min-h-0" style={{ minHeight: '35vh' }}>
