@@ -1823,6 +1823,13 @@ export default function TestMaps1Page() {
                             </button>
                         )}
 
+                        {/* Debug info - remove later */}
+                        {mode === 'live' && status === 'selecting' && (!user || availableDrivers.length === 0) && (
+                            <p className="text-xs text-red-500 text-center mt-2">
+                                {!user ? '⚠️ กรุณา Login ก่อนจอง' : `⚠️ ไม่มีคนขับว่าง (${availableDrivers.length})`}
+                            </p>
+                        )}
+
                         {/* Cancel Booking Button - Same position as Book Now */}
                         {mode === 'live' && activeBooking && ['pending', 'confirmed', 'driver_assigned'].includes(activeBooking.status) && (
                             <button
