@@ -222,6 +222,12 @@ export default function DemoDriverPage() {
     const previousBookingIds = useRef<Set<string>>(new Set());
     const isFirstLoad = useRef(true);
     const newJobAlertRef = useRef<Booking | null>(null); // Store latest newJobAlert for useEffect
+    const soundRepeatIntervalRef = useRef<NodeJS.Timeout | null>(null); // Repeat notification sound
+
+    // Audio unlock state (required for mobile browsers)
+    const [showAudioUnlockModal, setShowAudioUnlockModal] = useState(false);
+    const [audioUnlocked, setAudioUnlocked] = useState(false);
+    const audioContextRef = useRef<AudioContext | null>(null);
 
     // Load Google Maps
     const { isLoaded, loadError } = useLoadScript({
@@ -259,23 +265,94 @@ export default function DemoDriverPage() {
         };
     }, []);
 
-    // Play notification sound
-    const playNotificationSound = useCallback(() => {
+    // Unlock audio on user interaction (required for mobile browsers)
+    const unlockAudio = useCallback(() => {
         try {
+            // Create and store AudioContext
             const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            audioContextRef.current = audioContext;
+
+            // Resume if suspended
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+
+            // Play a short silent sound to fully unlock
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
             oscillator.connect(gainNode);
             gainNode.connect(audioContext.destination);
-            oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
-            oscillator.frequency.setValueAtTime(1108.73, audioContext.currentTime + 0.1);
-            oscillator.frequency.setValueAtTime(1318.51, audioContext.currentTime + 0.2);
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            gainNode.gain.setValueAtTime(0.001, audioContext.currentTime); // Nearly silent
             oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.5);
-        } catch {}
+            oscillator.stop(audioContext.currentTime + 0.1);
+
+            // Then play a confirmation beep
+            setTimeout(() => {
+                const beep = audioContext.createOscillator();
+                const beepGain = audioContext.createGain();
+                beep.connect(beepGain);
+                beepGain.connect(audioContext.destination);
+                beep.frequency.setValueAtTime(880, audioContext.currentTime);
+                beepGain.gain.setValueAtTime(0.5, audioContext.currentTime);
+                beepGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                beep.start(audioContext.currentTime);
+                beep.stop(audioContext.currentTime + 0.2);
+            }, 100);
+
+            setAudioUnlocked(true);
+            setShowAudioUnlockModal(false);
+            console.log('🔊 Audio unlocked successfully!');
+        } catch (err) {
+            console.error('Failed to unlock audio:', err);
+            setAudioUnlocked(true); // Still hide modal even if failed
+            setShowAudioUnlockModal(false);
+        }
     }, []);
+
+    // Play notification sound - LOUD doorbell style alert
+    const playNotificationSound = useCallback(() => {
+        if (!audioUnlocked || !audioContextRef.current) {
+            console.log('Audio not unlocked yet, skipping sound');
+            return;
+        }
+
+        try {
+            const audioContext = audioContextRef.current;
+
+            // Resume if suspended
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+
+            // Play chime function
+            const playChime = (startTime: number, freq1: number, freq2: number) => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(freq1, startTime);
+                oscillator.frequency.setValueAtTime(freq2, startTime + 0.15);
+
+                // LOUD volume (0.7 instead of 0.3)
+                gainNode.gain.setValueAtTime(0.7, startTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.4);
+
+                oscillator.start(startTime);
+                oscillator.stop(startTime + 0.4);
+            };
+
+            // Play doorbell pattern: ding-dong, ding-dong
+            const now = audioContext.currentTime;
+            playChime(now, 1046.50, 783.99);        // C6 → G5 (ding-dong)
+            playChime(now + 0.5, 1046.50, 783.99);  // C6 → G5 (ding-dong)
+            playChime(now + 1.0, 1318.51, 987.77);  // E6 → B5 (higher ding-dong)
+
+        } catch (err) {
+            console.log('Audio error:', err);
+        }
+    }, [audioUnlocked]);
 
     // Check for new bookings
     const checkForNewBookings = useCallback((newBookings: Booking[]) => {
@@ -446,6 +523,39 @@ export default function DemoDriverPage() {
             }
         };
     }, [showNewJobModal, countdown]);
+
+    // Repeat notification sound every 3 seconds while modal is open
+    useEffect(() => {
+        if (showNewJobModal) {
+            // Start repeating sound every 3 seconds
+            soundRepeatIntervalRef.current = setInterval(() => {
+                playNotificationSound();
+                // Also vibrate if supported
+                if (navigator.vibrate) {
+                    navigator.vibrate([200, 100, 200]);
+                }
+            }, 3000);
+        }
+
+        return () => {
+            // Clear interval when modal closes
+            if (soundRepeatIntervalRef.current) {
+                clearInterval(soundRepeatIntervalRef.current);
+                soundRepeatIntervalRef.current = null;
+            }
+        };
+    }, [showNewJobModal, playNotificationSound]);
+
+    // Show audio unlock modal when driver is loaded (required for mobile browsers)
+    useEffect(() => {
+        if (driver && !loading && !audioUnlocked) {
+            // Small delay to ensure page is fully rendered
+            const timer = setTimeout(() => {
+                setShowAudioUnlockModal(true);
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [driver, loading, audioUnlocked]);
 
     // Get current active booking
     const activeBooking = useMemo(() => {
@@ -1594,6 +1704,59 @@ export default function DemoDriverPage() {
                                 >
                                     ข้ามไปก่อน
                                 </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* === AUDIO UNLOCK MODAL === */}
+                {showAudioUnlockModal && (
+                    <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="w-full max-w-[380px] bg-white rounded-3xl shadow-2xl animate-scale-up overflow-hidden">
+                            {/* Header with gradient */}
+                            <div className="bg-gradient-to-r from-[#00b14f] to-emerald-500 p-6 text-center">
+                                <div className="w-20 h-20 mx-auto bg-white/20 rounded-full flex items-center justify-center mb-4">
+                                    <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15.536a5 5 0 001.414 1.414m2.828-9.9a9 9 0 012.828-2.828" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19l-7-7 7-7" transform="translate(8, 0) scale(-1, 1) translate(-8, 0)" />
+                                    </svg>
+                                </div>
+                                <h2 className="text-white text-xl font-bold">เปิดเสียงแจ้งเตือน</h2>
+                                <p className="text-white/80 text-sm mt-1">เพื่อไม่ให้พลาดงานใหม่</p>
+                            </div>
+
+                            {/* Content */}
+                            <div className="p-6">
+                                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
+                                    <div className="flex gap-3">
+                                        <div className="flex-shrink-0">
+                                            <svg className="w-6 h-6 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <p className="text-amber-800 font-medium text-sm">สำคัญ!</p>
+                                            <p className="text-amber-700 text-sm mt-1">
+                                                เบราว์เซอร์ต้องการให้คุณแตะเพื่อเปิดเสียง เมื่อมีงานใหม่จะมีเสียงดังแจ้งเตือน
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Enable Sound Button */}
+                                <button
+                                    onClick={unlockAudio}
+                                    className="w-full h-14 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-3 active:scale-[0.98] transition-all shadow-lg shadow-[#00b14f]/25"
+                                >
+                                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clipRule="evenodd" />
+                                    </svg>
+                                    เปิดเสียง
+                                </button>
+
+                                <p className="text-center text-gray-400 text-xs mt-4">
+                                    กดปุ่มด้านบนเพื่อเปิดใช้งานเสียงแจ้งเตือน
+                                </p>
                             </div>
                         </div>
                     </div>

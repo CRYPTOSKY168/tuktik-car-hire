@@ -267,6 +267,7 @@ export default function TestMaps1Page() {
     const lastBookingStatusRef = useRef<string | null>(null);
     const rematchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const searchStartTimeRef = useRef<number | null>(null);
+    const driverResponseTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Timeout for driver to respond (accept/reject)
 
     // Re-match configuration
     const REMATCH_CONFIG = {
@@ -279,6 +280,9 @@ export default function TestMaps1Page() {
     // === NEW: Live Mode Map Features ===
     const [driverToPickupRoute, setDriverToPickupRoute] = useState<google.maps.DirectionsResult | null>(null);
     const [liveEta, setLiveEta] = useState<{ toPickup: number | null; toDropoff: number | null }>({ toPickup: null, toDropoff: null });
+
+    // No driver available modal
+    const [showNoDriverModal, setShowNoDriverModal] = useState(false);
 
     // Rating state for completed trips
     const [showRatingModal, setShowRatingModal] = useState(false);
@@ -647,6 +651,77 @@ export default function TestMaps1Page() {
                         setRematchMessage(null);
                     }
 
+                    // ===== DRIVER RESPONSE TIMEOUT MECHANISM =====
+                    // When driver is assigned but doesn't respond within DRIVER_RESPONSE_TIMEOUT,
+                    // auto-reject and trigger re-match
+
+                    // Clear existing driver response timeout when status changes
+                    if (driverResponseTimeoutRef.current) {
+                        clearTimeout(driverResponseTimeoutRef.current);
+                        driverResponseTimeoutRef.current = null;
+                    }
+
+                    // Start timeout when entering driver_assigned
+                    if (bookingData.status === 'driver_assigned' && bookingData.driver?.driverId) {
+                        console.log(`⏱️ Starting driver response timeout (${REMATCH_CONFIG.DRIVER_RESPONSE_TIMEOUT / 1000}s) for driver: ${bookingData.driver.name}`);
+
+                        const currentDriverId = bookingData.driver.driverId;
+                        const currentBookingId = bookingData.id;
+
+                        driverResponseTimeoutRef.current = setTimeout(async () => {
+                            console.log(`⚠️ Driver response timeout! Driver ${currentDriverId} didn't respond in time`);
+
+                            // Update booking: set status back to confirmed, add driver to rejectedDrivers
+                            if (db) {
+                                try {
+                                    const bookingRef = doc(db, 'bookings', currentBookingId);
+                                    const currentRejectedDrivers = bookingData.rejectedDrivers || [];
+
+                                    if (!currentRejectedDrivers.includes(currentDriverId)) {
+                                        currentRejectedDrivers.push(currentDriverId);
+                                    }
+
+                                    await updateDoc(bookingRef, {
+                                        status: 'confirmed',
+                                        driver: null,
+                                        rejectedDrivers: currentRejectedDrivers,
+                                        statusHistory: arrayUnion({
+                                            status: 'confirmed',
+                                            timestamp: Timestamp.now(),
+                                            note: language === 'th'
+                                                ? 'คนขับไม่ตอบรับในเวลาที่กำหนด - กำลังหาคนขับใหม่'
+                                                : 'Driver did not respond in time - finding another driver',
+                                            updatedBy: 'system',
+                                            rejectedBy: currentDriverId,
+                                        }),
+                                        updatedAt: Timestamp.now(),
+                                    });
+
+                                    console.log('✅ Booking updated - driver auto-rejected due to timeout');
+
+                                    // Reset driver status to available
+                                    const driverRef = doc(db, 'drivers', currentDriverId);
+                                    await updateDoc(driverRef, {
+                                        status: 'available',
+                                        updatedAt: Timestamp.now(),
+                                    }).catch(err => console.log('Could not update driver status:', err));
+
+                                } catch (error) {
+                                    console.error('Error auto-rejecting driver:', error);
+                                }
+                            }
+                        }, REMATCH_CONFIG.DRIVER_RESPONSE_TIMEOUT);
+                    }
+
+                    // Clear timeout when driver accepts (status becomes driver_en_route)
+                    if (bookingData.status === 'driver_en_route') {
+                        console.log('✅ Driver accepted! Clearing response timeout');
+                        if (driverResponseTimeoutRef.current) {
+                            clearTimeout(driverResponseTimeoutRef.current);
+                            driverResponseTimeoutRef.current = null;
+                        }
+                    }
+
                     // Map booking status to page status
                     const statusMap: Record<string, typeof status> = {
                         'pending': 'searching',
@@ -991,6 +1066,11 @@ export default function TestMaps1Page() {
             clearTimeout(rematchTimeoutRef.current);
             rematchTimeoutRef.current = null;
         }
+        // Clear driver response timeout
+        if (driverResponseTimeoutRef.current) {
+            clearTimeout(driverResponseTimeoutRef.current);
+            driverResponseTimeoutRef.current = null;
+        }
     };
 
     // === NEW: Create live booking ===
@@ -1147,6 +1227,11 @@ export default function TestMaps1Page() {
                 clearTimeout(rematchTimeoutRef.current);
                 rematchTimeoutRef.current = null;
             }
+            // Clear driver response timeout
+            if (driverResponseTimeoutRef.current) {
+                clearTimeout(driverResponseTimeoutRef.current);
+                driverResponseTimeoutRef.current = null;
+            }
         } catch (error) {
             console.error('Error cancelling booking:', error);
             alert(language === 'th' ? 'ไม่สามารถยกเลิกการจองได้' : 'Failed to cancel booking');
@@ -1188,12 +1273,8 @@ export default function TestMaps1Page() {
             searchStartTimeRef.current = null;
             setStatus('searching'); // Stay in searching mode but show waiting UI
 
-            // Show user-friendly message
-            alert(
-                language === 'th'
-                    ? 'ขณะนี้ไม่มีคนขับว่าง\n\nการจองของคุณยังคงอยู่ เราจะแจ้งให้ทราบเมื่อมีคนขับพร้อมให้บริการ หรือคุณสามารถรอแอดมินมอบหมายคนขับให้'
-                    : 'No drivers available at the moment.\n\nYour booking is still active. We will notify you when a driver becomes available, or you can wait for admin to assign a driver.'
-            );
+            // Show user-friendly modal
+            setShowNoDriverModal(true);
 
             // Don't reset activeBooking - user can still see their booking
             // Admin can manually assign a driver from the dashboard
@@ -2638,6 +2719,87 @@ export default function TestMaps1Page() {
                                 ) : (
                                     language === 'th' ? 'ยกเลิกเลย' : 'Yes, Cancel'
                                 )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* No Driver Available Modal */}
+            {showNoDriverModal && (
+                <div className="fixed inset-0 z-[100]">
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        onClick={() => setShowNoDriverModal(false)}
+                    />
+
+                    <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl animate-slide-up">
+                        {/* Handle */}
+                        <div className="flex justify-center py-3">
+                            <div className="w-10 h-1 bg-gray-300 rounded-full" />
+                        </div>
+
+                        <div className="px-5 pb-[max(24px,env(safe-area-inset-bottom))]">
+                            {/* Icon */}
+                            <div className="flex justify-center mb-4">
+                                <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center">
+                                    <svg className="w-10 h-10 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            {/* Title */}
+                            <h2 className="text-xl font-bold text-gray-900 text-center mb-2">
+                                {language === 'th' ? 'ไม่มีคนขับว่างในขณะนี้' : 'No Drivers Available'}
+                            </h2>
+
+                            {/* Description */}
+                            <p className="text-gray-500 text-center mb-6 leading-relaxed">
+                                {language === 'th'
+                                    ? 'การจองของคุณยังคงอยู่ เราจะแจ้งให้ทราบเมื่อมีคนขับพร้อมให้บริการ หรือคุณสามารถรอแอดมินมอบหมายคนขับให้'
+                                    : 'Your booking is still active. We will notify you when a driver becomes available, or you can wait for admin to assign a driver.'}
+                            </p>
+
+                            {/* Info Box */}
+                            <div className="bg-[#00b14f]/5 border border-[#00b14f]/20 rounded-2xl p-4 mb-6">
+                                <div className="flex items-start gap-3">
+                                    <div className="flex-shrink-0 mt-0.5">
+                                        <svg className="w-5 h-5 text-[#00b14f]" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p className="text-[#00b14f] font-medium text-sm">
+                                            {language === 'th' ? 'สิ่งที่จะเกิดขึ้นต่อไป' : 'What happens next'}
+                                        </p>
+                                        <ul className="text-gray-600 text-sm mt-2 space-y-1">
+                                            <li className="flex items-center gap-2">
+                                                <span className="w-1.5 h-1.5 bg-[#00b14f] rounded-full"></span>
+                                                {language === 'th' ? 'ระบบจะหาคนขับให้อัตโนมัติ' : 'System will auto-match a driver'}
+                                            </li>
+                                            <li className="flex items-center gap-2">
+                                                <span className="w-1.5 h-1.5 bg-[#00b14f] rounded-full"></span>
+                                                {language === 'th' ? 'แอดมินจะช่วยหาคนขับให้' : 'Admin will help assign a driver'}
+                                            </li>
+                                            <li className="flex items-center gap-2">
+                                                <span className="w-1.5 h-1.5 bg-[#00b14f] rounded-full"></span>
+                                                {language === 'th' ? 'คุณจะได้รับแจ้งเตือนทันที' : 'You will be notified immediately'}
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Button */}
+                            <button
+                                onClick={() => setShowNoDriverModal(false)}
+                                className="w-full h-14 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg shadow-[#00b14f]/25"
+                            >
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                                {language === 'th' ? 'เข้าใจแล้ว' : 'Got it'}
                             </button>
                         </div>
                     </div>
