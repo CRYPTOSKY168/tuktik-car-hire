@@ -41,6 +41,7 @@ const PAYMENT_STATUSES = [
     { value: 'partial', label: 'ชำระบางส่วน', labelEn: 'Partial', color: 'yellow', icon: 'remove_circle' },
     { value: 'failed', label: 'ไม่สำเร็จ', labelEn: 'Failed', color: 'red', icon: 'error' },
     { value: 'refunded', label: 'คืนเงินแล้ว', labelEn: 'Refunded', color: 'pink', icon: 'currency_exchange' },
+    { value: 'cancelled', label: 'ยกเลิก', labelEn: 'Cancelled', color: 'gray', icon: 'cancel' },
 ];
 
 const PAYMENT_METHODS = [
@@ -272,6 +273,7 @@ export default function AdminBookingsPage() {
             yellow: { bg: 'bg-yellow-100', text: 'text-yellow-700' },
             red: { bg: 'bg-red-100', text: 'text-red-700' },
             pink: { bg: 'bg-pink-100', text: 'text-pink-700' },
+            gray: { bg: 'bg-gray-100', text: 'text-gray-700' },
         };
         const c = colors[s.color] || { bg: 'bg-gray-100', text: 'text-gray-600' };
         return { ...c, icon: s.icon, label: language === 'en' ? s.labelEn : s.label };

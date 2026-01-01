@@ -74,6 +74,12 @@ export const PAYMENT_STATUS_CONFIG = {
         color: 'bg-yellow-100 text-yellow-700',
         icon: 'schedule',
     },
+    [PaymentStatus.PROCESSING]: {
+        label: 'กำลังดำเนินการ',
+        labelEn: 'Processing',
+        color: 'bg-blue-100 text-blue-700',
+        icon: 'sync',
+    },
     [PaymentStatus.PAID]: {
         label: 'ชำระแล้ว',
         labelEn: 'Paid',
@@ -91,6 +97,12 @@ export const PAYMENT_STATUS_CONFIG = {
         labelEn: 'Refunded',
         color: 'bg-gray-100 text-gray-700',
         icon: 'undo',
+    },
+    [PaymentStatus.CANCELLED]: {
+        label: 'ยกเลิก',
+        labelEn: 'Cancelled',
+        color: 'bg-gray-100 text-gray-700',
+        icon: 'cancel',
     },
 } as const;
 

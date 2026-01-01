@@ -13,6 +13,8 @@
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.4.2",
     "@react-three/postprocessing": "^3.0.4",
+    "@stripe/react-stripe-js": "^5.4.1",
+    "@stripe/stripe-js": "^8.6.0",
     "firebase": "^12.7.0",
     "firebase-admin": "^13.6.0",
     "next": "16.1.1",
@@ -22,6 +24,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "sharp": "^0.34.5",
+    "stripe": "^20.1.0",
     "three": "^0.182.0"
   },
   "devDependencies": {

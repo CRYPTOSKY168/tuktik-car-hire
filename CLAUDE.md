@@ -1,7 +1,7 @@
 # TukTik Car Rental - Project Documentation
 
 > **Last Updated:** 2026-01-02
-> **Version:** 8.3 (No Driver Modal)
+> **Version:** 8.4 (Payment Modal)
 > **Status:** Production
 > **Lines:** ~4050+
 
@@ -3037,6 +3037,36 @@ main().catch(err => {
 
 ## Changelog
 
+### 2026-01-02 v8.4 - Payment Modal (Stripe Embedded) 💳
+- **เพิ่มระบบชำระเงินภายในหน้า `/test-maps1` (Live Mode)**
+  - เมื่อกดปุ่ม "จองรถตอนนี้" → แสดง Payment Modal
+  - ตัวเลือกชำระเงิน: บัตรเครดิต/เดบิต (Stripe) และเงินสด
+  - ใช้ Stripe Payment Element (embedded form, ไม่ redirect)
+- **API Endpoints ใหม่:**
+  - `POST /api/payment/create-intent` - สร้าง PaymentIntent
+  - `POST /api/payment/refund` - คืนเงินเมื่อยกเลิก booking
+- **Payment Flow:**
+  1. ลูกค้าเลือก Card → สร้าง booking (status: awaiting_payment)
+  2. สร้าง PaymentIntent → แสดง Stripe Payment Element
+  3. ลูกค้ากรอกบัตร → ชำระเงิน → booking status เปลี่ยนเป็น pending
+  4. ระบบหาคนขับอัตโนมัติ
+  5. ถ้ายกเลิก → Refund อัตโนมัติผ่าน Stripe API
+- **ถ้าเลือก Cash:** ข้าม payment flow → สร้าง booking (status: pending) ทันที
+- **Type Updates:**
+  - เพิ่ม `stripePaymentIntentId`, `stripeRefundId`, `paymentCompletedAt`, `refundedAt`, `refundReason` ใน Booking interface
+- **Dependencies:**
+  - `@stripe/react-stripe-js` (client-side)
+  - `@stripe/stripe-js` (client-side)
+  - `stripe` (server-side)
+- **Environment Variables ต้องเพิ่ม:**
+  - `STRIPE_SECRET_KEY` - Server-side secret key
+  - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - Client-side publishable key
+- **Files created/modified:**
+  - `app/api/payment/create-intent/route.ts` - **NEW**
+  - `app/api/payment/refund/route.ts` - **NEW**
+  - `app/test-maps1/page.tsx` - Payment Modal UI + flow
+  - `lib/types/index.ts` - Stripe fields
+
 ### 2026-01-02 v8.3 - No Driver Available Modal 🚗❌
 - **เปลี่ยน alert() เป็น Bottom Sheet Modal แบบ Grab style**
   - เดิม: ใช้ `alert()` ของ browser ซึ่งดูไม่สวยและไม่เข้ากับ design
@@ -3979,6 +4009,8 @@ return NextResponse.json(
 6. ❌ ลืมเพิ่ม translation ทั้ง en และ th
 7. ❌ สร้าง <input>/<select> โดยไม่มี id, name, label (accessibility!)
 8. ❌ ใช้ localStorage สำหรับ auth แทน Firebase Auth (ทำให้เกิด redirect loop!)
+9. ❌ ลืม deploy ไป Vercel หลังแก้ไขโค้ด (user อาจทดสอบบน production ไม่ใช่ localhost!)
+10. ❌ ลืมเพิ่ม Environment Variables ใหม่ใน Vercel (ต้องเพิ่มทั้ง .env.local และ Vercel!)
 ```
 
 ### Quick Commands
@@ -3991,4 +4023,4 @@ vercel --prod        # Deploy to production
 ---
 
 *Document maintained by development team. Last updated: 2026-01-02*
-*Lines: ~3900 | Version: 7.9 (Auto Re-match System) 🔄🚗*
+*Lines: ~4000 | Version: 8.4 (Payment Modal) 💳*

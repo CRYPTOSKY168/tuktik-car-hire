@@ -219,11 +219,20 @@ export async function POST(request: NextRequest) {
                     updatedBy: 'driver'
                 });
 
-                await bookingRef.update({
+                // Prepare update data
+                const updateData: Record<string, any> = {
                     status,
                     statusHistory,
                     updatedAt: FieldValue.serverTimestamp()
-                });
+                };
+
+                // For cash payment: mark as paid when completed
+                if (status === 'completed' && currentData?.paymentMethod === 'cash') {
+                    updateData.paymentStatus = 'paid';
+                    updateData.paymentCompletedAt = FieldValue.serverTimestamp();
+                }
+
+                await bookingRef.update(updateData);
 
                 // Update driver status and earnings when completed
                 if (status === 'completed') {

@@ -26,9 +26,11 @@ export enum PaymentMethod {
 
 export enum PaymentStatus {
     PENDING = 'pending',
+    PROCESSING = 'processing',  // Card payment started but not completed
     PAID = 'paid',
     FAILED = 'failed',
     REFUNDED = 'refunded',
+    CANCELLED = 'cancelled',    // Booking cancelled (no payment made or payment incomplete)
 }
 
 export enum DriverStatus {
@@ -160,6 +162,14 @@ export interface Booking {
     paymentMethod: PaymentMethod | string;
     paymentStatus: PaymentStatus | string;
     slipUrl?: string;
+
+    // Stripe Payment Fields
+    stripePaymentIntentId?: string;    // PaymentIntent ID for embedded card payment
+    stripeRefundId?: string;           // Refund ID if refunded
+    paymentCompletedAt?: Timestamp | Date;  // When payment was completed
+    refundedAt?: Timestamp | Date;     // When refund was processed
+    refundReason?: string;             // Reason for refund
+
     driver?: BookingDriver;
     statusHistory?: StatusHistoryEntry[];
     ratings?: BookingRatings;           // Rating system

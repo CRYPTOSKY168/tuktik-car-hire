@@ -20,6 +20,11 @@ import { useDriverTracking } from '@/lib/hooks';
 import { Vehicle, Driver, Booking, BookingStatus } from '@/lib/types';
 import { db } from '@/lib/firebase/config';
 import { doc, onSnapshot, updateDoc, Timestamp, arrayUnion } from 'firebase/firestore';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+
+// Initialize Stripe
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
 // Libraries - must be outside component to prevent re-renders
 const libraries: Libraries = ['places', 'geometry'];
@@ -293,6 +298,15 @@ export default function TestMaps1Page() {
     const [customTip, setCustomTip] = useState('');
     const [isSubmittingRating, setIsSubmittingRating] = useState(false);
 
+    // === Payment Modal State ===
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash'>('cash');
+    const [clientSecret, setClientSecret] = useState<string | null>(null);
+    const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+    const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+    const [paymentError, setPaymentError] = useState<string | null>(null);
+    const [pendingBookingId, setPendingBookingId] = useState<string | null>(null);
+
     // Tip options
     const tipOptions = [0, 20, 50, 100];
 
@@ -330,6 +344,232 @@ export default function TestMaps1Page() {
         const { auth } = await import('@/lib/firebase/config');
         if (!auth || !auth.currentUser) return null;
         return getIdToken(auth.currentUser);
+    };
+
+    // === Payment Functions ===
+
+    // Show payment modal before booking
+    const handleBookNowClick = () => {
+        if (!user) {
+            router.push('/login');
+            return;
+        }
+        if (!tripInfo || !selectedVehicle) {
+            alert(language === 'th' ? 'กรุณาเลือกเส้นทางและรถก่อน' : 'Please select route and vehicle first');
+            return;
+        }
+        // Reset payment state
+        setPaymentMethod('cash');
+        setClientSecret(null);
+        setPaymentIntentId(null);
+        setPaymentError(null);
+        setShowPaymentModal(true);
+    };
+
+    // Create PaymentIntent for card payment
+    const createPaymentIntent = async (bookingId: string): Promise<boolean> => {
+        try {
+            const token = await getAuthToken();
+            if (!token) {
+                setPaymentError(language === 'th' ? 'กรุณาเข้าสู่ระบบใหม่' : 'Please login again');
+                return false;
+            }
+
+            const response = await fetch('/api/payment/create-intent', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    bookingId,
+                    amount: tripInfo?.price || 0,
+                    currency: 'thb',
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!result.success) {
+                setPaymentError(result.error || 'Failed to create payment');
+                return false;
+            }
+
+            setClientSecret(result.clientSecret);
+            setPaymentIntentId(result.paymentIntentId);
+            return true;
+        } catch (error: any) {
+            console.error('Error creating payment intent:', error);
+            setPaymentError(error.message || 'Payment setup failed');
+            return false;
+        }
+    };
+
+    // Handle payment method selection and proceed
+    const handlePaymentProceed = async () => {
+        if (paymentMethod === 'cash') {
+            // Cash payment - proceed directly to booking
+            setShowPaymentModal(false);
+            startLiveTrip();
+        } else {
+            // Card payment - create booking first, then payment intent
+            setIsProcessingPayment(true);
+            setPaymentError(null);
+
+            try {
+                // Create booking with awaiting_payment status
+                const newBookingId = await createLiveBookingForPayment();
+                if (!newBookingId) {
+                    setIsProcessingPayment(false);
+                    return;
+                }
+                setPendingBookingId(newBookingId);
+
+                // Create payment intent
+                const success = await createPaymentIntent(newBookingId);
+                if (!success) {
+                    // Cancel the booking if payment setup fails
+                    await BookingService.updateBookingStatus(newBookingId, 'cancelled', 'Payment setup failed');
+                    setPendingBookingId(null);
+                }
+            } catch (error: any) {
+                setPaymentError(error.message || 'Failed to setup payment');
+            } finally {
+                setIsProcessingPayment(false);
+            }
+        }
+    };
+
+    // Create booking for card payment (awaiting_payment status)
+    const createLiveBookingForPayment = async (): Promise<string | null> => {
+        if (!user || !tripInfo || !selectedVehicle) {
+            setPaymentError(language === 'th' ? 'กรุณาเข้าสู่ระบบก่อนจองรถ' : 'Please login to book');
+            return null;
+        }
+
+        try {
+            const bookingData = {
+                firstName: user.displayName?.split(' ')[0] || 'Guest',
+                lastName: user.displayName?.split(' ').slice(1).join(' ') || '',
+                email: user.email || '',
+                phone: user.phoneNumber || '',
+                pickupLocation: pickup.name,
+                dropoffLocation: dropoff.name,
+                pickupCoordinates: { lat: pickup.lat, lng: pickup.lng },
+                dropoffCoordinates: { lat: dropoff.lat, lng: dropoff.lng },
+                pickupLocationId: pickup.id || '',
+                dropoffLocationId: dropoff.id || '',
+                pickupDate: new Date().toISOString().split('T')[0],
+                pickupTime: new Date().toTimeString().slice(0, 5),
+                tripType: 'oneWay' as const,
+                vehicle: {
+                    id: selectedVehicle.id,
+                    name: selectedVehicle.name,
+                    type: typeof selectedVehicle.type === 'string' ? selectedVehicle.type : 'sedan',
+                    price: selectedVehicle.price,
+                    image: selectedVehicle.image,
+                    passengers: selectedVehicle.passengers ?? selectedVehicle.seats,
+                    luggage: selectedVehicle.luggage ?? 2,
+                    transmission: selectedVehicle.transmission ?? 'automatic',
+                    features: selectedVehicle.features,
+                },
+                addInsurance: false,
+                addLuggage: false,
+                flightNumber: '',
+                passengerCount: 1,
+                luggageCount: 1,
+                specialRequests: '',
+                paymentMethod: 'card' as const,
+            };
+
+            const newBookingId = await BookingService.addBooking(
+                bookingData,
+                tripInfo.price,
+                user.uid
+            );
+
+            return newBookingId;
+        } catch (error) {
+            console.error('Error creating booking:', error);
+            setPaymentError(language === 'th' ? 'ไม่สามารถสร้างการจองได้' : 'Failed to create booking');
+            return null;
+        }
+    };
+
+    // Handle successful card payment
+    const handlePaymentSuccess = async () => {
+        if (!pendingBookingId) return;
+
+        setShowPaymentModal(false);
+        setBookingId(pendingBookingId);
+        setStatus('searching');
+
+        // Initialize search start time for auto re-match timeout
+        searchStartTimeRef.current = Date.now();
+        setRematchAttempt(0);
+        setRejectedDrivers([]);
+        setIsRematching(false);
+        setRematchMessage(null);
+
+        // Confirm payment via API (updates paymentStatus to 'paid' + paymentCompletedAt)
+        try {
+            const token = await getAuthToken();
+            if (token) {
+                await fetch('/api/payment/confirm', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ bookingId: pendingBookingId }),
+                });
+            }
+        } catch (e) {
+            console.error('Failed to confirm payment:', e);
+            // Fallback: update status directly
+            await BookingService.updateBookingStatus(pendingBookingId, 'pending', 'Payment completed');
+        }
+
+        // Find and assign driver
+        const assigned = await findAndAssignDriver(pendingBookingId);
+        if (!assigned) {
+            // Show no driver modal instead of cancelling
+            setShowNoDriverModal(true);
+        } else {
+            setStatus('driver_assigned');
+            setFollowCar(true);
+        }
+
+        setPendingBookingId(null);
+    };
+
+    // Cancel payment and close modal
+    const handlePaymentCancel = async () => {
+        if (pendingBookingId) {
+            // Cancel the pending booking
+            try {
+                // 1. Update booking status to cancelled
+                await BookingService.updateBookingStatus(pendingBookingId, 'cancelled', 'Payment cancelled');
+
+                // 2. Also update paymentStatus to cancelled
+                // This is important for bookings that were in 'processing' state
+                if (db) {
+                    const bookingRef = doc(db, 'bookings', pendingBookingId);
+                    await updateDoc(bookingRef, {
+                        paymentStatus: 'cancelled',
+                        updatedAt: Timestamp.now()
+                    });
+                    console.log('✅ Payment status updated to cancelled for booking:', pendingBookingId);
+                }
+            } catch (e) {
+                console.error('Failed to cancel booking:', e);
+            }
+            setPendingBookingId(null);
+        }
+        setClientSecret(null);
+        setPaymentIntentId(null);
+        setPaymentError(null);
+        setShowPaymentModal(false);
     };
 
     // Submit rating to API
@@ -1182,13 +1422,70 @@ export default function TestMaps1Page() {
         if (!activeBooking?.id) return;
 
         setIsCancellingBooking(true);
+        let refundProcessed = false;  // Track if refund was handled
+
         try {
+            // 0. If paid with card, refund via Stripe first
+            if (activeBooking.paymentMethod === 'card' &&
+                activeBooking.stripePaymentIntentId &&
+                activeBooking.paymentStatus === 'paid') {
+                console.log('💳 Processing refund for booking:', activeBooking.id);
+                try {
+                    const token = await getAuthToken();
+                    if (token) {
+                        const refundResponse = await fetch('/api/payment/refund', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`,
+                            },
+                            body: JSON.stringify({
+                                bookingId: activeBooking.id,  // API expects bookingId, not paymentIntentId
+                                reason: language === 'th' ? 'ผู้ใช้ยกเลิกการจอง' : 'User cancelled the booking',
+                            }),
+                        });
+                        const refundResult = await refundResponse.json();
+                        if (refundResult.success) {
+                            console.log('✅ Refund successful:', refundResult.data?.refundId);
+                            refundProcessed = true;  // Refund API already updated paymentStatus to 'refunded'
+                        } else {
+                            console.error('❌ Refund failed:', refundResult.error);
+                            // Continue with cancellation even if refund fails
+                            // Admin can process refund manually
+                        }
+                    }
+                } catch (refundError) {
+                    console.error('❌ Error processing refund:', refundError);
+                    // Continue with cancellation
+                }
+            }
+
             // 1. Update booking status to cancelled
             await BookingService.updateBookingStatus(
                 activeBooking.id,
                 'cancelled',
                 language === 'th' ? 'ผู้ใช้ยกเลิกการจอง' : 'User cancelled the booking'
             );
+
+            // 1.5 Update paymentStatus to 'cancelled' if not already handled by refund
+            // This handles cases:
+            // - Card + processing (payment started but not completed)
+            // - Card + awaiting_payment (booking created but payment not started)
+            // - Cash + pending (cash booking cancelled before completion)
+            // - Refund failed (need to mark as cancelled so admin knows)
+            if (!refundProcessed && db) {
+                try {
+                    const bookingRef = doc(db, 'bookings', activeBooking.id);
+                    await updateDoc(bookingRef, {
+                        paymentStatus: 'cancelled',
+                        updatedAt: Timestamp.now()
+                    });
+                    console.log('✅ Payment status updated to cancelled');
+                } catch (paymentStatusError) {
+                    console.error('❌ Failed to update payment status:', paymentStatusError);
+                    // Non-critical, continue
+                }
+            }
 
             // 2. If driver was assigned, set driver status back to available (with retry)
             if (activeBooking.driver?.driverId) {
@@ -2265,7 +2562,7 @@ export default function TestMaps1Page() {
                                     <button
                                         onClick={() => {
                                             if (mode === 'live') {
-                                                startLiveTrip();
+                                                handleBookNowClick();
                                             } else {
                                                 setStatus('searching');
                                                 setTimeout(() => {
@@ -3013,6 +3310,186 @@ export default function TestMaps1Page() {
                 </div>
             )}
 
+            {/* Payment Modal */}
+            {showPaymentModal && (
+                <div className="fixed inset-0 z-[100]">
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        onClick={() => !isProcessingPayment && !clientSecret && handlePaymentCancel()}
+                    />
+
+                    <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[90vh] flex flex-col animate-slide-up">
+                        {/* Handle */}
+                        <div className="flex justify-center py-3">
+                            <div className="w-10 h-1 bg-gray-300 rounded-full" />
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto px-5 pb-[max(24px,env(safe-area-inset-bottom))]">
+                            {/* Header */}
+                            <div className="text-center mb-6">
+                                <div className="w-16 h-16 bg-[#00b14f]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <svg className="w-8 h-8 text-[#00b14f]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                    </svg>
+                                </div>
+                                <h2 className="text-xl font-bold text-gray-900">
+                                    {language === 'th' ? 'ชำระเงิน' : 'Payment'}
+                                </h2>
+                            </div>
+
+                            {/* Trip Summary */}
+                            <div className="bg-gray-50 rounded-2xl p-4 mb-6">
+                                <div className="flex items-start gap-3 mb-3">
+                                    <div className="flex flex-col items-center">
+                                        <div className="w-3 h-3 rounded-full bg-[#00b14f]" />
+                                        <div className="w-0.5 h-8 bg-gray-300" />
+                                        <div className="w-3 h-3 rounded bg-red-500" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm text-gray-500 truncate">{pickup.name}</p>
+                                        <div className="h-6" />
+                                        <p className="text-sm text-gray-500 truncate">{dropoff.name}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                                    <span className="text-gray-600">
+                                        {selectedVehicle?.name || 'Vehicle'}
+                                    </span>
+                                    <span className="text-2xl font-bold text-gray-900">
+                                        ฿{tripInfo?.price?.toLocaleString() || '0'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Show Stripe Payment Element if clientSecret is set */}
+                            {clientSecret ? (
+                                <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
+                                    <StripePaymentForm
+                                        onSuccess={handlePaymentSuccess}
+                                        onCancel={handlePaymentCancel}
+                                        language={language}
+                                        amount={tripInfo?.price || 0}
+                                    />
+                                </Elements>
+                            ) : (
+                                <>
+                                    {/* Payment Method Selection */}
+                                    <div className="mb-6">
+                                        <p className="text-sm font-semibold text-gray-700 mb-3">
+                                            {language === 'th' ? 'เลือกวิธีชำระเงิน' : 'Select Payment Method'}
+                                        </p>
+
+                                        {/* Card Option */}
+                                        <button
+                                            onClick={() => setPaymentMethod('card')}
+                                            className={`w-full p-4 rounded-2xl border-2 mb-3 flex items-center gap-4 transition-all ${
+                                                paymentMethod === 'card'
+                                                    ? 'border-[#00b14f] bg-[#00b14f]/5'
+                                                    : 'border-gray-200 bg-white hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                                                paymentMethod === 'card' ? 'bg-[#00b14f]/10' : 'bg-gray-100'
+                                            }`}>
+                                                <svg className={`w-6 h-6 ${paymentMethod === 'card' ? 'text-[#00b14f]' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                                </svg>
+                                            </div>
+                                            <div className="flex-1 text-left">
+                                                <p className={`font-semibold ${paymentMethod === 'card' ? 'text-[#00b14f]' : 'text-gray-900'}`}>
+                                                    {language === 'th' ? 'บัตรเครดิต/เดบิต' : 'Credit/Debit Card'}
+                                                </p>
+                                                <p className="text-sm text-gray-500">
+                                                    {language === 'th' ? 'Visa, Mastercard, JCB' : 'Visa, Mastercard, JCB'}
+                                                </p>
+                                            </div>
+                                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                                                paymentMethod === 'card' ? 'border-[#00b14f] bg-[#00b14f]' : 'border-gray-300'
+                                            }`}>
+                                                {paymentMethod === 'card' && (
+                                                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                    </svg>
+                                                )}
+                                            </div>
+                                        </button>
+
+                                        {/* Cash Option */}
+                                        <button
+                                            onClick={() => setPaymentMethod('cash')}
+                                            className={`w-full p-4 rounded-2xl border-2 flex items-center gap-4 transition-all ${
+                                                paymentMethod === 'cash'
+                                                    ? 'border-[#00b14f] bg-[#00b14f]/5'
+                                                    : 'border-gray-200 bg-white hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                                                paymentMethod === 'cash' ? 'bg-[#00b14f]/10' : 'bg-gray-100'
+                                            }`}>
+                                                <svg className={`w-6 h-6 ${paymentMethod === 'cash' ? 'text-[#00b14f]' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                                                </svg>
+                                            </div>
+                                            <div className="flex-1 text-left">
+                                                <p className={`font-semibold ${paymentMethod === 'cash' ? 'text-[#00b14f]' : 'text-gray-900'}`}>
+                                                    {language === 'th' ? 'เงินสด' : 'Cash'}
+                                                </p>
+                                                <p className="text-sm text-gray-500">
+                                                    {language === 'th' ? 'ชำระเงินกับคนขับ' : 'Pay driver directly'}
+                                                </p>
+                                            </div>
+                                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                                                paymentMethod === 'cash' ? 'border-[#00b14f] bg-[#00b14f]' : 'border-gray-300'
+                                            }`}>
+                                                {paymentMethod === 'cash' && (
+                                                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                    </svg>
+                                                )}
+                                            </div>
+                                        </button>
+                                    </div>
+
+                                    {/* Error Message */}
+                                    {paymentError && (
+                                        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+                                            <p className="text-red-600 text-sm">{paymentError}</p>
+                                        </div>
+                                    )}
+
+                                    {/* Action Buttons */}
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={handlePaymentCancel}
+                                            disabled={isProcessingPayment}
+                                            className="flex-1 h-14 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-semibold transition-all active:scale-[0.98] disabled:opacity-50"
+                                        >
+                                            {language === 'th' ? 'ยกเลิก' : 'Cancel'}
+                                        </button>
+                                        <button
+                                            onClick={handlePaymentProceed}
+                                            disabled={isProcessingPayment}
+                                            className="flex-[2] h-14 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                        >
+                                            {isProcessingPayment ? (
+                                                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            ) : (
+                                                <>
+                                                    {paymentMethod === 'card'
+                                                        ? (language === 'th' ? 'ดำเนินการชำระเงิน' : 'Proceed to Pay')
+                                                        : (language === 'th' ? `จองรถ ฿${tripInfo?.price?.toLocaleString()}` : `Book ฿${tripInfo?.price?.toLocaleString()}`)
+                                                    }
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Animation Styles */}
             <style jsx>{`
                 @keyframes slide-up {
@@ -3024,5 +3501,93 @@ export default function TestMaps1Page() {
                 }
             `}</style>
         </div>
+    );
+}
+
+// Stripe Payment Form Component
+function StripePaymentForm({
+    onSuccess,
+    onCancel,
+    language,
+    amount,
+}: {
+    onSuccess: () => void;
+    onCancel: () => void;
+    language: string;
+    amount: number;
+}) {
+    const stripe = useStripe();
+    const elements = useElements();
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!stripe || !elements) {
+            return;
+        }
+
+        setIsProcessing(true);
+        setErrorMessage(null);
+
+        const { error, paymentIntent } = await stripe.confirmPayment({
+            elements,
+            confirmParams: {
+                return_url: window.location.href,
+            },
+            redirect: 'if_required',
+        });
+
+        if (error) {
+            setErrorMessage(error.message || 'Payment failed');
+            setIsProcessing(false);
+        } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+            onSuccess();
+        } else {
+            setErrorMessage('Payment was not completed');
+            setIsProcessing(false);
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit}>
+            <div className="mb-6">
+                <PaymentElement />
+            </div>
+
+            {errorMessage && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+                    <p className="text-red-600 text-sm">{errorMessage}</p>
+                </div>
+            )}
+
+            <div className="flex gap-3">
+                <button
+                    type="button"
+                    onClick={onCancel}
+                    disabled={isProcessing}
+                    className="flex-1 h-14 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-semibold transition-all active:scale-[0.98] disabled:opacity-50"
+                >
+                    {language === 'th' ? 'ยกเลิก' : 'Cancel'}
+                </button>
+                <button
+                    type="submit"
+                    disabled={!stripe || isProcessing}
+                    className="flex-[2] h-14 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                    {isProcessing ? (
+                        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                        <>
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                            {language === 'th' ? `ชำระเงิน ฿${amount.toLocaleString()}` : `Pay ฿${amount.toLocaleString()}`}
+                        </>
+                    )}
+                </button>
+            </div>
+        </form>
     );
 }

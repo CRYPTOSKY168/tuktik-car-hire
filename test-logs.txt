@@ -1,0 +1,171 @@
+{"timestamp":"2026-01-01T10:12:17.858Z","testId":"auth-register","testName":"User Registration","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:12:20.569Z","testId":"auth-register","testName":"User Registration","status":"passed","error":null,"duration":2711}
+{"timestamp":"2026-01-01T10:12:21.070Z","testId":"auth-login","testName":"User Login","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:12:21.748Z","testId":"auth-login","testName":"User Login","status":"passed","error":null,"duration":678}
+{"timestamp":"2026-01-01T10:12:22.249Z","testId":"auth-firestore-user","testName":"Firestore User Document","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:12:22.264Z","testId":"auth-firestore-user","testName":"Firestore User Document","status":"passed","error":null,"duration":15}
+{"timestamp":"2026-01-01T10:12:22.766Z","testId":"vehicles-list","testName":"Load Vehicles","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:12:23.018Z","testId":"vehicles-list","testName":"Load Vehicles","status":"passed","error":null,"duration":252}
+{"timestamp":"2026-01-01T10:12:23.519Z","testId":"locations-list","testName":"Load Locations","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:12:23.775Z","testId":"locations-list","testName":"Load Locations","status":"passed","error":null,"duration":256}
+{"timestamp":"2026-01-01T10:12:24.276Z","testId":"routes-pricing","testName":"Load Routes & Pricing","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:12:24.538Z","testId":"routes-pricing","testName":"Load Routes & Pricing","status":"passed","error":null,"duration":262}
+{"timestamp":"2026-01-01T10:12:25.039Z","testId":"booking-create","testName":"Create Booking","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:12:26.035Z","testId":"booking-create","testName":"Create Booking","status":"passed","error":null,"duration":996}
+{"timestamp":"2026-01-01T10:12:26.537Z","testId":"booking-read","testName":"Read Booking","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:12:26.540Z","testId":"booking-read","testName":"Read Booking","status":"failed","error":"No booking ID available (run Create Booking first)","duration":3}
+{"timestamp":"2026-01-01T10:12:27.042Z","testId":"booking-update-status","testName":"Update Booking Status","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:12:27.044Z","testId":"booking-update-status","testName":"Update Booking Status","status":"failed","error":"No booking ID available","duration":1}
+{"timestamp":"2026-01-01T10:12:27.546Z","testId":"drivers-list","testName":"Load Available Drivers","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:12:27.824Z","testId":"drivers-list","testName":"Load Available Drivers","status":"passed","error":null,"duration":278}
+{"timestamp":"2026-01-01T10:12:28.326Z","testId":"drivers-assign","testName":"Assign Driver to Booking","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:12:28.327Z","testId":"drivers-assign","testName":"Assign Driver to Booking","status":"failed","error":"No booking ID available","duration":1}
+{"timestamp":"2026-01-01T10:12:28.829Z","testId":"api-driver-status","testName":"API: Driver Status","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:12:28.829Z","testId":"api-driver-status","testName":"API: Driver Status","status":"passed","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:12:29.330Z","testId":"api-driver-bookings","testName":"API: Driver Bookings","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:12:29.330Z","testId":"api-driver-bookings","testName":"API: Driver Bookings","status":"passed","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:12:29.833Z","testId":"notifications-create","testName":"Create Notification","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:12:30.327Z","testId":"notifications-create","testName":"Create Notification","status":"passed","error":null,"duration":495}
+{"timestamp":"2026-01-01T10:12:30.827Z","testId":"rating-api","testName":"API: Rating Endpoint","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:12:30.828Z","testId":"rating-api","testName":"API: Rating Endpoint","status":"passed","error":null,"duration":1}
+{"timestamp":"2026-01-01T10:12:31.330Z","testId":"cleanup-booking","testName":"Cleanup: Delete Test Booking","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:12:31.330Z","testId":"cleanup-booking","testName":"Cleanup: Delete Test Booking","status":"passed","error":null,"duration":1}
+{"timestamp":"2026-01-01T10:12:31.832Z","testId":"cleanup-user","testName":"Cleanup: Delete Test User","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:12:32.489Z","testId":"cleanup-user","testName":"Cleanup: Delete Test User","status":"passed","error":null,"duration":657}
+{"timestamp":"2026-01-01T10:13:05.239Z","testId":"auth-register","testName":"User Registration","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:13:07.057Z","testId":"auth-register","testName":"User Registration","status":"passed","error":null,"duration":1818}
+{"timestamp":"2026-01-01T10:13:07.559Z","testId":"auth-login","testName":"User Login","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:13:08.243Z","testId":"auth-login","testName":"User Login","status":"passed","error":null,"duration":685}
+{"timestamp":"2026-01-01T10:13:08.745Z","testId":"auth-firestore-user","testName":"Firestore User Document","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:13:08.764Z","testId":"auth-firestore-user","testName":"Firestore User Document","status":"passed","error":null,"duration":19}
+{"timestamp":"2026-01-01T10:13:09.265Z","testId":"vehicles-list","testName":"Load Vehicles","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:13:09.517Z","testId":"vehicles-list","testName":"Load Vehicles","status":"passed","error":null,"duration":252}
+{"timestamp":"2026-01-01T10:13:10.020Z","testId":"locations-list","testName":"Load Locations","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:13:10.269Z","testId":"locations-list","testName":"Load Locations","status":"passed","error":null,"duration":249}
+{"timestamp":"2026-01-01T10:13:10.771Z","testId":"routes-pricing","testName":"Load Routes & Pricing","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:13:11.113Z","testId":"routes-pricing","testName":"Load Routes & Pricing","status":"passed","error":null,"duration":343}
+{"timestamp":"2026-01-01T10:13:11.614Z","testId":"booking-create","testName":"Create Booking","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:13:12.616Z","testId":"booking-create","testName":"Create Booking","status":"passed","error":null,"duration":1002}
+{"timestamp":"2026-01-01T10:13:13.118Z","testId":"booking-read","testName":"Read Booking","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:13:13.122Z","testId":"booking-read","testName":"Read Booking","status":"failed","error":"No booking ID available (run Create Booking first)","duration":4}
+{"timestamp":"2026-01-01T10:13:13.624Z","testId":"booking-update-status","testName":"Update Booking Status","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:13:13.625Z","testId":"booking-update-status","testName":"Update Booking Status","status":"failed","error":"No booking ID available","duration":1}
+{"timestamp":"2026-01-01T10:13:14.126Z","testId":"drivers-list","testName":"Load Available Drivers","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:13:14.367Z","testId":"drivers-list","testName":"Load Available Drivers","status":"passed","error":null,"duration":241}
+{"timestamp":"2026-01-01T10:13:14.869Z","testId":"drivers-assign","testName":"Assign Driver to Booking","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:13:14.870Z","testId":"drivers-assign","testName":"Assign Driver to Booking","status":"failed","error":"No booking ID available","duration":1}
+{"timestamp":"2026-01-01T10:13:15.371Z","testId":"api-driver-status","testName":"API: Driver Status","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:13:15.372Z","testId":"api-driver-status","testName":"API: Driver Status","status":"passed","error":null,"duration":1}
+{"timestamp":"2026-01-01T10:13:15.874Z","testId":"api-driver-bookings","testName":"API: Driver Bookings","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:13:15.875Z","testId":"api-driver-bookings","testName":"API: Driver Bookings","status":"passed","error":null,"duration":1}
+{"timestamp":"2026-01-01T10:13:16.376Z","testId":"notifications-create","testName":"Create Notification","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:13:17.966Z","testId":"notifications-create","testName":"Create Notification","status":"passed","error":null,"duration":1590}
+{"timestamp":"2026-01-01T10:13:18.468Z","testId":"rating-api","testName":"API: Rating Endpoint","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:13:18.469Z","testId":"rating-api","testName":"API: Rating Endpoint","status":"passed","error":null,"duration":1}
+{"timestamp":"2026-01-01T10:13:18.973Z","testId":"cleanup-booking","testName":"Cleanup: Delete Test Booking","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:13:18.975Z","testId":"cleanup-booking","testName":"Cleanup: Delete Test Booking","status":"passed","error":null,"duration":4}
+{"timestamp":"2026-01-01T10:13:19.475Z","testId":"cleanup-user","testName":"Cleanup: Delete Test User","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:13:20.189Z","testId":"cleanup-user","testName":"Cleanup: Delete Test User","status":"passed","error":null,"duration":714}
+{"timestamp":"2026-01-01T10:14:13.520Z","testId":"auth-register","testName":"User Registration","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:14:15.101Z","testId":"auth-register","testName":"User Registration","status":"passed","error":null,"duration":1581}
+{"timestamp":"2026-01-01T10:14:15.602Z","testId":"auth-login","testName":"User Login","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:14:16.254Z","testId":"auth-login","testName":"User Login","status":"passed","error":null,"duration":652}
+{"timestamp":"2026-01-01T10:14:16.756Z","testId":"auth-firestore-user","testName":"Firestore User Document","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:14:16.782Z","testId":"auth-firestore-user","testName":"Firestore User Document","status":"passed","error":null,"duration":26}
+{"timestamp":"2026-01-01T10:14:17.285Z","testId":"vehicles-list","testName":"Load Vehicles","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:14:17.532Z","testId":"vehicles-list","testName":"Load Vehicles","status":"passed","error":null,"duration":247}
+{"timestamp":"2026-01-01T10:14:18.034Z","testId":"locations-list","testName":"Load Locations","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:14:18.292Z","testId":"locations-list","testName":"Load Locations","status":"passed","error":null,"duration":259}
+{"timestamp":"2026-01-01T10:14:18.793Z","testId":"routes-pricing","testName":"Load Routes & Pricing","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:14:19.045Z","testId":"routes-pricing","testName":"Load Routes & Pricing","status":"passed","error":null,"duration":252}
+{"timestamp":"2026-01-01T10:14:19.546Z","testId":"booking-create","testName":"Create Booking","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:14:20.541Z","testId":"booking-create","testName":"Create Booking","status":"passed","error":null,"duration":995}
+{"timestamp":"2026-01-01T10:14:21.043Z","testId":"booking-read","testName":"Read Booking","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:14:21.285Z","testId":"booking-read","testName":"Read Booking","status":"passed","error":null,"duration":243}
+{"timestamp":"2026-01-01T10:14:21.787Z","testId":"booking-update-status","testName":"Update Booking Status","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:14:22.292Z","testId":"booking-update-status","testName":"Update Booking Status","status":"passed","error":null,"duration":505}
+{"timestamp":"2026-01-01T10:14:22.795Z","testId":"drivers-list","testName":"Load Available Drivers","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:14:23.041Z","testId":"drivers-list","testName":"Load Available Drivers","status":"passed","error":null,"duration":246}
+{"timestamp":"2026-01-01T10:14:23.544Z","testId":"drivers-assign","testName":"Assign Driver to Booking","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:14:24.778Z","testId":"drivers-assign","testName":"Assign Driver to Booking","status":"failed","error":"Missing or insufficient permissions.","duration":1235}
+{"timestamp":"2026-01-01T10:14:25.280Z","testId":"api-driver-status","testName":"API: Driver Status","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:14:26.973Z","testId":"api-driver-status","testName":"API: Driver Status","status":"failed","error":"User is not an approved driver","duration":1693}
+{"timestamp":"2026-01-01T10:14:27.476Z","testId":"api-driver-bookings","testName":"API: Driver Bookings","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:14:27.805Z","testId":"api-driver-bookings","testName":"API: Driver Bookings","status":"failed","error":"User is not an approved driver","duration":330}
+{"timestamp":"2026-01-01T10:14:28.307Z","testId":"notifications-create","testName":"Create Notification","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:14:29.305Z","testId":"notifications-create","testName":"Create Notification","status":"passed","error":null,"duration":998}
+{"timestamp":"2026-01-01T10:14:29.807Z","testId":"rating-api","testName":"API: Rating Endpoint","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:14:30.053Z","testId":"rating-api","testName":"API: Rating Endpoint","status":"failed","error":"Missing or insufficient permissions.","duration":246}
+{"timestamp":"2026-01-01T10:14:30.555Z","testId":"cleanup-booking","testName":"Cleanup: Delete Test Booking","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:14:32.049Z","testId":"cleanup-booking","testName":"Cleanup: Delete Test Booking","status":"failed","error":"Missing or insufficient permissions.","duration":1494}
+{"timestamp":"2026-01-01T10:14:32.551Z","testId":"cleanup-user","testName":"Cleanup: Delete Test User","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:14:33.699Z","testId":"cleanup-user","testName":"Cleanup: Delete Test User","status":"passed","error":null,"duration":1148}
+{"timestamp":"2026-01-01T10:16:25.630Z","testId":"auth-register","testName":"User Registration","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:16:27.340Z","testId":"auth-register","testName":"User Registration","status":"passed","error":null,"duration":1711}
+{"timestamp":"2026-01-01T10:16:27.842Z","testId":"auth-login","testName":"User Login","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:16:28.527Z","testId":"auth-login","testName":"User Login","status":"passed","error":null,"duration":685}
+{"timestamp":"2026-01-01T10:16:29.029Z","testId":"auth-firestore-user","testName":"Firestore User Document","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:16:29.057Z","testId":"auth-firestore-user","testName":"Firestore User Document","status":"passed","error":null,"duration":28}
+{"timestamp":"2026-01-01T10:16:29.559Z","testId":"vehicles-list","testName":"Load Vehicles","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:16:29.803Z","testId":"vehicles-list","testName":"Load Vehicles","status":"passed","error":null,"duration":244}
+{"timestamp":"2026-01-01T10:16:30.305Z","testId":"locations-list","testName":"Load Locations","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:16:30.563Z","testId":"locations-list","testName":"Load Locations","status":"passed","error":null,"duration":258}
+{"timestamp":"2026-01-01T10:16:31.065Z","testId":"routes-pricing","testName":"Load Routes & Pricing","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:16:31.325Z","testId":"routes-pricing","testName":"Load Routes & Pricing","status":"passed","error":null,"duration":260}
+{"timestamp":"2026-01-01T10:16:31.827Z","testId":"booking-create","testName":"Create Booking","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:16:32.828Z","testId":"booking-create","testName":"Create Booking","status":"passed","error":null,"duration":1001}
+{"timestamp":"2026-01-01T10:16:33.330Z","testId":"booking-read","testName":"Read Booking","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:16:33.571Z","testId":"booking-read","testName":"Read Booking","status":"passed","error":null,"duration":242}
+{"timestamp":"2026-01-01T10:16:34.073Z","testId":"booking-update-status","testName":"Update Booking Status","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:16:34.569Z","testId":"booking-update-status","testName":"Update Booking Status","status":"passed","error":null,"duration":497}
+{"timestamp":"2026-01-01T10:16:35.071Z","testId":"drivers-list","testName":"Load Available Drivers","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:16:35.318Z","testId":"drivers-list","testName":"Load Available Drivers","status":"passed","error":null,"duration":247}
+{"timestamp":"2026-01-01T10:16:35.820Z","testId":"drivers-assign","testName":"Assign Driver to Booking","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:16:37.084Z","testId":"drivers-assign","testName":"Assign Driver to Booking","status":"failed","error":"Missing or insufficient permissions.","duration":1264}
+{"timestamp":"2026-01-01T10:16:37.585Z","testId":"api-driver-status","testName":"API: Driver Status","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:16:39.190Z","testId":"api-driver-status","testName":"API: Driver Status","status":"failed","error":"User is not an approved driver","duration":1604}
+{"timestamp":"2026-01-01T10:16:39.692Z","testId":"api-driver-bookings","testName":"API: Driver Bookings","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:16:40.012Z","testId":"api-driver-bookings","testName":"API: Driver Bookings","status":"failed","error":"User is not an approved driver","duration":320}
+{"timestamp":"2026-01-01T10:16:40.512Z","testId":"notifications-create","testName":"Create Notification","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:16:41.522Z","testId":"notifications-create","testName":"Create Notification","status":"passed","error":null,"duration":1010}
+{"timestamp":"2026-01-01T10:16:42.023Z","testId":"rating-api","testName":"API: Rating Endpoint","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:16:45.060Z","testId":"rating-api","testName":"API: Rating Endpoint","status":"passed","error":null,"duration":3037}
+{"timestamp":"2026-01-01T10:16:45.563Z","testId":"cleanup-booking","testName":"Cleanup: Delete Test Booking","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:16:46.526Z","testId":"cleanup-booking","testName":"Cleanup: Delete Test Booking","status":"failed","error":"Missing or insufficient permissions.","duration":964}
+{"timestamp":"2026-01-01T10:16:47.028Z","testId":"cleanup-user","testName":"Cleanup: Delete Test User","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T10:16:48.210Z","testId":"cleanup-user","testName":"Cleanup: Delete Test User","status":"passed","error":null,"duration":1182}
+{"timestamp":"2026-01-01T15:16:20.156Z","testId":"auth-register","testName":"User Registration","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T15:16:25.988Z","testId":"auth-register","testName":"User Registration","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T15:16:28.730Z","testId":"auth-register","testName":"User Registration","status":"passed","error":null,"duration":2742}
+{"timestamp":"2026-01-01T15:16:29.232Z","testId":"auth-login","testName":"User Login","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T15:16:30.132Z","testId":"auth-login","testName":"User Login","status":"passed","error":null,"duration":900}
+{"timestamp":"2026-01-01T15:16:30.634Z","testId":"auth-firestore-user","testName":"Firestore User Document","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T15:16:30.647Z","testId":"auth-firestore-user","testName":"Firestore User Document","status":"passed","error":null,"duration":13}
+{"timestamp":"2026-01-01T15:16:31.149Z","testId":"vehicles-list","testName":"Load Vehicles","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T15:16:31.400Z","testId":"vehicles-list","testName":"Load Vehicles","status":"passed","error":null,"duration":252}
+{"timestamp":"2026-01-01T15:16:31.902Z","testId":"locations-list","testName":"Load Locations","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T15:16:32.164Z","testId":"locations-list","testName":"Load Locations","status":"passed","error":null,"duration":263}
+{"timestamp":"2026-01-01T15:16:32.666Z","testId":"routes-pricing","testName":"Load Routes & Pricing","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T15:16:32.930Z","testId":"routes-pricing","testName":"Load Routes & Pricing","status":"passed","error":null,"duration":264}
+{"timestamp":"2026-01-01T15:16:33.432Z","testId":"booking-create","testName":"Create Booking","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T15:16:34.432Z","testId":"booking-create","testName":"Create Booking","status":"passed","error":null,"duration":1000}
+{"timestamp":"2026-01-01T15:16:34.934Z","testId":"booking-read","testName":"Read Booking","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T15:16:35.180Z","testId":"booking-read","testName":"Read Booking","status":"passed","error":null,"duration":247}
+{"timestamp":"2026-01-01T15:16:35.682Z","testId":"booking-update-status","testName":"Update Booking Status","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T15:16:36.222Z","testId":"booking-update-status","testName":"Update Booking Status","status":"passed","error":null,"duration":540}
+{"timestamp":"2026-01-01T15:16:36.724Z","testId":"drivers-list","testName":"Load Available Drivers","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T15:16:36.986Z","testId":"drivers-list","testName":"Load Available Drivers","status":"passed","error":null,"duration":263}
+{"timestamp":"2026-01-01T15:16:37.488Z","testId":"drivers-assign","testName":"Assign Driver to Booking","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T15:16:38.772Z","testId":"drivers-assign","testName":"Assign Driver to Booking","status":"failed","error":"Missing or insufficient permissions.","duration":1284}
+{"timestamp":"2026-01-01T15:16:39.273Z","testId":"api-driver-status","testName":"API: Driver Status","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T15:16:41.069Z","testId":"api-driver-status","testName":"API: Driver Status","status":"failed","error":"User is not an approved driver","duration":1796}
+{"timestamp":"2026-01-01T15:16:41.571Z","testId":"api-driver-bookings","testName":"API: Driver Bookings","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T15:16:41.879Z","testId":"api-driver-bookings","testName":"API: Driver Bookings","status":"failed","error":"User is not an approved driver","duration":308}
+{"timestamp":"2026-01-01T15:16:42.381Z","testId":"notifications-create","testName":"Create Notification","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T15:16:43.408Z","testId":"notifications-create","testName":"Create Notification","status":"passed","error":null,"duration":1028}
+{"timestamp":"2026-01-01T15:16:43.910Z","testId":"rating-api","testName":"API: Rating Endpoint","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T15:16:46.870Z","testId":"rating-api","testName":"API: Rating Endpoint","status":"passed","error":null,"duration":2960}
+{"timestamp":"2026-01-01T15:16:47.373Z","testId":"cleanup-booking","testName":"Cleanup: Delete Test Booking","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T15:16:48.344Z","testId":"cleanup-booking","testName":"Cleanup: Delete Test Booking","status":"failed","error":"Missing or insufficient permissions.","duration":972}
+{"timestamp":"2026-01-01T15:16:48.845Z","testId":"cleanup-user","testName":"Cleanup: Delete Test User","status":"running","error":null,"duration":null}
+{"timestamp":"2026-01-01T15:16:50.275Z","testId":"cleanup-user","testName":"Cleanup: Delete Test User","status":"passed","error":null,"duration":1430}
