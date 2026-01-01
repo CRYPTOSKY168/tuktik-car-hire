@@ -434,6 +434,9 @@ export default function TestMaps1Page() {
                     setActiveBooking(active);
                     setBookingId(active.id);
 
+                    // Set initial status ref for re-match detection
+                    lastBookingStatusRef.current = active.status;
+
                     // Map booking status to page status
                     const statusMap: Record<string, typeof status> = {
                         'pending': 'searching',
@@ -443,6 +446,27 @@ export default function TestMaps1Page() {
                         'in_progress': 'in_progress',
                     };
                     setStatus(statusMap[active.status] || 'selecting');
+
+                    // Check if we need to trigger re-match (e.g., page reload after driver rejected)
+                    if (active.status === 'confirmed' && active.rejectedDrivers && active.rejectedDrivers.length > 0) {
+                        const attempts = active.matchAttempts || active.rejectedDrivers.length;
+                        if (attempts < REMATCH_CONFIG.MAX_ATTEMPTS) {
+                            console.log('🔄 Detected pending re-match, triggering...');
+                            setIsRematching(true);
+                            setRematchAttempt(attempts);
+                            setRejectedDrivers(active.rejectedDrivers);
+                            setRematchMessage(
+                                language === 'th'
+                                    ? `กำลังหาคนขับใหม่... (${attempts}/${REMATCH_CONFIG.MAX_ATTEMPTS})`
+                                    : `Finding another driver... (${attempts}/${REMATCH_CONFIG.MAX_ATTEMPTS})`
+                            );
+
+                            // Trigger re-match after a short delay
+                            setTimeout(async () => {
+                                await triggerRematch(active.id, attempts + 1, active.rejectedDrivers);
+                            }, 2000);
+                        }
+                    }
 
                     // Set driver info if assigned
                     if (active.driver) {
@@ -536,13 +560,15 @@ export default function TestMaps1Page() {
 
                     // ===== AUTO RE-MATCH DETECTION =====
                     // Detect when driver rejects: driver_assigned → confirmed
+                    console.log(`📊 Status check - previous: ${previousStatus}, current: ${bookingData.status}`);
+
                     if (previousStatus === 'driver_assigned' && bookingData.status === 'confirmed') {
                         console.log('🔄 Driver rejected! Starting auto re-match...');
+                        console.log(`📋 Current availableDrivers count: ${availableDrivers.length}`);
 
-                        // Sync rejected drivers from database
-                        if (bookingData.rejectedDrivers && bookingData.rejectedDrivers.length > 0) {
-                            setRejectedDrivers(bookingData.rejectedDrivers);
-                        }
+                        // Get rejected drivers from booking data (don't rely on state due to async nature)
+                        const currentRejectedDrivers = bookingData.rejectedDrivers || [];
+                        setRejectedDrivers(currentRejectedDrivers);
 
                         // Check if we should try re-matching
                         const attempts = (bookingData.matchAttempts || 0) + 1;
@@ -552,18 +578,23 @@ export default function TestMaps1Page() {
                         const elapsedTime = Date.now() - searchStarted;
 
                         if (attempts < REMATCH_CONFIG.MAX_ATTEMPTS && elapsedTime < REMATCH_CONFIG.TOTAL_SEARCH_TIMEOUT) {
-                            // Show re-match message
+                            // Show friendly re-match message (don't say "rejected" - it's scary for customers)
                             setRematchMessage(
                                 language === 'th'
-                                    ? `คนขับปฏิเสธงาน กำลังหาคนขับใหม่... (${attempts}/${REMATCH_CONFIG.MAX_ATTEMPTS})`
-                                    : `Driver declined. Finding another driver... (${attempts}/${REMATCH_CONFIG.MAX_ATTEMPTS})`
+                                    ? `กำลังจัดหาคนขับให้คุณ... (${attempts}/${REMATCH_CONFIG.MAX_ATTEMPTS})`
+                                    : `Finding a driver for you... (${attempts}/${REMATCH_CONFIG.MAX_ATTEMPTS})`
                             );
                             setIsRematching(true);
                             setAssignedDriver(null);
 
-                            // Delay before re-matching
+                            // Delay before re-matching - pass rejectedDrivers directly to avoid race condition
+                            // Use bookingData.id instead of bookingId state (stale closure issue)
+                            const currentBookingId = bookingData.id;
+                            console.log(`⏳ Will trigger re-match in ${REMATCH_CONFIG.DELAY_BETWEEN_MATCHES/1000}s for booking: ${currentBookingId}`);
+
                             rematchTimeoutRef.current = setTimeout(async () => {
-                                await triggerRematch(bookingId, attempts);
+                                console.log(`🚀 Executing triggerRematch for booking: ${currentBookingId}`);
+                                await triggerRematch(currentBookingId, attempts, currentRejectedDrivers);
                             }, REMATCH_CONFIG.DELAY_BETWEEN_MATCHES);
                         } else {
                             // Max attempts reached or timeout
@@ -636,11 +667,12 @@ export default function TestMaps1Page() {
         return () => {
             console.log('🔌 Unsubscribing from booking updates');
             unsubscribe();
-            if (rematchTimeoutRef.current) {
-                clearTimeout(rematchTimeoutRef.current);
-            }
+            // Don't clear rematch timeout here - it should continue even if subscription re-creates
+            // Only clear timeout when explicitly cancelling (in confirmCancelBooking or resetTrip)
         };
-    }, [mode, bookingId, assignedDriver, isRematching, language]);
+    // Remove isRematching from dependencies to prevent re-subscription canceling the timeout
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mode, bookingId, assignedDriver, language]);
 
     // === NEW: Fetch vehicles and drivers for live mode ===
     useEffect(() => {
@@ -657,6 +689,7 @@ export default function TestMaps1Page() {
         // Subscribe to available drivers
         const unsubscribe = DriverService.subscribeToDrivers((drivers) => {
             const available = drivers.filter(d => d.status === 'available');
+            console.log(`🚗 Available drivers updated: ${available.length} (${available.map(d => d.name).join(', ')})`);
             setAvailableDrivers(available);
         });
 
@@ -923,6 +956,16 @@ export default function TestMaps1Page() {
         setBookingId(null);
         setActiveBooking(null);  // Clear active booking
         if (tripInfo) setEta(tripInfo.duration);
+        // Reset re-match states
+        setIsRematching(false);
+        setRematchAttempt(0);
+        setRejectedDrivers([]);
+        setRematchMessage(null);
+        lastBookingStatusRef.current = null;
+        if (rematchTimeoutRef.current) {
+            clearTimeout(rematchTimeoutRef.current);
+            rematchTimeoutRef.current = null;
+        }
     };
 
     // === NEW: Create live booking ===
@@ -1068,6 +1111,17 @@ export default function TestMaps1Page() {
             setAssignedDriver(null);
             setStatus('selecting');
             setShowCancelModal(false);
+            // Reset re-match states
+            setIsRematching(false);
+            setRematchAttempt(0);
+            setRejectedDrivers([]);
+            setRematchMessage(null);
+            lastBookingStatusRef.current = null;
+            // Clear any pending re-match timeout
+            if (rematchTimeoutRef.current) {
+                clearTimeout(rematchTimeoutRef.current);
+                rematchTimeoutRef.current = null;
+            }
         } catch (error) {
             console.error('Error cancelling booking:', error);
             alert(language === 'th' ? 'ไม่สามารถยกเลิกการจองได้' : 'Failed to cancel booking');
@@ -1110,14 +1164,22 @@ export default function TestMaps1Page() {
     };
 
     // === NEW: Trigger re-match with new driver ===
-    const triggerRematch = async (currentBookingId: string, attempt: number) => {
+    const triggerRematch = async (currentBookingId: string, attempt: number, rejectedDriversParam?: string[]) => {
         console.log(`🔄 Triggering re-match attempt ${attempt}...`);
 
+        // Use passed rejectedDrivers or fall back to state
+        const currentRejectedDrivers = rejectedDriversParam || rejectedDrivers;
+
+        console.log(`📋 Available drivers: ${availableDrivers.length}`);
+        console.log(`📋 Rejected drivers: ${currentRejectedDrivers.join(', ') || 'none'}`);
+
         // Filter available drivers (exclude rejected ones and self)
-        const eligibleDrivers = availableDrivers.filter(driver =>
-            driver.userId !== user?.uid &&
-            !rejectedDrivers.includes(driver.id)
-        );
+        const eligibleDrivers = availableDrivers.filter(driver => {
+            const isNotSelf = driver.userId !== user?.uid;
+            const isNotRejected = !currentRejectedDrivers.includes(driver.id);
+            console.log(`  - ${driver.name} (${driver.id}): notSelf=${isNotSelf}, notRejected=${isNotRejected}, status=${driver.status}`);
+            return isNotSelf && isNotRejected;
+        });
 
         if (eligibleDrivers.length === 0) {
             console.log('❌ No more eligible drivers available');
@@ -1973,30 +2035,52 @@ export default function TestMaps1Page() {
                             </div>
                         )}
 
-                        {/* Waiting for driver - Grab Style */}
-                        {status === 'driver_assigned' && (
-                            <div className="bg-[#00b14f]/5 rounded-2xl p-4 border border-[#00b14f]/20">
+                        {/* Waiting for driver / Re-matching - Grab Style */}
+                        {(status === 'driver_assigned' || isRematching) && (
+                            <div className={`rounded-2xl p-4 border ${
+                                isRematching
+                                    ? 'bg-amber-50 border-amber-200'
+                                    : 'bg-[#00b14f]/5 border-[#00b14f]/20'
+                            }`}>
                                 <div className="flex items-center gap-3">
                                     <div className="relative flex-shrink-0">
-                                        <div className="w-12 h-12 bg-[#00b14f]/10 rounded-full flex items-center justify-center">
-                                            <svg className="w-6 h-6 text-[#00b14f]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                                            isRematching ? 'bg-amber-100' : 'bg-[#00b14f]/10'
+                                        }`}>
+                                            <svg className={`w-6 h-6 ${isRematching ? 'text-amber-600' : 'text-[#00b14f]'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                                             </svg>
                                         </div>
-                                        <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-[#00b14f] rounded-full flex items-center justify-center animate-pulse">
-                                            <div className="w-2 h-2 bg-white rounded-full"></div>
-                                        </div>
+                                        {isRematching ? (
+                                            <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                                {rematchAttempt}
+                                            </div>
+                                        ) : (
+                                            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-[#00b14f] rounded-full flex items-center justify-center animate-pulse">
+                                                <div className="w-2 h-2 bg-white rounded-full"></div>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="font-semibold text-gray-900">
-                                            {language === 'th' ? 'กำลังจับคู่คนขับ...' : 'Matching driver...'}
+                                            {isRematching
+                                                ? (language === 'th' ? 'กำลังจัดหาคนขับ' : 'Finding driver')
+                                                : (language === 'th' ? 'กำลังจับคู่คนขับ...' : 'Matching driver...')}
                                         </p>
-                                        <p className="text-sm text-gray-500">
-                                            {language === 'th' ? 'คนขับกำลังตอบรับงาน' : 'Driver is accepting the trip'}
+                                        <p className={`text-sm ${isRematching ? 'text-amber-600' : 'text-gray-500'}`}>
+                                            {isRematching
+                                                ? (language === 'th'
+                                                    ? `โปรดรอสักครู่... (${rematchAttempt}/${REMATCH_CONFIG.MAX_ATTEMPTS})`
+                                                    : `Please wait... (${rematchAttempt}/${REMATCH_CONFIG.MAX_ATTEMPTS})`)
+                                                : (language === 'th' ? 'คนขับกำลังตอบรับงาน' : 'Driver is accepting the trip')}
                                         </p>
                                     </div>
                                     <div className="animate-spin flex-shrink-0">
-                                        <div className="w-6 h-6 border-2 border-[#00b14f]/30 border-t-[#00b14f] rounded-full"></div>
+                                        <div className={`w-6 h-6 border-2 rounded-full ${
+                                            isRematching
+                                                ? 'border-amber-200 border-t-amber-500'
+                                                : 'border-[#00b14f]/30 border-t-[#00b14f]'
+                                        }`}></div>
                                     </div>
                                 </div>
                             </div>
@@ -2134,25 +2218,6 @@ export default function TestMaps1Page() {
                             </div>
                         )}
 
-                        {/* Re-matching in progress - Shows when driver rejects */}
-                        {isRematching && (
-                            <div className="flex flex-col items-center py-4">
-                                <div className="relative mb-3">
-                                    <div className="w-10 h-10 border-3 border-amber-400/30 border-t-amber-500 rounded-full animate-spin"></div>
-                                    <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                                        {rematchAttempt}
-                                    </span>
-                                </div>
-                                <p className="text-gray-700 font-medium text-center">
-                                    {rematchMessage || (language === 'th' ? 'กำลังค้นหาคนขับใหม่...' : 'Finding another driver...')}
-                                </p>
-                                <p className="text-amber-500 text-sm mt-1">
-                                    {language === 'th'
-                                        ? `พยายามครั้งที่ ${rematchAttempt}/${REMATCH_CONFIG.MAX_ATTEMPTS}`
-                                        : `Attempt ${rematchAttempt}/${REMATCH_CONFIG.MAX_ATTEMPTS}`}
-                                </p>
-                            </div>
-                        )}
 
                         {/* Stop Simulation - Grab Style */}
                         {isSimulating && mode === 'demo' && (
