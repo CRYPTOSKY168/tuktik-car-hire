@@ -1014,24 +1014,42 @@ export default function TestMaps1Page() {
             const randomIndex = Math.floor(Math.random() * eligibleDrivers.length);
             const driver = eligibleDrivers[randomIndex];
 
-            // Assign driver to booking
-            await BookingService.assignDriver(bookingIdToAssign, {
-                driverId: driver.id,
-                name: driver.name,
-                phone: driver.phone,
-                vehiclePlate: driver.vehiclePlate,
-                vehicleModel: driver.vehicleModel,
-                vehicleColor: driver.vehicleColor,
+            // Get auth token for API call
+            const token = await user?.getIdToken();
+            if (!token) {
+                alert(language === 'th' ? 'กรุณาเข้าสู่ระบบใหม่' : 'Please login again');
+                return false;
+            }
+
+            // Use API to assign driver (bypasses Firestore rules)
+            const response = await fetch('/api/booking/assign-driver', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    bookingId: bookingIdToAssign,
+                    driverId: driver.id,
+                    driverName: driver.name,
+                    driverPhone: driver.phone,
+                    vehiclePlate: driver.vehiclePlate,
+                    vehicleModel: driver.vehicleModel,
+                    vehicleColor: driver.vehicleColor,
+                }),
             });
 
-            // Update driver status to busy
-            await DriverService.updateDriverStatus(driver.id, 'busy' as any);
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to assign driver');
+            }
 
             setAssignedDriver(driver);
             return true;
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error assigning driver:', error);
-            alert(language === 'th' ? 'ไม่สามารถมอบหมายคนขับได้' : 'Failed to assign driver');
+            alert(error.message || (language === 'th' ? 'ไม่สามารถมอบหมายคนขับได้' : 'Failed to assign driver'));
             return false;
         }
     };
