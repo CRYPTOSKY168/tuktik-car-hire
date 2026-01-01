@@ -19,7 +19,7 @@ import { BookingService, DriverService, VehicleService, LocationService } from '
 import { useDriverTracking } from '@/lib/hooks';
 import { Vehicle, Driver, Booking, BookingStatus } from '@/lib/types';
 import { db } from '@/lib/firebase/config';
-import { doc, onSnapshot, updateDoc, Timestamp } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, Timestamp, arrayUnion } from 'firebase/firestore';
 
 // Libraries - must be outside component to prevent re-renders
 const libraries: Libraries = ['places', 'geometry'];
@@ -450,21 +450,34 @@ export default function TestMaps1Page() {
                     // Check if we need to trigger re-match (e.g., page reload after driver rejected)
                     if (active.status === 'confirmed' && active.rejectedDrivers && active.rejectedDrivers.length > 0) {
                         const attempts = active.matchAttempts || active.rejectedDrivers.length;
-                        if (attempts < REMATCH_CONFIG.MAX_ATTEMPTS) {
+
+                        // Check if there are any eligible drivers left
+                        const eligibleDriversCount = availableDrivers.filter(d =>
+                            d.userId !== user?.uid && !active.rejectedDrivers?.includes(d.id)
+                        ).length;
+
+                        console.log(`📊 Page reload re-match check: eligible=${eligibleDriversCount}, attempts=${attempts}, rejected=${active.rejectedDrivers.length}`);
+
+                        if (eligibleDriversCount > 0 && attempts < REMATCH_CONFIG.MAX_ATTEMPTS) {
                             console.log('🔄 Detected pending re-match, triggering...');
                             setIsRematching(true);
                             setRematchAttempt(attempts);
                             setRejectedDrivers(active.rejectedDrivers);
                             setRematchMessage(
                                 language === 'th'
-                                    ? `กำลังหาคนขับใหม่... (${attempts}/${REMATCH_CONFIG.MAX_ATTEMPTS})`
-                                    : `Finding another driver... (${attempts}/${REMATCH_CONFIG.MAX_ATTEMPTS})`
+                                    ? `กำลังหาคนขับใหม่... (${attempts}/${Math.min(REMATCH_CONFIG.MAX_ATTEMPTS, eligibleDriversCount + active.rejectedDrivers.length)})`
+                                    : `Finding another driver... (${attempts}/${Math.min(REMATCH_CONFIG.MAX_ATTEMPTS, eligibleDriversCount + active.rejectedDrivers.length)})`
                             );
 
                             // Trigger re-match after a short delay
                             setTimeout(async () => {
                                 await triggerRematch(active.id, attempts + 1, active.rejectedDrivers);
                             }, 2000);
+                        } else if (eligibleDriversCount === 0) {
+                            // No eligible drivers - show waiting state
+                            console.log('🛑 No eligible drivers on page reload - showing waiting state');
+                            setIsRematching(false);
+                            setStatus('searching'); // Keep in searching mode to show waiting UI
                         }
                     }
 
@@ -577,12 +590,24 @@ export default function TestMaps1Page() {
                         const searchStarted = searchStartTimeRef.current || Date.now();
                         const elapsedTime = Date.now() - searchStarted;
 
-                        if (attempts < REMATCH_CONFIG.MAX_ATTEMPTS && elapsedTime < REMATCH_CONFIG.TOTAL_SEARCH_TIMEOUT) {
+                        // === IMPORTANT: Check if there are any eligible drivers left ===
+                        // Don't just check MAX_ATTEMPTS - also check if we've tried all available drivers
+                        const eligibleDriversCount = availableDrivers.filter(d =>
+                            d.userId !== user?.uid && !currentRejectedDrivers.includes(d.id)
+                        ).length;
+
+                        const hasEligibleDrivers = eligibleDriversCount > 0;
+                        const withinAttemptLimit = attempts < REMATCH_CONFIG.MAX_ATTEMPTS;
+                        const withinTimeLimit = elapsedTime < REMATCH_CONFIG.TOTAL_SEARCH_TIMEOUT;
+
+                        console.log(`📊 Re-match check: eligible=${eligibleDriversCount}, attempts=${attempts}/${REMATCH_CONFIG.MAX_ATTEMPTS}, rejected=${currentRejectedDrivers.length}`);
+
+                        if (hasEligibleDrivers && withinAttemptLimit && withinTimeLimit) {
                             // Show friendly re-match message (don't say "rejected" - it's scary for customers)
                             setRematchMessage(
                                 language === 'th'
-                                    ? `กำลังจัดหาคนขับให้คุณ... (${attempts}/${REMATCH_CONFIG.MAX_ATTEMPTS})`
-                                    : `Finding a driver for you... (${attempts}/${REMATCH_CONFIG.MAX_ATTEMPTS})`
+                                    ? `กำลังจัดหาคนขับให้คุณ... (${attempts}/${Math.min(REMATCH_CONFIG.MAX_ATTEMPTS, eligibleDriversCount + currentRejectedDrivers.length)})`
+                                    : `Finding a driver for you... (${attempts}/${Math.min(REMATCH_CONFIG.MAX_ATTEMPTS, eligibleDriversCount + currentRejectedDrivers.length)})`
                             );
                             setIsRematching(true);
                             setAssignedDriver(null);
@@ -597,20 +622,20 @@ export default function TestMaps1Page() {
                                 await triggerRematch(currentBookingId, attempts, currentRejectedDrivers);
                             }, REMATCH_CONFIG.DELAY_BETWEEN_MATCHES);
                         } else {
-                            // Max attempts reached or timeout
-                            console.log('❌ Max re-match attempts reached or timeout');
+                            // No more eligible drivers OR max attempts reached OR timeout
+                            console.log(`🛑 Stopping re-match: hasEligibleDrivers=${hasEligibleDrivers}, withinAttemptLimit=${withinAttemptLimit}, withinTimeLimit=${withinTimeLimit}`);
                             setRematchMessage(
                                 language === 'th'
-                                    ? 'ไม่พบคนขับที่ว่าง กรุณาลองใหม่อีกครั้ง'
-                                    : 'No drivers available. Please try again.'
+                                    ? 'ไม่มีคนขับว่างในขณะนี้'
+                                    : 'No drivers available at the moment.'
                             );
                             setIsRematching(false);
 
-                            // Auto-cancel after showing message
+                            // Call handleSearchTimeout (which now doesn't cancel the booking)
                             setTimeout(() => {
                                 setRematchMessage(null);
                                 handleSearchTimeout();
-                            }, 3000);
+                            }, 2000);
                         }
 
                         return; // Don't update status yet, we're re-matching
@@ -1131,33 +1156,48 @@ export default function TestMaps1Page() {
     };
 
     // === NEW: Handle search timeout (no drivers found after max attempts) ===
+    // Option 1: Don't cancel - keep booking as 'confirmed' for admin to assign manually
     const handleSearchTimeout = async () => {
         if (!bookingId) return;
 
         try {
-            // Cancel the booking
-            await BookingService.updateBookingStatus(
-                bookingId,
-                'cancelled',
-                language === 'th' ? 'ไม่พบคนขับหลังจากพยายามหลายครั้ง' : 'No drivers found after multiple attempts'
-            );
+            console.log('🛑 No drivers available - stopping auto re-match');
 
-            // Reset state
-            setActiveBooking(null);
-            setBookingId(null);
-            setAssignedDriver(null);
-            setRejectedDrivers([]);
-            setRematchAttempt(0);
+            // DON'T cancel booking - keep it as 'confirmed' for admin manual assignment
+            // Just add a note to status history
+            if (db) {
+                const bookingRef = doc(db, 'bookings', bookingId);
+                await updateDoc(bookingRef, {
+                    statusHistory: arrayUnion({
+                        status: 'confirmed',
+                        timestamp: Timestamp.now(),
+                        note: language === 'th'
+                            ? 'ไม่มีคนขับว่างในขณะนี้ - รอ Admin มอบหมายคนขับ'
+                            : 'No drivers available - waiting for admin to assign',
+                        updatedBy: 'system'
+                    }),
+                    updatedAt: Timestamp.now()
+                });
+            }
+
+            // Reset re-match state but KEEP booking
             setIsRematching(false);
+            setRematchMessage(null);
+            setRematchAttempt(0);
+            setRejectedDrivers([]);
             searchStartTimeRef.current = null;
-            setStatus('selecting');
+            setStatus('searching'); // Stay in searching mode but show waiting UI
 
-            // Show alert
+            // Show user-friendly message
             alert(
                 language === 'th'
-                    ? 'ขออภัย ไม่พบคนขับที่ว่างในขณะนี้ กรุณาลองใหม่อีกครั้ง'
-                    : 'Sorry, no available drivers at this time. Please try again.'
+                    ? 'ขณะนี้ไม่มีคนขับว่าง\n\nการจองของคุณยังคงอยู่ เราจะแจ้งให้ทราบเมื่อมีคนขับพร้อมให้บริการ หรือคุณสามารถรอแอดมินมอบหมายคนขับให้'
+                    : 'No drivers available at the moment.\n\nYour booking is still active. We will notify you when a driver becomes available, or you can wait for admin to assign a driver.'
             );
+
+            // Don't reset activeBooking - user can still see their booking
+            // Admin can manually assign a driver from the dashboard
+
         } catch (error) {
             console.error('Error handling search timeout:', error);
         }
