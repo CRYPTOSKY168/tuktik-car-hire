@@ -1795,39 +1795,53 @@ export default function TestMaps1Page() {
 
                         {/* Main CTA Button - Grab Style */}
                         {status === 'selecting' && !(mode === 'live' && (isLoadingActiveBooking || activeBooking)) && (
-                            <button
-                                onClick={() => {
-                                    if (mode === 'live') {
-                                        startLiveTrip();
-                                    } else {
-                                        setStatus('searching');
-                                        setTimeout(() => {
-                                            setStatus('driver_assigned');
-                                            setTimeout(startTrip, 1500);
-                                        }, 2000);
-                                    }
-                                }}
-                                disabled={mode === 'live' && (!user || availableDrivers.length === 0 || isCreatingBooking)}
-                                className="w-full h-14 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
-                            >
-                                {isCreatingBooking ? (
-                                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            <>
+                                {/* Show Login button if not logged in (Live mode only) */}
+                                {mode === 'live' && !user ? (
+                                    <button
+                                        onClick={() => router.push('/login?redirect=/test-maps1')}
+                                        className="w-full h-14 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                                        </svg>
+                                        {language === 'th' ? 'เข้าสู่ระบบเพื่อจอง' : 'Login to Book'}
+                                    </button>
                                 ) : (
-                                    <>
-                                        {mode === 'live'
-                                            ? (language === 'th' ? 'จองรถตอนนี้' : 'Book Now')
-                                            : (language === 'th' ? 'ค้นหาคนขับ' : 'Find Driver')
-                                        }
-                                    </>
+                                    <button
+                                        onClick={() => {
+                                            if (mode === 'live') {
+                                                startLiveTrip();
+                                            } else {
+                                                setStatus('searching');
+                                                setTimeout(() => {
+                                                    setStatus('driver_assigned');
+                                                    setTimeout(startTrip, 1500);
+                                                }, 2000);
+                                            }
+                                        }}
+                                        disabled={mode === 'live' && (availableDrivers.length === 0 || isCreatingBooking)}
+                                        className="w-full h-14 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                    >
+                                        {isCreatingBooking ? (
+                                            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        ) : (
+                                            <>
+                                                {mode === 'live'
+                                                    ? (language === 'th' ? 'จองรถตอนนี้' : 'Book Now')
+                                                    : (language === 'th' ? 'ค้นหาคนขับ' : 'Find Driver')
+                                                }
+                                            </>
+                                        )}
+                                    </button>
                                 )}
-                            </button>
-                        )}
-
-                        {/* Debug info - remove later */}
-                        {mode === 'live' && status === 'selecting' && (!user || availableDrivers.length === 0) && (
-                            <p className="text-xs text-red-500 text-center mt-2">
-                                {!user ? '⚠️ กรุณา Login ก่อนจอง' : `⚠️ ไม่มีคนขับว่าง (${availableDrivers.length})`}
-                            </p>
+                                {/* Show message if no drivers available */}
+                                {mode === 'live' && user && availableDrivers.length === 0 && (
+                                    <p className="text-xs text-orange-500 text-center mt-2">
+                                        {language === 'th' ? '⏳ กำลังค้นหาคนขับที่ว่าง...' : '⏳ Looking for available drivers...'}
+                                    </p>
+                                )}
+                            </>
                         )}
 
                         {/* Cancel Booking Button - Same position as Book Now */}
