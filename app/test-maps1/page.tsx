@@ -2360,22 +2360,22 @@ export default function TestMaps1Page() {
                                 />
                             </div>
 
-                            {/* Quick Location Chips */}
+                            {/* Quick Location Chips - MUCH BIGGER for mobile */}
                             {!searchQuery && (
-                                <div className="mt-4">
-                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                                <div className="mt-6">
+                                    <p className="text-base font-bold text-gray-700 mb-4">
                                         {language === 'th' ? 'สถานที่ยอดนิยม' : 'Popular'}
                                     </p>
-                                    <div className="flex flex-wrap gap-2">
+                                    <div className="flex flex-wrap gap-4">
                                         {filteredLocations.filter(loc => loc.isPopular || loc.type === 'airport').slice(0, 4).map((loc) => {
                                             const locName = language === 'th' ? loc.name?.th : loc.name?.en;
                                             return (
                                                 <button
                                                     key={`quick-${loc.id}`}
                                                     onClick={() => handleLocationSelect(loc)}
-                                                    className="px-4 py-2 bg-[#00b14f]/10 hover:bg-[#00b14f]/20 text-[#00b14f] rounded-full text-sm font-medium transition-all active:scale-95 flex items-center gap-1.5"
+                                                    className="min-h-[56px] px-6 py-3 bg-[#00b14f] hover:bg-[#009a43] text-white rounded-2xl text-lg font-bold shadow-md transition-all active:scale-95 flex items-center gap-3 min-w-[160px] justify-center"
                                                 >
-                                                    {loc.type === 'airport' ? '✈️' : '📍'}
+                                                    <span className="text-xl">{loc.type === 'airport' ? '✈️' : '📍'}</span>
                                                     <span>{locName}</span>
                                                 </button>
                                             );
@@ -2387,9 +2387,9 @@ export default function TestMaps1Page() {
 
                         <div className="flex-1 overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">
                             {filteredLocations.length > 0 ? (
-                                <div className="p-4 space-y-2">
+                                <div className="p-4 space-y-3">
                                     {/* Section Header */}
-                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-1">
+                                    <p className="text-sm font-semibold text-gray-500 mb-4 px-1">
                                         {searchQuery
                                             ? (language === 'th' ? 'ผลการค้นหา' : 'Search Results')
                                             : (language === 'th' ? 'สถานที่ทั้งหมด' : 'All Locations')
@@ -2409,41 +2409,41 @@ export default function TestMaps1Page() {
                                             <button
                                                 key={loc.id}
                                                 onClick={() => handleLocationSelect(loc)}
-                                                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white border border-gray-100 hover:border-[#00b14f]/30 hover:bg-[#00b14f]/5 transition-all active:scale-[0.98] shadow-sm"
+                                                className="w-full flex items-center gap-5 p-6 min-h-[96px] rounded-3xl bg-white border-2 border-gray-200 hover:border-[#00b14f] hover:bg-[#00b14f]/5 transition-all active:scale-[0.98] active:bg-[#00b14f]/10 shadow-md"
                                             >
-                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                                                    loc.type === 'airport' ? 'bg-blue-500/10 text-blue-600' :
-                                                    loc.type === 'hotel' ? 'bg-amber-500/10 text-amber-600' :
-                                                    loc.type === 'city' ? 'bg-purple-500/10 text-purple-600' :
-                                                    'bg-gray-100 text-gray-600'
+                                                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 ${
+                                                    loc.type === 'airport' ? 'bg-blue-500 text-white' :
+                                                    loc.type === 'hotel' ? 'bg-amber-500 text-white' :
+                                                    loc.type === 'city' ? 'bg-purple-500 text-white' :
+                                                    'bg-gray-400 text-white'
                                                 }`}>
                                                     {loc.type === 'airport' ? (
-                                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                                                         </svg>
                                                     ) : loc.type === 'hotel' ? (
-                                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                                         </svg>
                                                     ) : loc.type === 'city' ? (
-                                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                                         </svg>
                                                     ) : (
-                                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                                                         </svg>
                                                     )}
                                                 </div>
 
-                                                <div className="flex-1 text-left">
-                                                    <p className="font-semibold text-gray-900">{locName}</p>
-                                                    <p className="text-sm text-gray-500">{typeLabel}</p>
+                                                <div className="flex-1 text-left min-w-0">
+                                                    <p className="font-bold text-gray-900 text-xl truncate">{locName}</p>
+                                                    <p className="text-lg text-gray-500 mt-1">{typeLabel}</p>
                                                 </div>
 
-                                                <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                <svg className="w-8 h-8 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                                                 </svg>
                                             </button>
                                         );
