@@ -152,10 +152,17 @@ export async function POST(request: NextRequest) {
                     rejectedBy: driverId
                 });
 
+                // Add driver to rejectedDrivers array for auto re-match
+                const currentRejectedDrivers = currentData?.rejectedDrivers || [];
+                if (!currentRejectedDrivers.includes(driverId)) {
+                    currentRejectedDrivers.push(driverId);
+                }
+
                 await bookingRef.update({
                     status: 'confirmed',
                     driver: null, // Remove driver assignment
                     statusHistory,
+                    rejectedDrivers: currentRejectedDrivers, // For auto re-match system
                     updatedAt: FieldValue.serverTimestamp()
                 });
 

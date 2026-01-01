@@ -98,6 +98,8 @@ export interface StatusHistoryEntry {
     status: string;
     timestamp: Timestamp | { seconds: number };
     note?: string;
+    updatedBy?: 'admin' | 'driver' | 'system' | string;
+    rejectedBy?: string;  // Driver ID who rejected (for auto re-match)
 }
 
 // Rating from customer to driver
@@ -162,9 +164,24 @@ export interface Booking {
     statusHistory?: StatusHistoryEntry[];
     ratings?: BookingRatings;           // Rating system
     notes?: string;
+
+    // Auto Re-match System
+    rejectedDrivers?: string[];         // Driver IDs who rejected this booking
+    matchAttempts?: number;             // Number of driver match attempts
+    searchStartedAt?: Timestamp | Date; // When driver search started
+    lastMatchAttemptAt?: Timestamp | Date; // When last match was attempted
+
     createdAt: Timestamp | Date | string;
     updatedAt?: Timestamp | Date;
 }
+
+// Auto Re-match Configuration
+export const REMATCH_CONFIG = {
+    MAX_ATTEMPTS: 3,                    // Maximum driver match attempts
+    DRIVER_RESPONSE_TIMEOUT: 20000,     // 20 seconds for driver to respond
+    TOTAL_SEARCH_TIMEOUT: 180000,       // 3 minutes total search time
+    DELAY_BETWEEN_MATCHES: 3000,        // 3 seconds delay before next match
+};
 
 export interface Driver {
     id: string;

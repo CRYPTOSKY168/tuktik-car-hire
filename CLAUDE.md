@@ -1,7 +1,7 @@
 # TukTik Car Rental - Project Documentation
 
 > **Last Updated:** 2026-01-02
-> **Version:** 7.8 (API-based Driver Assignment)
+> **Version:** 7.9 (Auto Re-match System)
 > **Status:** Production
 > **Lines:** ~3850+
 
@@ -2901,6 +2901,7 @@ const {
 | Script | Description | Usage |
 |--------|-------------|-------|
 | `test-live-flow.js` | ⭐ **ทดสอบ Full Booking Flow แบบ Real-time** - ดูทั้ง 2 หน้าพร้อมกัน | `node scripts/test-live-flow.js` |
+| `test-rematch-flow.js` | 🔄 **ทดสอบ Auto Re-match** - จำลองคนขับปฏิเสธ 2 ครั้ง | `node scripts/test-rematch-flow.js` |
 | `test-booking-flow.js` | ทดสอบ Booking Flow + Options (stop-at-assign, cleanup) | `node scripts/test-booking-flow.js --stop-at-assign` |
 | `test-rating-flow.js` | ทดสอบ Rating System (Bayesian Average) | `node scripts/test-rating-flow.js --cleanup` |
 | `test-realtime-rating-auto.js` | ทดสอบ Real-time Rating Update | `node scripts/test-realtime-rating-auto.js` |
@@ -3035,6 +3036,39 @@ main().catch(err => {
 ---
 
 ## Changelog
+
+### 2026-01-02 v7.9 - Auto Re-match System 🔄🚗
+- **ระบบ Auto Re-match เมื่อคนขับปฏิเสธงาน (Grab/Uber Style)**
+  - เมื่อคนขับปฏิเสธ → ระบบหาคนขับใหม่อัตโนมัติ
+  - ลูกค้าเห็นข้อความ "กำลังหาคนขับใหม่..." พร้อม animation
+  - ข้ามคนขับที่ปฏิเสธแล้วไม่ให้จับคู่อีก
+- **Configuration:**
+  ```typescript
+  const REMATCH_CONFIG = {
+      MAX_ATTEMPTS: 3,                    // Maximum driver match attempts
+      DRIVER_RESPONSE_TIMEOUT: 20000,     // 20 seconds for driver to respond
+      TOTAL_SEARCH_TIMEOUT: 180000,       // 3 minutes total search time
+      DELAY_BETWEEN_MATCHES: 3000,        // 3 seconds delay before next match
+  };
+  ```
+- **Booking Fields เพิ่มเติม:**
+  - `rejectedDrivers: string[]` - Driver IDs ที่ปฏิเสธแล้ว
+  - `matchAttempts: number` - จำนวนครั้งที่พยายามจับคู่
+  - `searchStartedAt: Timestamp` - เวลาเริ่มค้นหา
+  - `lastMatchAttemptAt: Timestamp` - เวลาที่จับคู่ครั้งล่าสุด
+- **StatusHistoryEntry Fields เพิ่มเติม:**
+  - `updatedBy?: 'admin' | 'driver' | 'system'`
+  - `rejectedBy?: string` - Driver ID ที่ปฏิเสธ
+- **UI Features:**
+  - Spinner สีส้มพร้อมแสดงจำนวน attempt
+  - ข้อความแจ้งสถานะ re-match
+  - แสดง "พยายามครั้งที่ X/3"
+- **Test Script:**
+  - `node scripts/test-rematch-flow.js` - ทดสอบ Auto Re-match flow
+- **Files modified:**
+  - `lib/types/index.ts` - เพิ่ม Booking และ StatusHistoryEntry fields
+  - `app/test-maps1/page.tsx` - เพิ่ม Auto Re-match logic และ UI
+  - `app/api/driver/bookings/route.ts` - เพิ่ม rejectedDrivers ใน rejectJob
 
 ### 2026-01-02 v7.8 - API-based Driver Assignment 🔧🚗
 - **แก้ไขปัญหา "ไม่สามารถมอบหมายคนขับได้" ใน Live Mode**
@@ -3885,5 +3919,5 @@ vercel --prod        # Deploy to production
 
 ---
 
-*Document maintained by development team. Last updated: 2025-12-31*
-*Lines: ~3700 | Version: 7.5 (Bayesian Average Rating) ⭐📊*
+*Document maintained by development team. Last updated: 2026-01-02*
+*Lines: ~3900 | Version: 7.9 (Auto Re-match System) 🔄🚗*

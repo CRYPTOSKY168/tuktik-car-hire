@@ -1,6 +1,18 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+
+// Helper: Calculate distance between two coordinates (Haversine formula)
+function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371000; // Earth's radius in meters
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in meters
+}
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase/config';
 import { doc, getDoc, query, collection, where, getDocs, onSnapshot } from 'firebase/firestore';
@@ -193,6 +205,14 @@ export default function DemoDriverPage() {
     // Map States
     const [driverLocation, setDriverLocation] = useState(BANGKOK_CENTER);
     const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
+
+    // ETA and Distance from directions
+    const [routeInfo, setRouteInfo] = useState<{ duration: string; distance: string } | null>(null);
+
+    // Refs for debouncing
+    const lastLocationRef = useRef(BANGKOK_CENTER);
+    const directionsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const lastDirectionsStatusRef = useRef<string | null>(null);
 
     // New job alert states
     const [newJobAlert, setNewJobAlert] = useState<Booking | null>(null);
@@ -434,37 +454,70 @@ export default function DemoDriverPage() {
         );
     }, [bookings]);
 
-    // Get directions when there's active booking
+    // Get directions when there's active booking (debounced, only on status change or significant location change)
     useEffect(() => {
         if (!isLoaded || !activeBooking) {
             setDirections(null);
+            setRouteInfo(null);
             return;
         }
 
-        const directionsService = new google.maps.DirectionsService();
+        // Only refetch if status changed OR first time
+        const statusChanged = lastDirectionsStatusRef.current !== activeBooking.status;
+        const isFirstFetch = !directions;
 
-        let origin: { lat: number; lng: number };
-        let destination: { lat: number; lng: number };
-
-        const pickupCoords = activeBooking.pickupCoordinates || getLocationCoordinates(activeBooking.pickupLocation);
-        const dropoffCoords = activeBooking.dropoffCoordinates || getLocationCoordinates(activeBooking.dropoffLocation);
-
-        if (activeBooking.status === 'driver_assigned' || activeBooking.status === 'driver_en_route') {
-            origin = driverLocation;
-            destination = pickupCoords;
-        } else {
-            origin = pickupCoords;
-            destination = dropoffCoords;
+        if (!statusChanged && !isFirstFetch) {
+            return; // Don't refetch on every location update
         }
 
-        directionsService.route({
-            origin,
-            destination,
-            travelMode: google.maps.TravelMode.DRIVING,
-        }).then((result) => {
-            setDirections(result);
-        }).catch(console.error);
-    }, [isLoaded, activeBooking, driverLocation, getLocationCoordinates]);
+        // Clear any pending timeout
+        if (directionsTimeoutRef.current) {
+            clearTimeout(directionsTimeoutRef.current);
+        }
+
+        // Debounce the directions fetch
+        directionsTimeoutRef.current = setTimeout(() => {
+            const directionsService = new google.maps.DirectionsService();
+
+            let origin: { lat: number; lng: number };
+            let destination: { lat: number; lng: number };
+
+            const pickupCoords = activeBooking.pickupCoordinates || getLocationCoordinates(activeBooking.pickupLocation);
+            const dropoffCoords = activeBooking.dropoffCoordinates || getLocationCoordinates(activeBooking.dropoffLocation);
+
+            if (activeBooking.status === 'driver_assigned' || activeBooking.status === 'driver_en_route') {
+                origin = driverLocation;
+                destination = pickupCoords;
+            } else {
+                origin = pickupCoords;
+                destination = dropoffCoords;
+            }
+
+            directionsService.route({
+                origin,
+                destination,
+                travelMode: google.maps.TravelMode.DRIVING,
+            }).then((result) => {
+                setDirections(result);
+                lastDirectionsStatusRef.current = activeBooking.status;
+
+                // Extract ETA and distance
+                const leg = result.routes[0]?.legs[0];
+                if (leg) {
+                    setRouteInfo({
+                        duration: leg.duration?.text || '',
+                        distance: leg.distance?.text || '',
+                    });
+                }
+            }).catch(console.error);
+        }, 300); // 300ms debounce
+
+        return () => {
+            if (directionsTimeoutRef.current) {
+                clearTimeout(directionsTimeoutRef.current);
+            }
+        };
+    }, [isLoaded, activeBooking?.status, activeBooking?.id, getLocationCoordinates]);
 
     // Has active job for GPS tracking
     const hasActiveJob = useMemo(() => {
@@ -498,13 +551,28 @@ export default function DemoDriverPage() {
         getAuthHeaders
     );
 
-    // Update driver location from GPS
+    // Update driver location from GPS (debounced - only if moved > 10 meters)
     useEffect(() => {
         if (locationTracking.latitude && locationTracking.longitude) {
-            setDriverLocation({
-                lat: locationTracking.latitude,
-                lng: locationTracking.longitude
-            });
+            const newLat = locationTracking.latitude;
+            const newLng = locationTracking.longitude;
+
+            // Calculate distance from last update
+            const distance = calculateDistance(
+                lastLocationRef.current.lat,
+                lastLocationRef.current.lng,
+                newLat,
+                newLng
+            );
+
+            // Only update state if moved more than 10 meters (reduces re-renders)
+            if (distance > 10) {
+                lastLocationRef.current = { lat: newLat, lng: newLng };
+                setDriverLocation({
+                    lat: newLat,
+                    lng: newLng
+                });
+            }
         }
     }, [locationTracking.latitude, locationTracking.longitude]);
 
@@ -749,11 +817,12 @@ export default function DemoDriverPage() {
         mapRef.current = map;
     };
 
-    // Fit bounds
+    // Fit bounds (uses ref to avoid re-creating on every location change)
     const fitBounds = useCallback(() => {
         if (!mapRef.current || !activeBooking) return;
         const bounds = new google.maps.LatLngBounds();
-        bounds.extend(driverLocation);
+        // Use ref for current location (avoids dependency loop)
+        bounds.extend(lastLocationRef.current);
         const pickupCoords = activeBooking.pickupCoordinates || getLocationCoordinates(activeBooking.pickupLocation);
         bounds.extend(pickupCoords);
         if (activeBooking.status === 'in_progress') {
@@ -761,13 +830,15 @@ export default function DemoDriverPage() {
             bounds.extend(dropoffCoords);
         }
         mapRef.current.fitBounds(bounds, 80);
-    }, [activeBooking, driverLocation, getLocationCoordinates]);
+    }, [activeBooking, getLocationCoordinates]);
 
+    // Auto fit bounds only when status changes (not on every location update)
     useEffect(() => {
         if (isLoaded && activeBooking) {
-            setTimeout(fitBounds, 500);
+            const timer = setTimeout(fitBounds, 500);
+            return () => clearTimeout(timer);
         }
-    }, [isLoaded, activeBooking, fitBounds]);
+    }, [isLoaded, activeBooking?.status, activeBooking?.id, fitBounds]);
 
     // Status config
     const statusConfig: Record<string, { color: string; text: string }> = {
@@ -968,6 +1039,27 @@ export default function DemoDriverPage() {
                         </div>
                     )}
                 </div>
+
+                {/* ===== FLOATING ETA BADGE ===== */}
+                {activeBooking && routeInfo && (
+                    <div className="absolute top-[100px] left-1/2 -translate-x-1/2 z-20">
+                        <div className="bg-white rounded-2xl px-4 py-2 shadow-lg border border-gray-100 flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                                <svg className="w-4 h-4 text-[#00b14f]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span className="text-[#00b14f] font-bold">{routeInfo.duration}</span>
+                            </div>
+                            <div className="w-px h-4 bg-gray-200"></div>
+                            <div className="flex items-center gap-2">
+                                <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                </svg>
+                                <span className="text-gray-600 font-medium">{routeInfo.distance}</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* ===== FLOATING ACTION BUTTONS ===== */}
                 <div className="absolute right-4 bottom-[50%] z-20 flex flex-col gap-2">

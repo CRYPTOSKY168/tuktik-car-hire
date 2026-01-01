@@ -19,7 +19,7 @@ import { BookingService, DriverService, VehicleService, LocationService } from '
 import { useDriverTracking } from '@/lib/hooks';
 import { Vehicle, Driver, Booking, BookingStatus } from '@/lib/types';
 import { db } from '@/lib/firebase/config';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, Timestamp } from 'firebase/firestore';
 
 // Libraries - must be outside component to prevent re-renders
 const libraries: Libraries = ['places', 'geometry'];
@@ -258,6 +258,23 @@ export default function TestMaps1Page() {
     const [isCancellingBooking, setIsCancellingBooking] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [connectionError, setConnectionError] = useState<string | null>(null);
+
+    // === NEW: Auto Re-match State ===
+    const [isRematching, setIsRematching] = useState(false);
+    const [rematchAttempt, setRematchAttempt] = useState(0);
+    const [rejectedDrivers, setRejectedDrivers] = useState<string[]>([]);
+    const [rematchMessage, setRematchMessage] = useState<string | null>(null);
+    const lastBookingStatusRef = useRef<string | null>(null);
+    const rematchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const searchStartTimeRef = useRef<number | null>(null);
+
+    // Re-match configuration
+    const REMATCH_CONFIG = {
+        MAX_ATTEMPTS: 3,
+        DRIVER_RESPONSE_TIMEOUT: 20000, // 20 seconds
+        TOTAL_SEARCH_TIMEOUT: 180000,   // 3 minutes
+        DELAY_BETWEEN_MATCHES: 3000,    // 3 seconds
+    };
 
     // === NEW: Live Mode Map Features ===
     const [driverToPickupRoute, setDriverToPickupRoute] = useState<google.maps.DirectionsResult | null>(null);
@@ -507,17 +524,77 @@ export default function TestMaps1Page() {
 
         const unsubscribe = onSnapshot(
             doc(db, 'bookings', bookingId),
-            (docSnap) => {
+            async (docSnap) => {
                 if (docSnap.exists()) {
                     const bookingData = { id: docSnap.id, ...docSnap.data() } as Booking;
                     console.log('📦 Booking update received:', bookingData.status);
 
+                    const previousStatus = lastBookingStatusRef.current;
+                    lastBookingStatusRef.current = bookingData.status;
+
                     setActiveBooking(bookingData);
+
+                    // ===== AUTO RE-MATCH DETECTION =====
+                    // Detect when driver rejects: driver_assigned → confirmed
+                    if (previousStatus === 'driver_assigned' && bookingData.status === 'confirmed') {
+                        console.log('🔄 Driver rejected! Starting auto re-match...');
+
+                        // Sync rejected drivers from database
+                        if (bookingData.rejectedDrivers && bookingData.rejectedDrivers.length > 0) {
+                            setRejectedDrivers(bookingData.rejectedDrivers);
+                        }
+
+                        // Check if we should try re-matching
+                        const attempts = (bookingData.matchAttempts || 0) + 1;
+                        setRematchAttempt(attempts);
+
+                        const searchStarted = searchStartTimeRef.current || Date.now();
+                        const elapsedTime = Date.now() - searchStarted;
+
+                        if (attempts < REMATCH_CONFIG.MAX_ATTEMPTS && elapsedTime < REMATCH_CONFIG.TOTAL_SEARCH_TIMEOUT) {
+                            // Show re-match message
+                            setRematchMessage(
+                                language === 'th'
+                                    ? `คนขับปฏิเสธงาน กำลังหาคนขับใหม่... (${attempts}/${REMATCH_CONFIG.MAX_ATTEMPTS})`
+                                    : `Driver declined. Finding another driver... (${attempts}/${REMATCH_CONFIG.MAX_ATTEMPTS})`
+                            );
+                            setIsRematching(true);
+                            setAssignedDriver(null);
+
+                            // Delay before re-matching
+                            rematchTimeoutRef.current = setTimeout(async () => {
+                                await triggerRematch(bookingId, attempts);
+                            }, REMATCH_CONFIG.DELAY_BETWEEN_MATCHES);
+                        } else {
+                            // Max attempts reached or timeout
+                            console.log('❌ Max re-match attempts reached or timeout');
+                            setRematchMessage(
+                                language === 'th'
+                                    ? 'ไม่พบคนขับที่ว่าง กรุณาลองใหม่อีกครั้ง'
+                                    : 'No drivers available. Please try again.'
+                            );
+                            setIsRematching(false);
+
+                            // Auto-cancel after showing message
+                            setTimeout(() => {
+                                setRematchMessage(null);
+                                handleSearchTimeout();
+                            }, 3000);
+                        }
+
+                        return; // Don't update status yet, we're re-matching
+                    }
+
+                    // Clear re-match state when driver accepts
+                    if (bookingData.status === 'driver_en_route' && isRematching) {
+                        setIsRematching(false);
+                        setRematchMessage(null);
+                    }
 
                     // Map booking status to page status
                     const statusMap: Record<string, typeof status> = {
                         'pending': 'searching',
-                        'confirmed': 'searching',
+                        'confirmed': isRematching ? 'searching' : 'searching',
                         'driver_assigned': 'driver_assigned',
                         'driver_en_route': 'driver_en_route',
                         'in_progress': 'in_progress',
@@ -559,8 +636,11 @@ export default function TestMaps1Page() {
         return () => {
             console.log('🔌 Unsubscribing from booking updates');
             unsubscribe();
+            if (rematchTimeoutRef.current) {
+                clearTimeout(rematchTimeoutRef.current);
+            }
         };
-    }, [mode, bookingId, assignedDriver]);
+    }, [mode, bookingId, assignedDriver, isRematching, language]);
 
     // === NEW: Fetch vehicles and drivers for live mode ===
     useEffect(() => {
@@ -996,10 +1076,143 @@ export default function TestMaps1Page() {
         }
     };
 
+    // === NEW: Handle search timeout (no drivers found after max attempts) ===
+    const handleSearchTimeout = async () => {
+        if (!bookingId) return;
+
+        try {
+            // Cancel the booking
+            await BookingService.updateBookingStatus(
+                bookingId,
+                'cancelled',
+                language === 'th' ? 'ไม่พบคนขับหลังจากพยายามหลายครั้ง' : 'No drivers found after multiple attempts'
+            );
+
+            // Reset state
+            setActiveBooking(null);
+            setBookingId(null);
+            setAssignedDriver(null);
+            setRejectedDrivers([]);
+            setRematchAttempt(0);
+            setIsRematching(false);
+            searchStartTimeRef.current = null;
+            setStatus('selecting');
+
+            // Show alert
+            alert(
+                language === 'th'
+                    ? 'ขออภัย ไม่พบคนขับที่ว่างในขณะนี้ กรุณาลองใหม่อีกครั้ง'
+                    : 'Sorry, no available drivers at this time. Please try again.'
+            );
+        } catch (error) {
+            console.error('Error handling search timeout:', error);
+        }
+    };
+
+    // === NEW: Trigger re-match with new driver ===
+    const triggerRematch = async (currentBookingId: string, attempt: number) => {
+        console.log(`🔄 Triggering re-match attempt ${attempt}...`);
+
+        // Filter available drivers (exclude rejected ones and self)
+        const eligibleDrivers = availableDrivers.filter(driver =>
+            driver.userId !== user?.uid &&
+            !rejectedDrivers.includes(driver.id)
+        );
+
+        if (eligibleDrivers.length === 0) {
+            console.log('❌ No more eligible drivers available');
+            setRematchMessage(
+                language === 'th'
+                    ? 'ไม่พบคนขับที่ว่าง'
+                    : 'No available drivers'
+            );
+            setIsRematching(false);
+
+            setTimeout(() => {
+                setRematchMessage(null);
+                handleSearchTimeout();
+            }, 2000);
+            return;
+        }
+
+        try {
+            // Pick a random eligible driver
+            const randomIndex = Math.floor(Math.random() * eligibleDrivers.length);
+            const driver = eligibleDrivers[randomIndex];
+
+            const token = await user?.getIdToken();
+            if (!token) {
+                throw new Error('No auth token');
+            }
+
+            // Update match attempts in booking (using direct Firestore update)
+            if (db) {
+                const bookingRef = doc(db, 'bookings', currentBookingId);
+                await updateDoc(bookingRef, {
+                    matchAttempts: attempt,
+                    lastMatchAttemptAt: Timestamp.now(),
+                });
+            }
+
+            // Assign new driver
+            const response = await fetch('/api/booking/assign-driver', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    bookingId: currentBookingId,
+                    driverId: driver.id,
+                    driverName: driver.name,
+                    driverPhone: driver.phone,
+                    vehiclePlate: driver.vehiclePlate,
+                    vehicleModel: driver.vehicleModel,
+                    vehicleColor: driver.vehicleColor,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                console.log(`✅ Re-match successful with driver: ${driver.name}`);
+                setAssignedDriver(driver);
+                setRematchMessage(
+                    language === 'th'
+                        ? `พบคนขับใหม่: ${driver.name}`
+                        : `Found new driver: ${driver.name}`
+                );
+
+                // Clear message after 2 seconds
+                setTimeout(() => {
+                    setRematchMessage(null);
+                    setIsRematching(false);
+                }, 2000);
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error: any) {
+            console.error('Re-match error:', error);
+            setRematchMessage(
+                language === 'th'
+                    ? 'ไม่สามารถหาคนขับใหม่ได้'
+                    : 'Failed to find new driver'
+            );
+
+            setTimeout(() => {
+                setRematchMessage(null);
+                handleSearchTimeout();
+            }, 2000);
+        }
+    };
+
     // === NEW: Find and assign driver ===
-    const findAndAssignDriver = async (bookingIdToAssign: string): Promise<boolean> => {
-        // Filter out drivers whose userId matches current user (can't be assigned to own booking)
-        const eligibleDrivers = availableDrivers.filter(driver => driver.userId !== user?.uid);
+    const findAndAssignDriver = async (bookingIdToAssign: string, excludeDrivers: string[] = []): Promise<boolean> => {
+        // Filter out drivers whose userId matches current user AND rejected drivers
+        const eligibleDrivers = availableDrivers.filter(driver =>
+            driver.userId !== user?.uid &&
+            !excludeDrivers.includes(driver.id)
+        );
 
         if (eligibleDrivers.length === 0) {
             const message = language === 'th'
@@ -1057,6 +1270,13 @@ export default function TestMaps1Page() {
     // === NEW: Start live trip ===
     const startLiveTrip = async () => {
         setStatus('searching');
+
+        // Initialize search start time for auto re-match timeout
+        searchStartTimeRef.current = Date.now();
+        setRematchAttempt(0);
+        setRejectedDrivers([]);
+        setIsRematching(false);
+        setRematchMessage(null);
 
         // Create booking
         const newBookingId = await createLiveBooking();
@@ -1902,7 +2122,7 @@ export default function TestMaps1Page() {
                         )}
 
                         {/* Waiting for admin - Grab Style */}
-                        {status === 'searching' && activeBooking && (
+                        {status === 'searching' && activeBooking && !isRematching && (
                             <div className="flex flex-col items-center py-4">
                                 <div className="w-10 h-10 border-3 border-[#00b14f]/30 border-t-[#00b14f] rounded-full animate-spin mb-3"></div>
                                 <p className="text-gray-700 font-medium text-center">
@@ -1910,6 +2130,26 @@ export default function TestMaps1Page() {
                                 </p>
                                 <p className="text-gray-400 text-sm mt-1">
                                     {language === 'th' ? 'โปรดรอสักครู่' : 'Please wait a moment'}
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Re-matching in progress - Shows when driver rejects */}
+                        {isRematching && (
+                            <div className="flex flex-col items-center py-4">
+                                <div className="relative mb-3">
+                                    <div className="w-10 h-10 border-3 border-amber-400/30 border-t-amber-500 rounded-full animate-spin"></div>
+                                    <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                                        {rematchAttempt}
+                                    </span>
+                                </div>
+                                <p className="text-gray-700 font-medium text-center">
+                                    {rematchMessage || (language === 'th' ? 'กำลังค้นหาคนขับใหม่...' : 'Finding another driver...')}
+                                </p>
+                                <p className="text-amber-500 text-sm mt-1">
+                                    {language === 'th'
+                                        ? `พยายามครั้งที่ ${rematchAttempt}/${REMATCH_CONFIG.MAX_ATTEMPTS}`
+                                        : `Attempt ${rematchAttempt}/${REMATCH_CONFIG.MAX_ATTEMPTS}`}
                                 </p>
                             </div>
                         )}
