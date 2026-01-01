@@ -1,7 +1,7 @@
 # TukTik Car Rental - Project Documentation
 
-> **Last Updated:** 2025-12-31
-> **Version:** 7.7 (Cancel Booking in Live Mode)
+> **Last Updated:** 2026-01-02
+> **Version:** 7.8 (API-based Driver Assignment)
 > **Status:** Production
 > **Lines:** ~3850+
 
@@ -3035,6 +3035,29 @@ main().catch(err => {
 ---
 
 ## Changelog
+
+### 2026-01-02 v7.8 - API-based Driver Assignment 🔧🚗
+- **แก้ไขปัญหา "ไม่สามารถมอบหมายคนขับได้" ใน Live Mode**
+  - **สาเหตุ:** Firestore Security Rules ไม่อนุญาตให้ user ทั่วไป update driver document ของคนอื่น
+  - User ที่เป็นทั้งลูกค้าและคนขับ ไม่สามารถ assign driver อื่นได้ผ่าน client SDK
+- **วิธีแก้:** สร้าง API endpoint `/api/booking/assign-driver` ที่ใช้ Firebase Admin SDK
+  - Bypass Firestore rules โดยใช้ server-side credentials
+  - Validates: booking ownership, driver availability, prevents self-assignment
+  - Updates both booking status และ driver status atomically
+- **API Endpoint ใหม่:**
+  ```typescript
+  POST /api/booking/assign-driver
+  Authorization: Bearer <token>
+  Body: { bookingId, driverId, driverName, driverPhone, vehiclePlate, vehicleModel, vehicleColor }
+  Response: { success: true, data: { bookingId, driverId, status: 'driver_assigned' } }
+  ```
+- **Scripts เพิ่มเติม:**
+  - `scripts/check-driver-status.js` - ตรวจสอบสถานะระบบ (คนขับ, bookings)
+  - `scripts/check-user-driver.js` - ตรวจสอบความสัมพันธ์ user/driver
+  - `scripts/fix-stuck-bookings.js` - ยกเลิก booking ที่ค้างและ sync driver status
+- **Files created/modified:**
+  - `app/api/booking/assign-driver/route.ts` - **NEW** API endpoint
+  - `app/test-maps1/page.tsx` - เปลี่ยนจาก client SDK เป็นใช้ API
 
 ### 2025-12-31 v7.7 - Cancel Booking in Live Mode ❌📱
 - **เพิ่มปุ่มยกเลิกการจองใน `/test-maps1` Live Mode**
