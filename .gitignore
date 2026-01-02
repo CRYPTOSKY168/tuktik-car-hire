@@ -52,3 +52,4 @@ next-env.d.ts
 .env.local.vercel
 google-cloud-sdk/
 google-cloud-cli-*.tar.gz
+service-account.json

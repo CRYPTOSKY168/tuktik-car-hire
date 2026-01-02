@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth } from '@/lib/firebase/admin';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { safeErrorMessage, logError } from '@/lib/utils/safeError';
+import { sendBookingStatusNotification, sendNewJobNotification } from '@/lib/firebase/pushNotification';
 
 /**
  * POST /api/booking/assign-driver
@@ -149,6 +150,26 @@ export async function POST(request: NextRequest) {
             isRead: false,
             createdAt: FieldValue.serverTimestamp(),
         });
+
+        // 🔔 Send Push Notification to customer
+        if (bookingData?.userId) {
+            await sendBookingStatusNotification(
+                bookingData.userId,
+                bookingId,
+                'driver_assigned',
+                driverName
+            );
+        }
+
+        // 🔔 Send Push Notification to driver about new job
+        if (driverData?.userId) {
+            await sendNewJobNotification(
+                driverData.userId,
+                bookingId,
+                bookingData?.pickupLocation || '',
+                bookingData?.dropoffLocation || ''
+            );
+        }
 
         return NextResponse.json({
             success: true,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { safeErrorMessage, logError } from '@/lib/utils/safeError';
+import { sendBookingStatusNotification } from '@/lib/firebase/pushNotification';
 
 /**
  * Driver Bookings API
@@ -264,6 +265,7 @@ export async function POST(request: NextRequest) {
                         'completed': 'เดินทางถึงปลายทางแล้ว ขอบคุณที่ใช้บริการ'
                     };
 
+                    // Save notification to Firestore
                     await adminDb.collection('notifications').add({
                         userId: currentData.userId,
                         type: 'booking',
@@ -273,6 +275,15 @@ export async function POST(request: NextRequest) {
                         isRead: false,
                         createdAt: FieldValue.serverTimestamp()
                     });
+
+                    // 🔔 Send Push Notification to customer's device
+                    const driverName = currentData?.driver?.name;
+                    await sendBookingStatusNotification(
+                        currentData.userId,
+                        bookingId,
+                        status,
+                        driverName
+                    );
                 }
 
                 return NextResponse.json({
