@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { safeErrorMessage, logError } from '@/lib/utils/safeError';
 
 /**
  * Driver Bookings API
@@ -82,10 +83,10 @@ export async function GET(request: NextRequest) {
             bookings,
             total: bookings.length
         });
-    } catch (error: any) {
-        console.error('Error fetching driver bookings:', error);
+    } catch (error: unknown) {
+        logError('driver/bookings/GET', error, { driverId: 'from-request' });
         return NextResponse.json(
-            { success: false, error: error.message },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถดึงข้อมูลการจองได้') },
             { status: 500 }
         );
     }
@@ -286,10 +287,10 @@ export async function POST(request: NextRequest) {
                     { status: 400 }
                 );
         }
-    } catch (error: any) {
-        console.error('Error updating booking:', error);
+    } catch (error: unknown) {
+        logError('driver/bookings/POST', error, { bookingId: 'from-request' });
         return NextResponse.json(
-            { success: false, error: error.message },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถอัปเดตการจองได้') },
             { status: 500 }
         );
     }

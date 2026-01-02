@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { safeErrorMessage, logError } from '@/lib/utils/safeError';
 
 /**
  * Refund API
@@ -109,9 +110,10 @@ export async function POST(request: NextRequest) {
                     { status: 400 }
                 );
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
+            logError('payment/refund/retrieve', err, { paymentIntentId });
             return NextResponse.json(
-                { success: false, error: `Cannot retrieve payment: ${err.message}` },
+                { success: false, error: 'ไม่สามารถดึงข้อมูลการชำระเงินได้' },
                 { status: 400 }
             );
         }
@@ -180,19 +182,20 @@ export async function POST(request: NextRequest) {
             message: 'คืนเงินสำเร็จ',
         });
 
-    } catch (error: any) {
-        console.error('Error processing refund:', error);
+    } catch (error: unknown) {
+        logError('payment/refund', error, { bookingId: 'from-request' });
 
-        // Handle Stripe-specific errors
-        if (error.type === 'StripeInvalidRequestError') {
+        // Handle Stripe-specific errors - show generic messages
+        const stripeError = error as { type?: string };
+        if (stripeError.type === 'StripeInvalidRequestError') {
             return NextResponse.json(
-                { success: false, error: `Stripe error: ${error.message}` },
+                { success: false, error: 'ไม่สามารถคืนเงินได้ กรุณาติดต่อเจ้าหน้าที่' },
                 { status: 400 }
             );
         }
 
         return NextResponse.json(
-            { success: false, error: error.message || 'Failed to process refund' },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถคืนเงินได้ กรุณาลองใหม่') },
             { status: 500 }
         );
     }

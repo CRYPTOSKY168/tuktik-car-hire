@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { safeErrorMessage, logError } from '@/lib/utils/safeError';
 
 /**
  * Payment Intent API
@@ -156,19 +157,22 @@ export async function POST(request: NextRequest) {
             paymentIntentId: paymentIntent.id,
         });
 
-    } catch (error: any) {
-        console.error('Error creating payment intent:', error);
+    } catch (error: unknown) {
+        logError('payment/create-intent', error, { bookingId: 'from-request' });
 
-        // Handle Stripe-specific errors
-        if (error.type === 'StripeCardError') {
+        // Handle Stripe-specific errors - show user-friendly messages
+        const stripeError = error as { type?: string; message?: string };
+        if (stripeError.type === 'StripeCardError') {
+            // Card errors are safe to show (e.g., "Your card was declined")
             return NextResponse.json(
-                { success: false, error: error.message },
+                { success: false, error: stripeError.message || 'Card error' },
                 { status: 400 }
             );
         }
 
+        // For all other errors, use safe error message
         return NextResponse.json(
-            { success: false, error: error.message || 'Failed to create payment intent' },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถสร้างการชำระเงินได้ กรุณาลองใหม่') },
             { status: 500 }
         );
     }
