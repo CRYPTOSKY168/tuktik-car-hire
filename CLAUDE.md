@@ -194,6 +194,183 @@ return NextResponse.json({ error: true, message: 'Not found' });
 
 ---
 
+## 🔒 Security & Best Practices (Strict Enforcement)
+
+> **สำคัญมาก:** กฎความปลอดภัยเหล่านี้ต้องปฏิบัติตามอย่างเคร่งครัดในการเขียนโค้ด Next.js (TypeScript)
+
+### 1. Input Validation (การตรวจสอบข้อมูล)
+
+| Rule | Description |
+|------|-------------|
+| **Use Zod** | ใช้ Zod ตรวจสอบ Search Params, Form Data, JSON Body ทุกตัว |
+| **No `any`** | ห้ามใช้ `any` type เด็ดขาด ต้องระบุ Type ชัดเจน |
+| **Sanitize** | Sanitize ข้อมูลจาก User ก่อนแสดงผล (ป้องกัน XSS) |
+| **No dangerouslySetInnerHTML** | หลีกเลี่ยง ถ้าจำเป็นต้อง sanitize ก่อน |
+
+```typescript
+// ✅ Good - ใช้ Zod validation
+import { z } from 'zod';
+
+const BookingSchema = z.object({
+    pickupLocation: z.string().min(1).max(200),
+    dropoffLocation: z.string().min(1).max(200),
+    pickupDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    totalCost: z.number().min(0).max(100000),
+});
+
+// ❌ Bad - ไม่มี validation
+const data = await request.json(); // อันตราย!
+```
+
+### 2. Client vs Server (Architecture Safety)
+
+| Rule | Description |
+|------|-------------|
+| **Secret Logic on Server** | ห้ามคำนวณเงิน/ตรวจสอบสิทธิ์ใน Client Component |
+| **API Keys** | Secret keys ห้ามมี `NEXT_PUBLIC_` prefix |
+| **Server Actions** | ใช้ Server Actions หรือ API Routes สำหรับ sensitive operations |
+
+```typescript
+// ✅ Server-side only (ไม่มี NEXT_PUBLIC_)
+STRIPE_SECRET_KEY=sk_live_xxx
+FIREBASE_ADMIN_PRIVATE_KEY=xxx
+
+// ✅ Client-safe (มี NEXT_PUBLIC_)
+NEXT_PUBLIC_FIREBASE_API_KEY=xxx
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_xxx
+```
+
+### 3. Authentication & Authorization
+
+| Rule | Description |
+|------|-------------|
+| **Middleware** | ต้องมี Middleware ตรวจสอบ Session ทุก Protected Route |
+| **Double Check** | API Routes ต้องตรวจสอบ session/role ซ้ำ (อย่าเชื่อ Middleware อย่างเดียว) |
+| **Bearer Token** | ทุก API ต้องตรวจสอบ Bearer token |
+
+```typescript
+// ✅ Good - Double check ใน API Route
+export async function POST(request: NextRequest) {
+    // 1. Verify token
+    const authResult = await verifyAuth(request);
+    if (!authResult.success) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // 2. Check role/permission
+    const user = await getUser(authResult.userId);
+    if (user.role !== 'admin') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // 3. Process request...
+}
+```
+
+### 4. Database Security
+
+| Rule | Description |
+|------|-------------|
+| **No Raw SQL** | ใช้ ORM (Prisma/Drizzle) หรือ Firestore SDK เท่านั้น |
+| **Parameterized** | ถ้าต้องเขียน Raw Query ใช้ Parameterized Query |
+| **Firestore Rules** | ตรวจสอบ Security Rules ก่อน deploy |
+
+```typescript
+// ✅ Good - ใช้ Firestore SDK
+await adminDb.collection('bookings')
+    .where('userId', '==', userId)
+    .get();
+
+// ❌ Bad - String concatenation (SQL Injection risk)
+const query = `SELECT * FROM users WHERE id = '${userId}'`;
+```
+
+### 5. Attack Prevention
+
+| Attack | Protection | Implementation |
+|--------|------------|----------------|
+| **Rate Limiting** | จำกัด requests/minute | ใช้ `lib/utils/rateLimit.ts` |
+| **CSRF** | ตรวจสอบ Origin header | Next.js Server Actions มีในตัว |
+| **XSS** | Sanitize + CSP headers | ใช้ `lib/utils/safeError.ts` |
+| **Injection** | Input validation + ORM | ใช้ Zod + Firestore SDK |
+
+```typescript
+// ✅ Good - Rate limiting
+import { checkPaymentRateLimit, getRateLimitResponse } from '@/lib/utils/rateLimit';
+
+if (!checkPaymentRateLimit(userId)) {
+    return NextResponse.json(getRateLimitResponse('payment'), { status: 429 });
+}
+```
+
+### 6. Error Handling (No Leaks)
+
+| Rule | Description |
+|------|-------------|
+| **No Stack Traces** | ห้าม return `error.stack` ให้ User |
+| **No DB Errors** | ห้าม expose Database error details |
+| **Generic Messages** | Return ข้อความทั่วไป เช่น "เกิดข้อผิดพลาด" |
+| **Server Logging** | Log error ฝั่ง Server แต่ส่ง safe message กลับ Client |
+
+```typescript
+// ✅ Good - ใช้ safeError utility
+import { safeErrorMessage, logError } from '@/lib/utils/safeError';
+
+} catch (error: unknown) {
+    logError('payment/create-intent', error, { bookingId }); // Log ฝั่ง Server
+    return NextResponse.json(
+        { success: false, error: safeErrorMessage(error, 'ไม่สามารถสร้างการชำระเงินได้') },
+        { status: 500 }
+    );
+}
+
+// ❌ Bad - Leak error details
+return NextResponse.json({ error: error.message, stack: error.stack });
+```
+
+### 7. Security Headers (next.config.js)
+
+```javascript
+// ✅ ต้องมี headers เหล่านี้
+async headers() {
+    return [{
+        source: '/:path*',
+        headers: [
+            { key: 'X-Content-Type-Options', value: 'nosniff' },
+            { key: 'X-Frame-Options', value: 'DENY' },
+            { key: 'X-XSS-Protection', value: '1; mode=block' },
+            { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+            { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self)' },
+            // CSP (ตามความเหมาะสม)
+        ],
+    }];
+}
+```
+
+### Security Utilities (ใช้ทุก API Route)
+
+| Utility | File | Usage |
+|---------|------|-------|
+| `safeErrorMessage()` | `lib/utils/safeError.ts` | ป้องกัน error leak |
+| `logError()` | `lib/utils/safeError.ts` | Log error ฝั่ง Server |
+| `checkRateLimit()` | `lib/utils/rateLimit.ts` | Rate limiting |
+| `getRateLimitResponse()` | `lib/utils/rateLimit.ts` | 429 response |
+
+### Security Checklist (ก่อน Deploy)
+
+```markdown
+□ ทุก API Route มี authentication check
+□ ทุก input มี Zod validation
+□ ไม่มี `any` type ในโค้ด
+□ ใช้ safeErrorMessage() แทน error.message
+□ API ที่สำคัญมี Rate Limiting
+□ ไม่มี NEXT_PUBLIC_ กับ secret keys
+□ Security headers ตั้งค่าใน next.config.js
+□ npm run build ผ่านไม่มี error
+```
+
+---
+
 ## Tech Stack
 
 | Technology | Version | Purpose |
