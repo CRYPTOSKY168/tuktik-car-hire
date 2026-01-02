@@ -1,7 +1,7 @@
 # TukTik Car Rental - Project Documentation
 
 > **Last Updated:** 2026-01-02
-> **Version:** 8.4 (Payment Modal)
+> **Version:** 8.5 (Security Hardening)
 > **Status:** Production
 > **Lines:** ~4050+
 
@@ -2946,6 +2946,9 @@ const {
 | `test-booking-flow.js` | ทดสอบ Booking Flow + Options (stop-at-assign, cleanup) | `node scripts/test-booking-flow.js --stop-at-assign` |
 | `test-rating-flow.js` | ทดสอบ Rating System (Bayesian Average) | `node scripts/test-rating-flow.js --cleanup` |
 | `test-realtime-rating-auto.js` | ทดสอบ Real-time Rating Update | `node scripts/test-realtime-rating-auto.js` |
+| `test-security-headers.js` | 🔒 ทดสอบ Security Headers (86% score) | `TEST_URL=https://... node scripts/test-security-headers.js` |
+| `test-safe-error.js` | 🔒 ทดสอบ Safe Error Handling (18 tests) | `node scripts/test-safe-error.js` |
+| `test-rate-limit.js` | 🔒 ทดสอบ Rate Limiting (13 tests) | `node scripts/test-rate-limit.js` |
 | `check-logs.js` | ตรวจสอบ bugs (Vercel, Firebase, Code) | `node scripts/check-logs.js` |
 | `monitor-logs.js` | Monitor logs แบบ real-time | `node scripts/monitor-logs.js` |
 
@@ -3077,6 +3080,38 @@ main().catch(err => {
 ---
 
 ## Changelog
+
+### 2026-01-02 v8.5 - Security Hardening 🔒
+- **Security Headers** (86% score)
+  - เพิ่ม headers ใน `next.config.js`:
+    - `X-Content-Type-Options: nosniff` - ป้องกัน MIME type sniffing
+    - `X-Frame-Options: SAMEORIGIN` - ป้องกัน Clickjacking
+    - `X-XSS-Protection: 1; mode=block` - ป้องกัน XSS
+    - `Referrer-Policy: strict-origin-when-cross-origin`
+    - `Permissions-Policy: camera=(), microphone=(), geolocation=(self)`
+  - Test script: `scripts/test-security-headers.js`
+- **Safe Error Handling** (100% score - 18 tests)
+  - สร้าง `lib/utils/safeError.ts` utility
+  - ป้องกัน leak ของ: Firebase errors, API keys, Stack traces
+  - อนุญาต: Business logic errors, Validation errors
+  - อัปเดต API routes: `/api/payment/*`, `/api/driver/*`
+  - Test script: `scripts/test-safe-error.js`
+- **Rate Limiting** (100% score - 13 tests)
+  - สร้าง `lib/utils/rateLimit.ts` utility
+  - Configurations:
+    - Standard: 10 req/min
+    - Auth: 5 req/min (strict)
+    - Payment: 10 req/min
+    - Driver Location: 60 req/min (GPS updates)
+    - Sensitive: 3 req/min
+  - Applied to: `/api/payment/create-intent`, `/api/payment/refund`, `/api/driver/location`
+  - Test script: `scripts/test-rate-limit.js`
+- **Files created:**
+  - `lib/utils/safeError.ts`
+  - `lib/utils/rateLimit.ts`
+  - `scripts/test-security-headers.js`
+  - `scripts/test-safe-error.js`
+  - `scripts/test-rate-limit.js`
 
 ### 2026-01-02 v8.4 - Payment Modal (Stripe Embedded) 💳
 - **เพิ่มระบบชำระเงินภายในหน้า `/test-maps1` (Live Mode)**
@@ -4065,4 +4100,4 @@ vercel --prod        # Deploy to production
 ---
 
 *Document maintained by development team. Last updated: 2026-01-02*
-*Lines: ~4000 | Version: 8.4 (Payment Modal) 💳*
+*Lines: ~4100 | Version: 8.5 (Security Hardening) 🔒*
