@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { safeErrorMessage, logError } from '@/lib/utils/safeError';
 
 /**
  * Driver Status API
@@ -137,10 +138,10 @@ export async function POST(request: NextRequest) {
             }
         });
 
-    } catch (error: any) {
-        console.error('Error updating driver status:', error);
+    } catch (error: unknown) {
+        logError('driver/status/POST', error, { driverId: 'from-request' });
         return NextResponse.json(
-            { success: false, error: error.message || 'Failed to update status' },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถอัปเดตสถานะได้') },
             { status: 500 }
         );
     }
@@ -189,10 +190,10 @@ export async function GET(request: NextRequest) {
             }
         });
 
-    } catch (error: any) {
-        console.error('Error getting driver status:', error);
+    } catch (error: unknown) {
+        logError('driver/status/GET', error, { driverId: 'from-request' });
         return NextResponse.json(
-            { success: false, error: error.message || 'Failed to get status' },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถดึงสถานะได้') },
             { status: 500 }
         );
     }

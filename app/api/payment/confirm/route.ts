@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { safeErrorMessage, logError } from '@/lib/utils/safeError';
+import { checkPaymentRateLimit, getRateLimitResponse } from '@/lib/utils/rateLimit';
 
 /**
  * Confirm Payment API
@@ -125,10 +127,10 @@ export async function POST(request: NextRequest) {
             message: 'Payment confirmed successfully',
         });
 
-    } catch (error: any) {
-        console.error('Error confirming payment:', error);
+    } catch (error: unknown) {
+        logError('payment/confirm/POST', error, { bookingId: 'from-request' });
         return NextResponse.json(
-            { success: false, error: error.message || 'Failed to confirm payment' },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถยืนยันการชำระเงินได้') },
             { status: 500 }
         );
     }

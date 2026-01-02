@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
+import { safeErrorMessage, logError } from '@/lib/utils/safeError';
 
 // DELETE - Remove driver and update user document
 export async function DELETE(request: NextRequest) {
@@ -48,10 +49,10 @@ export async function DELETE(request: NextRequest) {
             success: true,
             message: 'Driver removed successfully',
         });
-    } catch (error: any) {
-        console.error('Error deleting driver:', error);
+    } catch (error: unknown) {
+        logError('admin/drivers/DELETE', error);
         return NextResponse.json(
-            { success: false, error: error.message || 'Failed to delete driver' },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถลบคนขับได้') },
             { status: 500 }
         );
     }
@@ -128,10 +129,10 @@ export async function POST(request: NextRequest) {
                     { status: 400 }
                 );
         }
-    } catch (error: any) {
-        console.error('Error in driver action:', error);
+    } catch (error: unknown) {
+        logError('admin/drivers/POST', error, { action: 'from-request' });
         return NextResponse.json(
-            { success: false, error: error.message || 'Failed to perform action' },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถดำเนินการได้') },
             { status: 500 }
         );
     }

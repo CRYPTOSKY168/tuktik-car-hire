@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase/admin';
+import { adminDb, adminAuth } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { safeErrorMessage, logError } from '@/lib/utils/safeError';
+import { checkRateLimit, getRateLimitResponse } from '@/lib/utils/rateLimit';
 
 /**
  * Admin Bookings API
@@ -21,10 +23,10 @@ export async function GET() {
             bookings,
             total: bookings.length
         });
-    } catch (error: any) {
-        console.error('Error fetching bookings:', error);
+    } catch (error: unknown) {
+        logError('admin/bookings/GET', error);
         return NextResponse.json(
-            { success: false, error: error.message },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถดึงข้อมูล booking ได้') },
             { status: 500 }
         );
     }
@@ -201,10 +203,10 @@ export async function POST(request: NextRequest) {
                     { status: 400 }
                 );
         }
-    } catch (error: any) {
-        console.error('Error updating booking:', error);
+    } catch (error: unknown) {
+        logError('admin/bookings/POST', error, { action: 'from-request' });
         return NextResponse.json(
-            { success: false, error: error.message },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถอัปเดต booking ได้') },
             { status: 500 }
         );
     }

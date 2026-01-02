@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth } from '@/lib/firebase/admin';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
+import { safeErrorMessage, logError } from '@/lib/utils/safeError';
 
 /**
  * POST /api/booking/assign-driver
@@ -160,10 +161,10 @@ export async function POST(request: NextRequest) {
             }
         });
 
-    } catch (error: any) {
-        console.error('Error assigning driver:', error);
+    } catch (error: unknown) {
+        logError('booking/assign-driver/POST', error, { bookingId: 'from-request' });
         return NextResponse.json(
-            { success: false, error: error.message || 'เกิดข้อผิดพลาด' },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถมอบหมายคนขับได้') },
             { status: 500 }
         );
     }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
+import { safeErrorMessage, logError } from '@/lib/utils/safeError';
 
 export async function POST(request: NextRequest) {
     try {
@@ -124,10 +125,10 @@ export async function POST(request: NextRequest) {
             message: 'Driver profile created successfully',
             driverId: driverId,
         });
-    } catch (error: any) {
-        console.error('Error in driver setup:', error);
+    } catch (error: unknown) {
+        logError('driver/setup/POST', error);
         return NextResponse.json(
-            { success: false, error: error.message || 'Failed to create driver profile' },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถสร้างโปรไฟล์คนขับได้') },
             { status: 500 }
         );
     }

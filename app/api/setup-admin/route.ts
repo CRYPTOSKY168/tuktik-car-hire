@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
 import { requireSuperAdmin, SUPER_ADMIN_EMAIL } from '@/lib/firebase/adminAuth';
+import { safeErrorMessage, logError } from '@/lib/utils/safeError';
 
 /**
  * API สำหรับ setup admin user
@@ -66,10 +67,10 @@ export async function GET(request: NextRequest) {
             superAdminEmail: SUPER_ADMIN_EMAIL,
             isFirstTimeSetup: isFirstSetup,
         });
-    } catch (error: any) {
-        console.error('Error:', error);
+    } catch (error: unknown) {
+        logError('setup-admin/GET', error);
         return NextResponse.json(
-            { success: false, error: error.message },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถดึงข้อมูลได้') },
             { status: 500 }
         );
     }
@@ -200,10 +201,10 @@ export async function POST(request: NextRequest) {
             { status: 400 }
         );
 
-    } catch (error: any) {
-        console.error('Error:', error);
+    } catch (error: unknown) {
+        logError('setup-admin/POST', error);
         return NextResponse.json(
-            { success: false, error: error.message },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถดำเนินการได้') },
             { status: 500 }
         );
     }

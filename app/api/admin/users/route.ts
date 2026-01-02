@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
 import { requireAdmin, requireSuperAdmin, SUPER_ADMIN_EMAIL } from '@/lib/firebase/adminAuth';
+import { safeErrorMessage, logError } from '@/lib/utils/safeError';
 
 export async function GET(request: NextRequest) {
     // Verify admin access
@@ -99,10 +100,10 @@ export async function GET(request: NextRequest) {
             members,
             total: members.length,
         });
-    } catch (error: any) {
-        console.error('Error fetching auth users:', error);
+    } catch (error: unknown) {
+        logError('admin/users/GET', error);
         return NextResponse.json(
-            { success: false, error: error.message || 'Failed to fetch users' },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถดึงข้อมูลผู้ใช้ได้') },
             { status: 500 }
         );
     }
@@ -341,10 +342,10 @@ export async function POST(request: NextRequest) {
             default:
                 return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 });
         }
-    } catch (error: any) {
-        console.error('Error updating user:', error);
+    } catch (error: unknown) {
+        logError('admin/users/POST', error, { action: 'from-request' });
         return NextResponse.json(
-            { success: false, error: error.message || 'Failed to update user' },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถอัปเดตผู้ใช้ได้') },
             { status: 500 }
         );
     }

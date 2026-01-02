@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { safeErrorMessage, logError } from '@/lib/utils/safeError';
 
 const vehicleCategories = [
   {
@@ -201,10 +202,10 @@ export async function POST(request: NextRequest) {
       message: 'Vehicle categories seeded successfully',
       results,
     });
-  } catch (error: any) {
-    console.error('Error seeding vehicles:', error);
+  } catch (error: unknown) {
+    logError('admin/seed-vehicles/POST', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to seed vehicles' },
+      { success: false, error: safeErrorMessage(error, 'ไม่สามารถ seed vehicles ได้') },
       { status: 500 }
     );
   }
@@ -224,9 +225,10 @@ export async function GET(request: NextRequest) {
       count: vehicles.length,
       vehicles,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    logError('admin/seed-vehicles/GET', error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: safeErrorMessage(error, 'ไม่สามารถดึงข้อมูล vehicles ได้') },
       { status: 500 }
     );
   }

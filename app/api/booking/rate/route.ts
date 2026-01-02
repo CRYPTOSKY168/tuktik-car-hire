@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb, adminAuth } from '@/lib/firebase/admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { safeErrorMessage, logError } from '@/lib/utils/safeError';
 
 /**
  * POST /api/booking/rate
@@ -338,10 +339,10 @@ export async function POST(request: NextRequest) {
             },
         });
 
-    } catch (error: any) {
-        console.error('Error submitting rating:', error);
+    } catch (error: unknown) {
+        logError('booking/rate/POST', error, { bookingId: 'from-request' });
         return NextResponse.json(
-            { success: false, error: error.message || 'เกิดข้อผิดพลาดในการบันทึกคะแนน' },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถบันทึกคะแนนได้') },
             { status: 500 }
         );
     }

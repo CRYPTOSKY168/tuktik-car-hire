@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { requireSuperAdmin, SUPER_ADMIN_EMAIL } from '@/lib/firebase/adminAuth';
+import { safeErrorMessage, logError } from '@/lib/utils/safeError';
 
 /**
  * API เพื่อ cleanup ข้อมูลที่ผิดพลาด
@@ -147,10 +148,10 @@ export async function POST(request: NextRequest) {
                     { status: 400 }
                 );
         }
-    } catch (error: any) {
-        console.error('Cleanup error:', error);
+    } catch (error: unknown) {
+        logError('admin/cleanup/POST', error, { action: 'from-request' });
         return NextResponse.json(
-            { success: false, error: error.message || 'Cleanup failed' },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถดำเนินการ cleanup ได้') },
             { status: 500 }
         );
     }
@@ -213,10 +214,10 @@ export async function GET(request: NextRequest) {
                 }
             }
         });
-    } catch (error: any) {
-        console.error('Error getting cleanup info:', error);
+    } catch (error: unknown) {
+        logError('admin/cleanup/GET', error);
         return NextResponse.json(
-            { success: false, error: error.message || 'Failed to get cleanup info' },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถดึงข้อมูล cleanup ได้') },
             { status: 500 }
         );
     }
