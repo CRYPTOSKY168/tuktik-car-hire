@@ -77,6 +77,8 @@ const withPWA = require('next-pwa')({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Disable X-Powered-By header for security
+  poweredByHeader: false,
   images: {
     remotePatterns: [
       {
