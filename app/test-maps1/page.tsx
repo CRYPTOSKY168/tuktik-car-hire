@@ -385,8 +385,7 @@ export default function TestMaps1Page() {
                 },
                 body: JSON.stringify({
                     bookingId,
-                    amount: tripInfo?.price || 0,
-                    currency: 'thb',
+                    // Amount is now fetched from booking on server-side (security fix)
                 }),
             });
 
@@ -2156,114 +2155,76 @@ export default function TestMaps1Page() {
                         </div>
                     )}
 
-                    {/* === Map Controls - Minimal Modern Style === */}
-                    {/* Top Right: Compass only */}
-                    <div className="absolute top-3 right-3">
+                    {/* === Map Controls - Mobile Optimized (Grab/Uber Style) === */}
+                    {/* Top Right: Compass - Large & Bold */}
+                    <div className="absolute top-4 right-4 z-20">
                         <button
                             onClick={resetToNorth}
-                            className="w-10 h-10 bg-white/95 backdrop-blur-sm rounded-full shadow-sm flex items-center justify-center hover:bg-white active:scale-95 transition-all"
+                            className="w-14 h-14 bg-white rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.15)] flex items-center justify-center active:scale-90 transition-transform"
                             title={language === 'th' ? 'หันไปทิศเหนือ' : 'Reset to North'}
                         >
                             <div style={{ transform: `rotate(${-mapHeading}deg)` }} className="transition-transform duration-300">
-                                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
-                                    <path d="M12 3L15 11H9L12 3Z" fill="#ef4444"/>
-                                    <path d="M12 21L9 13H15L12 21Z" fill="#94a3b8"/>
+                                <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none">
+                                    <path d="M12 2L16 12H8L12 2Z" fill="#ef4444"/>
+                                    <path d="M12 22L8 12H16L12 22Z" fill="#94a3b8"/>
                                 </svg>
                             </div>
                         </button>
                     </div>
 
-                    {/* Bottom Right: Control Group - Pill Style */}
-                    <div className="absolute bottom-20 right-3 flex flex-col items-end gap-2">
+                    {/* Bottom Right: Control Group - Large Buttons */}
+                    <div className="absolute bottom-24 right-4 z-20 flex flex-col gap-3">
                         {/* Follow Car Button - Only when driver is active */}
                         {driverLocation && (
                             <button
                                 onClick={() => { zoomToCar(); setFollowCar(true); }}
-                                className={`w-10 h-10 rounded-full shadow-sm flex items-center justify-center active:scale-95 transition-all ${
+                                className={`w-14 h-14 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.15)] flex items-center justify-center active:scale-90 transition-transform ${
                                     followCar
-                                        ? 'bg-[#00b14f] shadow-[#00b14f]/30'
-                                        : 'bg-white/95 backdrop-blur-sm animate-pulse'
+                                        ? 'bg-[#00b14f]'
+                                        : 'bg-white'
                                 }`}
                                 title={language === 'th' ? 'ติดตามรถ' : 'Follow Car'}
                             >
-                                <svg className="w-5 h-5" viewBox="0 0 24 24" fill={followCar ? 'white' : '#00b14f'}>
+                                <svg className="w-7 h-7" viewBox="0 0 24 24" fill={followCar ? 'white' : '#00b14f'}>
                                     <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
                                 </svg>
                             </button>
                         )}
 
-                        {/* Main Control Pill */}
-                        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-sm p-1 flex flex-col gap-0.5">
-                            {/* My Location (GPS) */}
-                            <button
-                                onClick={() => {
-                                    if (navigator.geolocation) {
-                                        navigator.geolocation.getCurrentPosition(
-                                            (position) => {
-                                                const pos = { lat: position.coords.latitude, lng: position.coords.longitude };
-                                                mapRef.current?.panTo(pos);
-                                                mapRef.current?.setZoom(15);
-                                            },
-                                            () => alert(language === 'th' ? 'ไม่สามารถดึงตำแหน่งได้' : 'Could not get location')
-                                        );
-                                    }
-                                }}
-                                className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-gray-100 active:scale-95 transition-all"
-                                title={language === 'th' ? 'ตำแหน่งของฉัน' : 'My Location'}
-                            >
-                                <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none">
-                                    <circle cx="12" cy="12" r="4" fill="#3b82f6"/>
-                                    <circle cx="12" cy="12" r="8" stroke="#3b82f6" strokeWidth="2" fill="none"/>
-                                    <path d="M12 2v3m0 14v3m-10-10h3m14 0h3" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round"/>
-                                </svg>
-                            </button>
+                        {/* My Location (GPS) */}
+                        <button
+                            onClick={() => {
+                                if (navigator.geolocation) {
+                                    navigator.geolocation.getCurrentPosition(
+                                        (position) => {
+                                            const pos = { lat: position.coords.latitude, lng: position.coords.longitude };
+                                            mapRef.current?.panTo(pos);
+                                            mapRef.current?.setZoom(15);
+                                        },
+                                        () => alert(language === 'th' ? 'ไม่สามารถดึงตำแหน่งได้' : 'Could not get location')
+                                    );
+                                }
+                            }}
+                            className="w-14 h-14 bg-white rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.15)] flex items-center justify-center active:scale-90 transition-transform"
+                            title={language === 'th' ? 'ตำแหน่งของฉัน' : 'My Location'}
+                        >
+                            <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="12" r="4" fill="#3b82f6"/>
+                                <circle cx="12" cy="12" r="8" stroke="#3b82f6" strokeWidth="2.5" fill="none"/>
+                                <path d="M12 1v5m0 12v5m-11-11h5m12 0h5" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round"/>
+                            </svg>
+                        </button>
 
-                            {/* Divider */}
-                            <div className="w-5 h-px bg-gray-200 mx-auto"/>
-
-                            {/* Fit Route */}
-                            <button
-                                onClick={fitBounds}
-                                className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-gray-100 active:scale-95 transition-all"
-                                title={language === 'th' ? 'แสดงเส้นทางทั้งหมด' : 'Fit Route'}
-                            >
-                                <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
-                                </svg>
-                            </button>
-                        </div>
-
-                        {/* Secondary Control Pill */}
-                        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-sm p-1 flex flex-col gap-0.5">
-                            {/* Satellite Toggle */}
-                            <button
-                                onClick={() => setMapType(mapType === 'roadmap' ? 'satellite' : 'roadmap')}
-                                className={`w-9 h-9 rounded-xl flex items-center justify-center active:scale-95 transition-all ${
-                                    mapType === 'satellite' ? 'bg-blue-500' : 'hover:bg-gray-100'
-                                }`}
-                                title={language === 'th' ? 'มุมมองดาวเทียม' : 'Satellite View'}
-                            >
-                                <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill={mapType === 'satellite' ? 'white' : '#64748b'}>
-                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-                                </svg>
-                            </button>
-
-                            {/* Divider */}
-                            <div className="w-5 h-px bg-gray-200 mx-auto"/>
-
-                            {/* Traffic Toggle */}
-                            <button
-                                onClick={() => setShowTraffic(!showTraffic)}
-                                className={`w-9 h-9 rounded-xl flex items-center justify-center active:scale-95 transition-all ${
-                                    showTraffic ? 'bg-amber-400' : 'hover:bg-gray-100'
-                                }`}
-                                title={language === 'th' ? 'การจราจร' : 'Traffic'}
-                            >
-                                <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill={showTraffic ? 'white' : '#64748b'}>
-                                    <path d="M9 2c-.55 0-1 .45-1 1v1H6c0 1.66 1.34 3 3 3v2H6c0 1.66 1.34 3 3 3v2H6c0 1.66 1.34 3 3 3v1c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1c1.66 0 3-1.34 3-3h-3v-2c1.66 0 3-1.34 3-3h-3V7c1.66 0 3-1.34 3-3h-2V3c0-.55-.45-1-1-1H9zm2 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm0 5c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm0 5c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1z"/>
-                                </svg>
-                            </button>
-                        </div>
+                        {/* Fit Route */}
+                        <button
+                            onClick={fitBounds}
+                            className="w-14 h-14 bg-white rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.15)] flex items-center justify-center active:scale-90 transition-transform"
+                            title={language === 'th' ? 'แสดงเส้นทางทั้งหมด' : 'Fit Route'}
+                        >
+                            <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+                            </svg>
+                        </button>
                     </div>
 
                     {/* === SOS Button (Bottom Left) - Responsive === */}

@@ -13,9 +13,7 @@ import { FieldValue } from 'firebase-admin/firestore';
  */
 
 // Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2025-12-15.clover',
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 // Helper function to verify user authentication
 async function verifyAuth(request: NextRequest): Promise<{ success: boolean; error?: string; userId?: string }> {
@@ -50,18 +48,11 @@ export async function POST(request: NextRequest) {
 
         // 2. Parse request body
         const body = await request.json();
-        const { bookingId, amount, currency = 'thb' } = body;
+        const { bookingId } = body;
 
         if (!bookingId) {
             return NextResponse.json(
                 { success: false, error: 'bookingId is required' },
-                { status: 400 }
-            );
-        }
-
-        if (!amount || amount <= 0) {
-            return NextResponse.json(
-                { success: false, error: 'Valid amount is required' },
                 { status: 400 }
             );
         }
@@ -90,6 +81,17 @@ export async function POST(request: NextRequest) {
         if (bookingData?.paymentStatus === 'paid') {
             return NextResponse.json(
                 { success: false, error: 'This booking has already been paid' },
+                { status: 400 }
+            );
+        }
+
+        // 5. Get amount from booking (NOT from request!) - SECURITY FIX
+        const amount = bookingData?.totalCost;
+        const currency = 'thb'; // Fixed currency
+
+        if (!amount || amount <= 0) {
+            return NextResponse.json(
+                { success: false, error: 'Invalid booking amount' },
                 { status: 400 }
             );
         }

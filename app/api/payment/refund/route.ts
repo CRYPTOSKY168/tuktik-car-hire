@@ -13,9 +13,7 @@ import { FieldValue, Timestamp } from 'firebase-admin/firestore';
  */
 
 // Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2025-12-15.clover',
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 // Helper function to verify user authentication
 async function verifyAuth(request: NextRequest): Promise<{ success: boolean; error?: string; userId?: string }> {

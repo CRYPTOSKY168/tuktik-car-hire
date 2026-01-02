@@ -1450,7 +1450,48 @@ vercel --prod
 □ FIREBASE_ADMIN_CLIENT_EMAIL
 □ FIREBASE_ADMIN_PRIVATE_KEY
 □ STRIPE_SECRET_KEY
-□ STRIPE_WEBHOOK_SECRET
+□ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+```
+
+### ⚠️ Vercel Env Vars - ระวัง Invalid Characters! (สำคัญมาก)
+
+**ปัญหาที่เคยเจอ:** Stripe API error "Invalid character in header content [Authorization]"
+
+**สาเหตุ:** env var มี quotes (`"`) หรือ newline (`\n`) ติดมาด้วย เช่น:
+```bash
+# ❌ ผิด - มี \n ต่อท้าย
+STRIPE_SECRET_KEY="sk_test_xxx\n"
+
+# ✅ ถูก - ไม่มี characters พิเศษ
+STRIPE_SECRET_KEY="sk_test_xxx"
+```
+
+**วิธีเพิ่ม env var ที่ถูกต้อง:**
+```bash
+# ใช้ printf (ไม่เพิ่ม newline)
+printf 'sk_test_xxx' | vercel env add STRIPE_SECRET_KEY production
+
+# ❌ อย่าใช้ echo (อาจเพิ่ม newline)
+# ❌ อย่า copy จาก file ที่มี quotes
+```
+
+**วิธีตรวจสอบว่า env var ถูกต้อง:**
+```bash
+vercel env pull .env.vercel --environment production
+cat .env.vercel | grep STRIPE
+# ดูว่าไม่มี \n หรือ characters แปลกๆ ต่อท้าย
+```
+
+**ถ้าเจอปัญหา:**
+```bash
+# 1. ลบ env var เดิม
+echo "y" | vercel env rm STRIPE_SECRET_KEY production
+
+# 2. เพิ่มใหม่ด้วย printf
+printf 'sk_test_xxx' | vercel env add STRIPE_SECRET_KEY production
+
+# 3. Deploy ใหม่
+vercel --prod
 ```
 
 ### Rollback Plan
@@ -4011,6 +4052,7 @@ return NextResponse.json(
 8. ❌ ใช้ localStorage สำหรับ auth แทน Firebase Auth (ทำให้เกิด redirect loop!)
 9. ❌ ลืม deploy ไป Vercel หลังแก้ไขโค้ด (user อาจทดสอบบน production ไม่ใช่ localhost!)
 10. ❌ ลืมเพิ่ม Environment Variables ใหม่ใน Vercel (ต้องเพิ่มทั้ง .env.local และ Vercel!)
+11. ❌ เพิ่ม Vercel env var ด้วย echo (ใช้ printf แทน!) - อาจมี \n ติดมาทำให้ Stripe error!
 ```
 
 ### Quick Commands
