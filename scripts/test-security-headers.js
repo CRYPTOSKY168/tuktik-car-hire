@@ -54,6 +54,16 @@ const EXPECTED_HEADERS = [
         expected: null, // Just check existence
         description: 'จำกัดการใช้งาน browser features',
     },
+    {
+        name: 'content-security-policy',
+        expected: null, // Just check existence (value is complex)
+        description: 'ป้องกัน XSS และ injection attacks',
+    },
+    {
+        name: 'strict-transport-security',
+        expected: null, // Just check existence
+        description: 'บังคับใช้ HTTPS (HSTS)',
+    },
 ];
 
 // ===================== Test Results =====================

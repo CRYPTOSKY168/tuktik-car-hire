@@ -92,6 +92,38 @@ const nextConfig = {
 
   // Security Headers
   async headers() {
+    // Content Security Policy
+    // Allows: Firebase, Stripe, Google Maps, Google Fonts, Material Symbols
+    const cspDirectives = [
+      "default-src 'self'",
+      // Scripts: self + inline (Next.js) + external services
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.firebaseapp.com https://*.googleapis.com https://js.stripe.com https://maps.googleapis.com",
+      // Styles: self + inline (Tailwind) + Google Fonts
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      // Images: self + data/blob + Firebase Storage + Google Maps
+      "img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://firebasestorage.googleapis.com https://*.google.com https://*.googleusercontent.com",
+      // Fonts: self + Google Fonts
+      "font-src 'self' https://fonts.gstatic.com",
+      // Connections: Firebase, Stripe, Google APIs
+      "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.stripe.com https://maps.googleapis.com wss://*.firebaseio.com",
+      // Frames: Stripe payment iframe
+      "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://*.firebaseapp.com",
+      // Workers: self + blob (for PWA service worker)
+      "worker-src 'self' blob:",
+      // Media: self
+      "media-src 'self'",
+      // Object: none (no plugins)
+      "object-src 'none'",
+      // Base URI: self only
+      "base-uri 'self'",
+      // Form action: self only
+      "form-action 'self'",
+      // Frame ancestors: self only (similar to X-Frame-Options)
+      "frame-ancestors 'self'",
+      // Upgrade insecure requests
+      "upgrade-insecure-requests",
+    ];
+
     return [
       {
         // Apply to all routes
@@ -103,7 +135,7 @@ const nextConfig = {
           },
           {
             key: 'X-Frame-Options',
-            value: 'SAMEORIGIN', // Allow same-origin iframes (for Stripe)
+            value: 'SAMEORIGIN',
           },
           {
             key: 'X-XSS-Protection',
@@ -116,6 +148,14 @@ const nextConfig = {
           {
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(), geolocation=(self)',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: cspDirectives.join('; '),
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=31536000; includeSubDomains',
           },
         ],
       },
