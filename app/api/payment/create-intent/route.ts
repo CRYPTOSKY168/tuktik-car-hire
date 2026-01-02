@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { safeErrorMessage, logError } from '@/lib/utils/safeError';
+import { checkPaymentRateLimit, getRateLimitResponse } from '@/lib/utils/rateLimit';
 
 /**
  * Payment Intent API
@@ -47,7 +48,15 @@ export async function POST(request: NextRequest) {
 
         const userId = authResult.userId!;
 
-        // 2. Parse request body
+        // 2. Check rate limit
+        if (!checkPaymentRateLimit(userId)) {
+            return NextResponse.json(
+                getRateLimitResponse('payment'),
+                { status: 429 }
+            );
+        }
+
+        // 3. Parse request body
         const body = await request.json();
         const { bookingId } = body;
 

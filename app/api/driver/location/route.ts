@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/admin';
 import { Timestamp } from 'firebase-admin/firestore';
+import { checkDriverLocationRateLimit, getRateLimitResponse } from '@/lib/utils/rateLimit';
+import { safeErrorMessage, logError } from '@/lib/utils/safeError';
 
 /**
  * Driver Location API
@@ -86,6 +88,14 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Check rate limit (60 req/min for GPS updates)
+        if (!checkDriverLocationRateLimit(driverId)) {
+            return NextResponse.json(
+                getRateLimitResponse('driverLocation'),
+                { status: 429 }
+            );
+        }
+
         // Update driver location
         const driverRef = adminDb.collection('drivers').doc(driverId);
         const driverDoc = await driverRef.get();
@@ -131,10 +141,10 @@ export async function POST(request: NextRequest) {
             }
         });
 
-    } catch (error: any) {
-        console.error('Error updating driver location:', error);
+    } catch (error: unknown) {
+        logError('driver/location/POST', error, { driverId: 'from-request' });
         return NextResponse.json(
-            { success: false, error: error.message || 'Failed to update location' },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถอัปเดตตำแหน่งได้') },
             { status: 500 }
         );
     }
@@ -178,10 +188,10 @@ export async function GET(request: NextRequest) {
             }
         });
 
-    } catch (error: any) {
-        console.error('Error getting driver location:', error);
+    } catch (error: unknown) {
+        logError('driver/location/GET', error, { driverId: 'from-request' });
         return NextResponse.json(
-            { success: false, error: error.message || 'Failed to get location' },
+            { success: false, error: safeErrorMessage(error, 'ไม่สามารถดึงตำแหน่งได้') },
             { status: 500 }
         );
     }
