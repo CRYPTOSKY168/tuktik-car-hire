@@ -233,7 +233,7 @@ export default function Home() {
               <p className="text-gray-500">{t.home.fleet.subtitle}</p>
             </div>
             <Link
-              href="/vehicles"
+              href="/book"
               className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-500/30"
             >
               {t.home.fleet.viewAll}
@@ -283,7 +283,7 @@ export default function Home() {
                       {/* Quick View Button */}
                       <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
                         <Link
-                          href="/vehicles"
+                          href="/book"
                           className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-800 font-bold rounded-lg text-sm shadow-lg hover:bg-gray-50"
                         >
                           <span className="material-symbols-outlined text-lg">visibility</span>
@@ -328,7 +328,7 @@ export default function Home() {
                           <p className="text-2xl font-black text-blue-600">฿{Number(vehicle.price).toLocaleString()}</p>
                         </div>
                         <Link
-                          href="/vehicles"
+                          href="/book"
                           className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl text-sm hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-500/30"
                         >
                           Book Now
@@ -450,7 +450,7 @@ export default function Home() {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/vehicles"
+              href="/book"
               className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-blue-600 font-bold rounded-xl hover:bg-gray-50 transition-all shadow-2xl"
             >
               <span className="material-symbols-outlined text-xl">search</span>

@@ -19,7 +19,7 @@ export default function RegisterPage() {
     // Redirect if already logged in
     useEffect(() => {
         if (!authLoading && user) {
-            router.replace('/dashboard');
+            router.replace('/book');
         }
     }, [user, authLoading, router]);
 
@@ -68,7 +68,7 @@ export default function RegisterPage() {
                 provider: 'email'
             });
 
-            router.push('/dashboard'); // Go to dashboard after register
+            router.push('/book'); // Go to dashboard after register
         } catch (err: any) {
             console.error(err);
             if (err.code === 'auth/email-already-in-use') {
@@ -150,7 +150,7 @@ export default function RegisterPage() {
                 provider: 'phone'
             });
 
-            router.push('/dashboard'); // Login/Register successful
+            router.push('/book'); // Login/Register successful
         } catch (err) {
             console.error(err);
             setError(t.auth.errors.invalidOtp);
@@ -176,7 +176,7 @@ export default function RegisterPage() {
                 provider: 'google'
             });
 
-            router.push('/dashboard');
+            router.push('/book');
         } catch (err: any) {
             console.error(err);
             if (err.code === 'auth/operation-not-allowed') {

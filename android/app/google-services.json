@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "270018999972",
+    "project_id": "y9kwjw47a2jytykyv2mlbyok4qw47i",
+    "storage_bucket": "y9kwjw47a2jytykyv2mlbyok4qw47i.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:270018999972:android:da4b799b8d44a4c1e85831",
+        "android_client_info": {
+          "package_name": "com.tuktik.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "270018999972-ck0mfmb76fvq08tumj7omjue2co6mhth.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tuktik.app",
+            "certificate_hash": "bd196c2238aa72df186a4ce3eb85afa6d6a347f0"
+          }
+        },
+        {
+          "client_id": "270018999972-16q8ustg23v15jj61coet4adgcpolq1u.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB-MdgUZyOegkeP-mBqhxk6qSQtRB7Y-t4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "270018999972-16q8ustg23v15jj61coet4adgcpolq1u.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

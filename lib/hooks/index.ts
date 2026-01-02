@@ -17,3 +17,6 @@ export type { GeolocationState } from './useGeolocation';
 // Driver tracking hooks (for customer to track driver)
 export { useDriverTracking, useBookingDriverTracking } from './useDriverTracking';
 export type { DriverTrackingState, UseDriverTrackingOptions } from './useDriverTracking';
+
+// Native Push Notifications (Capacitor - Android/iOS)
+export { useNativePush } from './useNativePush';

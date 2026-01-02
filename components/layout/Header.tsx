@@ -25,7 +25,7 @@ export default function Header() {
   // Navigation links (memoized to prevent recreations)
   const navLinks = useMemo(() => [
     { name: t.nav.home, path: '/', icon: 'home' },
-    { name: t.nav.vehicles, path: '/vehicles', icon: 'directions_car' },
+    { name: language === 'th' ? 'จองรถ' : 'Book Now', path: '/book', icon: 'local_taxi' },
     { name: t.nav.services, path: '/services', icon: 'concierge' },
     { name: language === 'th' ? 'เกี่ยวกับเรา' : 'About', path: '/about', icon: 'info' },
     { name: t.nav.contact, path: '/contact', icon: 'support_agent' },
@@ -171,7 +171,7 @@ export default function Header() {
                     {t.auth.login}
                   </Link>
                   <Link
-                    href="/vehicles"
+                    href="/book"
                     className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold rounded-xl shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-indigo-700 transition-all hover:-translate-y-0.5 hover:shadow-xl"
                   >
                     <span className="material-symbols-outlined text-lg">directions_car</span>
@@ -182,7 +182,7 @@ export default function Header() {
                 <div className="flex items-center gap-2">
                   {/* Book Now CTA for logged-in users */}
                   <Link
-                    href="/vehicles"
+                    href="/book"
                     className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold rounded-xl shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-indigo-700 transition-all hover:-translate-y-0.5"
                   >
                     <span className="material-symbols-outlined text-lg">add</span>
@@ -394,7 +394,7 @@ export default function Header() {
             <div className="max-w-7xl mx-auto p-4">
               {/* CTA Button - Mobile */}
               <Link
-                href="/vehicles"
+                href="/book"
                 onClick={() => setMobileMenuOpen(false)}
                 className="flex items-center justify-center gap-2 w-full py-4 mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-blue-500/30"
               >

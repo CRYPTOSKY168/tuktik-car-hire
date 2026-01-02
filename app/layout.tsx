@@ -10,6 +10,7 @@ import { ToastProvider } from '@/components/ui/Toast';
 import ConditionalLayout from "@/components/layout/ConditionalLayout";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
 import NotificationPermissionPrompt from "@/components/notifications/NotificationPermissionPrompt";
+import CapacitorInit from "@/components/capacitor/CapacitorInit";
 
 const fontSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -132,6 +133,9 @@ export default function RootLayout({
                     {/* PWA Components */}
                     <InstallPrompt />
                     <NotificationPermissionPrompt />
+
+                    {/* Capacitor Native Push Notifications */}
+                    <CapacitorInit />
                   </ToastProvider>
                 </NotificationProvider>
               </BookingProvider>

@@ -98,18 +98,18 @@ const nextConfig = {
     // Allows: Firebase, Stripe, Google Maps, Google Fonts, Material Symbols
     const cspDirectives = [
       "default-src 'self'",
-      // Scripts: self + inline (Next.js) + external services
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.firebaseapp.com https://*.googleapis.com https://js.stripe.com https://maps.googleapis.com",
+      // Scripts: self + inline (Next.js) + external services + reCAPTCHA
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.firebaseapp.com https://*.googleapis.com https://apis.google.com https://js.stripe.com https://maps.googleapis.com https://www.google.com https://www.gstatic.com",
       // Styles: self + inline (Tailwind) + Google Fonts
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       // Images: self + data/blob + Firebase Storage + Google Maps
       "img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://firebasestorage.googleapis.com https://*.google.com https://*.googleusercontent.com",
       // Fonts: self + Google Fonts
       "font-src 'self' https://fonts.gstatic.com",
-      // Connections: Firebase, Stripe, Google APIs
-      "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.stripe.com https://maps.googleapis.com wss://*.firebaseio.com",
-      // Frames: Stripe payment iframe
-      "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://*.firebaseapp.com",
+      // Connections: Firebase, Stripe, Google APIs, reCAPTCHA
+      "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.stripe.com https://maps.googleapis.com wss://*.firebaseio.com https://www.google.com",
+      // Frames: Stripe payment iframe + reCAPTCHA
+      "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://*.firebaseapp.com https://www.google.com https://recaptcha.google.com",
       // Workers: self + blob (for PWA service worker)
       "worker-src 'self' blob:",
       // Media: self

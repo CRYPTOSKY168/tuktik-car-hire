@@ -142,7 +142,7 @@ export default function BookingForm() {
       pickupTime: formData.pickupTime,
       tripType: activeTab,
     });
-    router.push('/vehicles');
+    router.push('/book');
   }
 
   useEffect(() => {

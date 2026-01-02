@@ -14,8 +14,9 @@ export default function ConditionalLayout({ children }: { children: React.ReactN
     const isDemoPage = pathname?.startsWith('/vehicles-test');
     const isTestMapsPage = pathname?.startsWith('/test-maps');
     const isDemoDriverPage = pathname?.startsWith('/demo-driver');
+    const isBookPage = pathname === '/book'; // Mobile app style - no header/footer
 
-    if (isAdminPage || isDriverPage || isDemoPage || isTestMapsPage || isDemoDriverPage) {
+    if (isAdminPage || isDriverPage || isDemoPage || isTestMapsPage || isDemoDriverPage || isBookPage) {
         return <>{children}</>;
     }
 

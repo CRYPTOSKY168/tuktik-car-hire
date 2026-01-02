@@ -1,9 +1,9 @@
 # TukTik Car Rental - Project Documentation
 
-> **Last Updated:** 2026-01-02
-> **Version:** 8.5 (Security Hardening)
+> **Last Updated:** 2026-01-03
+> **Version:** 8.8 (Android App + Push Notifications)
 > **Status:** Production
-> **Lines:** ~4050+
+> **Lines:** ~4200+
 
 ---
 
@@ -22,6 +22,10 @@ node scripts/check-logs.js          # ตรวจสอบ bugs ทั้งห
 node scripts/check-logs.js --code   # ตรวจสอบ code issues
 node scripts/monitor-logs.js        # Monitor logs แบบ real-time
 node scripts/monitor-logs.js --dev  # Monitor dev server
+
+# Android App
+cd android && ./gradlew assembleDebug  # Build APK
+node scripts/send-push-test.js "<TOKEN>" "Title" "Body"  # Send push
 
 # Other
 npm run lint         # Run ESLint
@@ -347,6 +351,25 @@ async headers() {
 }
 ```
 
+### ⚠️ CSP Critical Domains (สำคัญมาก!)
+
+เมื่อตั้งค่า Content-Security-Policy ต้องรวม domains เหล่านี้:
+
+| Domain | Directive | ใช้สำหรับ |
+|--------|-----------|----------|
+| `https://apis.google.com` | script-src | **Firebase Auth / Google Sign-in** (สำคัญ!) |
+| `https://*.googleapis.com` | script-src, connect-src | Google APIs |
+| `https://*.firebaseapp.com` | script-src, frame-src | Firebase SDK |
+| `https://js.stripe.com` | script-src, frame-src | Stripe Payment |
+| `https://maps.googleapis.com` | script-src | Google Maps |
+
+```
+❌ ผิด: ไม่มี apis.google.com → Firebase Auth / Google Sign-in จะไม่ทำงาน!
+✅ ถูก: script-src 'self' ... https://apis.google.com https://*.googleapis.com ...
+```
+
+**หมายเหตุ:** `*.googleapis.com` ไม่รวม `apis.google.com` เพราะเป็นคนละ domain!
+
 ### Security Utilities (ใช้ทุก API Route)
 
 | Utility | File | Usage |
@@ -573,7 +596,8 @@ car-rental/
 | Path | File | Description | Auth |
 |------|------|-------------|------|
 | `/` | `page.tsx` | Landing page | No |
-| `/vehicles` | `vehicles/page.tsx` | เลือกรถ + จอง | No |
+| `/book` | `book/page.tsx` | **หน้าจองหลัก** (แผนที่ + Live Mode) ⭐ | Yes |
+| `/vehicles` | `vehicles/page.tsx` | เลือกรถแบบเก่า (🔒 ซ่อน) | No |
 | `/payment` | `payment/page.tsx` | ชำระเงิน | No |
 | `/payment/success` | `payment/success/page.tsx` | ชำระสำเร็จ | No |
 | `/payment/cancel` | `payment/cancel/page.tsx` | ยกเลิกชำระ | No |
@@ -3256,7 +3280,160 @@ main().catch(err => {
 
 ---
 
+## 📱 Android App (Capacitor)
+
+> **Status:** Working ✅ | **Last Updated:** 2026-01-03
+
+### Overview
+
+Android app ใช้ **Capacitor** ในโหมด **WebView URL** โหลดเว็บจาก Production:
+- URL: `https://car-rental-phi-lime.vercel.app`
+- Package: `com.tuktik.app`
+- Push Notifications: Firebase Cloud Messaging (FCM)
+
+### Quick Commands
+
+```bash
+# Build Android APK
+cd android && ./gradlew assembleDebug
+
+# APK Location
+android/app/build/outputs/apk/debug/app-debug.apk
+
+# Send Test Push Notification
+node scripts/send-push-test.js "<FCM_TOKEN>" "หัวข้อ" "ข้อความ"
+```
+
+### Key Files
+
+| File | Description |
+|------|-------------|
+| `capacitor.config.ts` | Capacitor configuration (WebView URL mode) |
+| `android/app/google-services.json` | Firebase config for Android |
+| `android/gradle.properties` | Gradle settings (Thai calendar fix) |
+| `service-account.json` | Firebase Admin credentials (ห้าม commit!) |
+| `components/capacitor/CapacitorInit.tsx` | Push notification initialization |
+| `lib/capacitor/pushNotifications.ts` | Push notification utilities |
+| `scripts/send-push-test.js` | Script ส่ง push notification |
+
+### Thai Buddhist Calendar Fix (สำคัญ!)
+
+**ปัญหา:** Gradle ใช้ปฏิทินพุทธศักราช (พ.ศ. 2568) แทน ค.ศ. 2025 ทำให้ build ไม่ผ่าน
+
+**Error:**
+```
+com.google.common.base.VerifyException at MsDosDateTimeUtils.packDate
+```
+
+**วิธีแก้:** เพิ่มใน `android/gradle.properties`:
+```properties
+org.gradle.jvmargs=-Xmx1536m -Duser.language=en -Duser.country=US
+```
+
+### Push Notification Flow
+
+```
+1. App เปิด → CapacitorInit.tsx ทำงาน
+2. ขอ permission → User กด Allow
+3. ลงทะเบียนกับ FCM → ได้ FCM Token
+4. บันทึก Token ลง Firestore (users/{userId}/fcmToken)
+5. Server ส่ง notification ผ่าน Firebase Admin SDK
+6. App รับและแสดง notification
+```
+
+### Send Push Notification (Script)
+
+```bash
+# ติดตั้ง service-account.json ก่อน (ดาวน์โหลดจาก Firebase Console)
+# Firebase Console → Project Settings → Service accounts → Generate new private key
+
+# ส่ง notification
+node scripts/send-push-test.js "FCM_TOKEN" "🚗 มีงานใหม่!" "สุวรรณภูมิ → พัทยา"
+```
+
+### Troubleshooting
+
+| ปัญหา | วิธีแก้ |
+|-------|--------|
+| Build failed (Thai calendar) | เพิ่ม `-Duser.language=en -Duser.country=US` ใน gradle.properties |
+| FCM Token ไม่ขึ้น | ตรวจสอบว่า deploy code ใหม่ไป Vercel แล้ว + Force stop app |
+| Push ไม่เด้ง | ตรวจสอบ FCM Token ถูกต้อง + service-account.json ใหม่ |
+| invalid_grant error | System time ไม่ตรง → sync เวลากับ NTP |
+
+### Dependencies
+
+```json
+{
+  "@capacitor/core": "^8.0.0",
+  "@capacitor/push-notifications": "^8.0.0",
+  "@capacitor/android": "^8.0.0",
+  "@capacitor/cli": "^8.0.0"
+}
+```
+
+---
+
 ## Changelog
+
+### 2026-01-03 v8.8 - Android App + Push Notifications 📱🔔
+- **Android App (Capacitor)**
+  - Build APK สำเร็จ (WebView URL mode)
+  - แก้ไขปัญหา Thai Buddhist Calendar (พ.ศ. 2568 → ค.ศ.)
+  - เพิ่ม `-Duser.language=en -Duser.country=US` ใน gradle.properties
+- **Push Notifications**
+  - เพิ่ม `CapacitorInit.tsx` สำหรับ initialize push notifications
+  - FCM Token ลงทะเบียนอัตโนมัติเมื่อเปิดแอป
+  - บันทึก Token ลง Firestore
+  - สร้าง `scripts/send-push-test.js` สำหรับส่ง notification
+- **Files created:**
+  - `components/capacitor/CapacitorInit.tsx`
+  - `lib/capacitor/pushNotifications.ts`
+  - `scripts/send-push-test.js`
+  - `android/gradle.properties` (modified)
+
+### 2026-01-03 v8.7 - Production Booking Page 🚀
+- **สร้างหน้า `/book` สำหรับ Production**
+  - Copy จาก `/test-maps1` แต่เป็น **Live Mode เท่านั้น** (ไม่มี Demo toggle)
+  - หน้าจองหลักของแอป (แผนที่ + real-time tracking)
+  - Title: "จองรถ" / "Book a Ride"
+- **อัปเดต Login/Register Redirect**
+  - หลัง login/register → ไป `/book` แทน `/dashboard`
+  - ผู้ใช้เจอหน้าจองทันทีหลัง login
+- **อัปเดต Navigation**
+  - Header: "จองรถ" → `/book` (icon: local_taxi)
+  - Footer: "จองรถ" → `/book`
+  - Landing Page CTAs → `/book`
+  - BookingForm submit → `/book`
+- **ซ่อนหน้าเก่า**
+  - `/vehicles` - ลบ link ออกจาก nav แต่เก็บไฟล์ไว้
+  - `/test-maps1` - เก็บไว้สำหรับทดสอบ (มี Demo/Live toggle)
+- **User Flow ใหม่:**
+  ```
+  Landing Page → กดจอง → Login → /book
+  ```
+- **Files created/modified:**
+  - `app/book/page.tsx` - **NEW** (Live Mode only)
+  - `app/login/page.tsx` - redirect → /book
+  - `app/register/page.tsx` - redirect → /book
+  - `components/layout/Header.tsx` - nav links
+  - `components/layout/Footer.tsx` - nav links
+  - `app/page.tsx` - CTA links
+  - `components/booking/BookingForm.tsx` - submit redirect
+
+### 2026-01-02 v8.6 - CSP Fix + Chat Modal 💬
+- **CSP Fix: Firebase Auth / Google Sign-in**
+  - **ปัญหา:** Login ไม่ทำงานบน production เพราะ CSP บล็อก `apis.google.com`
+  - **สาเหตุ:** `*.googleapis.com` ไม่รวม `apis.google.com` (คนละ domain!)
+  - **แก้ไข:** เพิ่ม `https://apis.google.com` ใน script-src directive
+  - **ไฟล์:** `next.config.js`
+- **Chat Modal (test-maps1)**
+  - เพิ่มปุ่มแชทที่เปิด Contact Modal
+  - ตัวเลือก: โทรหาคนขับ (tel:), LINE
+  - UI แบบ Grab style (สีเขียว #00b14f)
+  - รองรับ 2 ภาษา (TH/EN)
+- **Documentation:**
+  - เพิ่ม "CSP Critical Domains" section ใน CLAUDE.md
+  - บันทึกว่า `apis.google.com` จำเป็นสำหรับ Firebase Auth
 
 ### 2026-01-02 v8.5 - Security Hardening 🔒
 - **Security Headers** (86% score)

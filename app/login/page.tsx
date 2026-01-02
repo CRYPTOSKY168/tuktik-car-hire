@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
     signInWithEmailAndPassword,
     GoogleAuthProvider,
@@ -14,6 +14,13 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { isCapacitor } from '@/lib/capacitor/pushNotifications';
+import {
+    initCapacitorAuth,
+    capacitorSendPhoneVerification,
+    capacitorConfirmPhoneVerification,
+    capacitorSignInWithGoogle
+} from '@/lib/capacitor/phoneAuth';
 
 declare global {
     interface Window {
@@ -35,33 +42,78 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const router = useRouter();
 
+    // Capacitor specific state
+    const [isNative, setIsNative] = useState(false);
+    const [verificationId, setVerificationId] = useState<string | null>(null);
+    const capacitorInitialized = useRef(false);
+
     // Redirect if already logged in
     useEffect(() => {
         if (!authLoading && user) {
-            router.replace('/dashboard');
+            router.replace('/book');
         }
     }, [user, authLoading, router]);
 
-    // Initialize Recaptcha - with proper DOM check
+    // Initialize Capacitor Auth or Recaptcha
     useEffect(() => {
-        // Small delay to ensure DOM is ready
-        const timer = setTimeout(() => {
-            const container = document.getElementById('recaptcha-container');
-            if (auth && container && !window.recaptchaVerifier) {
-                try {
-                    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-                        'size': 'invisible',
-                        'callback': () => { },
-                        'expired-callback': () => { }
-                    });
-                } catch (err) {
-                    console.error('RecaptchaVerifier init error:', err);
-                }
-            }
-        }, 500);
+        const initAuth = async () => {
+            // Check if running in Capacitor
+            const native = isCapacitor();
+            setIsNative(native);
+            console.log('[Login] Running in Capacitor:', native);
 
-        return () => clearTimeout(timer);
+            if (native) {
+                // Initialize Capacitor Firebase Auth
+                if (!capacitorInitialized.current) {
+                    capacitorInitialized.current = true;
+                    const initialized = await initCapacitorAuth();
+                    console.log('[Login] Capacitor Auth initialized:', initialized);
+                }
+            } else {
+                // Initialize Recaptcha for web
+                const timer = setTimeout(() => {
+                    const container = document.getElementById('recaptcha-container');
+                    if (auth && container && !window.recaptchaVerifier) {
+                        try {
+                            window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                                'size': 'invisible',
+                                'callback': () => { },
+                                'expired-callback': () => { }
+                            });
+                        } catch (err) {
+                            console.error('RecaptchaVerifier init error:', err);
+                        }
+                    }
+                }, 500);
+
+                return () => clearTimeout(timer);
+            }
+        };
+
+        initAuth();
     }, []);
+
+    // Helper function to wait for auth sync between Capacitor and web Firebase SDK
+    const waitForAuthSync = async (maxAttempts = 20): Promise<boolean> => {
+        return new Promise((resolve) => {
+            let attempts = 0;
+            const checkAuth = () => {
+                attempts++;
+                console.log(`[Login] Auth sync check #${attempts}, currentUser:`, auth?.currentUser?.uid || 'null');
+
+                if (auth?.currentUser) {
+                    console.log('[Login] Auth synced! User:', auth.currentUser.uid);
+                    resolve(true);
+                } else if (attempts >= maxAttempts) {
+                    console.warn('[Login] Auth sync timeout');
+                    resolve(false);
+                } else {
+                    setTimeout(checkAuth, 200);
+                }
+            };
+            checkAuth();
+        });
+    };
 
     const handleEmailLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -107,14 +159,42 @@ export default function LoginPage() {
         const fullPhoneNumber = `${countryCode}${cleanPhone}`;
 
         try {
-            const appVerifier = window.recaptchaVerifier;
-            if (!appVerifier) {
-                setError('reCAPTCHA not ready. Please refresh and try again.');
-                setLoading(false);
-                return;
+            // Use Capacitor native auth if available
+            if (isNative) {
+                console.log('[Login] Using Capacitor phone auth for:', fullPhoneNumber);
+                const result = await capacitorSendPhoneVerification(fullPhoneNumber);
+
+                if (result.success) {
+                    if (result.autoVerified) {
+                        // Auto-verified by Android (Google Play Services)
+                        // User is already signed in, wait for auth sync then redirect
+                        console.log('[Login] Phone auto-verified, waiting for auth sync...');
+                        await waitForAuthSync();
+                        router.push('/book');
+                        return;
+                    } else if (result.verificationId) {
+                        // Need OTP verification
+                        setVerificationId(result.verificationId);
+                        setConfirmationResult({ native: true }); // Flag to show OTP form
+                    } else {
+                        // Unexpected success without verificationId or autoVerified
+                        console.warn('[Login] Unexpected success response:', result);
+                        setError('Unexpected response from authentication');
+                    }
+                } else {
+                    setError(result.error || 'ไม่สามารถส่ง OTP ได้');
+                }
+            } else {
+                // Use web Firebase SDK with reCAPTCHA
+                const appVerifier = window.recaptchaVerifier;
+                if (!appVerifier) {
+                    setError('reCAPTCHA not ready. Please refresh and try again.');
+                    setLoading(false);
+                    return;
+                }
+                const result = await signInWithPhoneNumber(auth, fullPhoneNumber, appVerifier);
+                setConfirmationResult(result);
             }
-            const result = await signInWithPhoneNumber(auth, fullPhoneNumber, appVerifier);
-            setConfirmationResult(result);
         } catch (err: any) {
             console.error(err);
             if (err.code === 'auth/operation-not-allowed') {
@@ -130,8 +210,8 @@ export default function LoginPage() {
             } else {
                 setError(`${t.common.error} (${err.code}): ${err.message}`);
             }
-            // Clear and recreate recaptcha on error
-            if (window.recaptchaVerifier) {
+            // Clear and recreate recaptcha on error (web only)
+            if (!isNative && window.recaptchaVerifier) {
                 try {
                     window.recaptchaVerifier.clear();
                     window.recaptchaVerifier = undefined;
@@ -148,8 +228,23 @@ export default function LoginPage() {
         setError('');
 
         try {
-            await confirmationResult.confirm(otp);
-            router.push('/dashboard');
+            // Use Capacitor native verification if available
+            if (isNative && verificationId) {
+                console.log('[Login] Using Capacitor to confirm OTP');
+                const result = await capacitorConfirmPhoneVerification(verificationId, otp);
+
+                if (result.success) {
+                    console.log('[Login] OTP verified, waiting for auth sync...');
+                    await waitForAuthSync();
+                    router.push('/book');
+                } else {
+                    setError(result.error || t.auth.errors.invalidOtp);
+                }
+            } else {
+                // Use web Firebase SDK
+                await confirmationResult.confirm(otp);
+                router.push('/book');
+            }
         } catch (err) {
             console.error(err);
             setError(t.auth.errors.invalidOtp);
@@ -161,14 +256,30 @@ export default function LoginPage() {
     const handleGoogleLogin = async () => {
         setLoading(true);
         setError('');
-        const provider = new GoogleAuthProvider();
-        if (!auth) return;
 
         try {
-            await signInWithPopup(auth, provider);
-            router.push('/dashboard');
+            // Use native Google Sign-in for Capacitor
+            if (isNative) {
+                console.log('[Login] Using Capacitor Google Sign-in');
+                const result = await capacitorSignInWithGoogle();
+
+                if (result.success) {
+                    console.log('[Login] Capacitor Google Sign-in successful, waiting for auth sync...');
+                    await waitForAuthSync();
+                    router.push('/book');
+                } else {
+                    setError(result.error || 'Google Sign-in failed');
+                }
+            } else {
+                // Use web popup for browser
+                const provider = new GoogleAuthProvider();
+                if (!auth) return;
+
+                await signInWithPopup(auth, provider);
+                router.push('/book');
+            }
         } catch (err: any) {
-            console.error(err);
+            console.error('[Login] Google Sign-in error:', err);
             if (err.code === 'auth/operation-not-allowed') {
                 setError('Google Sign-In is disabled.');
             } else if (err.code === 'auth/popup-closed-by-user') {
@@ -198,7 +309,8 @@ export default function LoginPage() {
                     <p className="text-slate-500 dark:text-slate-400">{t.home.booking.title}</p>
                 </div>
 
-                <div id="recaptcha-container"></div>
+                {/* reCAPTCHA container - only needed for web, hidden in Capacitor */}
+                {!isNative && <div id="recaptcha-container"></div>}
 
                 {error && (
                     <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6 text-sm flex items-center gap-2">
@@ -286,7 +398,7 @@ export default function LoginPage() {
                                             required
                                         />
                                     </div>
-                                    <p className="text-xs text-slate-400 mt-1">Recaptcha verification required</p>
+                                    {!isNative && <p className="text-xs text-slate-400 mt-1">Recaptcha verification required</p>}
                                 </div>
                                 <button
                                     type="submit"

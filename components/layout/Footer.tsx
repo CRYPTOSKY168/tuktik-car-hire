@@ -54,7 +54,7 @@ export default function Footer() {
             <ul className="space-y-3">
               {[
                 { label: t.footer.aboutUs, href: '/about' },
-                { label: t.footer.ourFleet, href: '/vehicles' },
+                { label: language === 'th' ? 'จองรถ' : 'Book Now', href: '/book' },
                 { label: t.nav.services, href: '/services' },
                 { label: t.footer.blog, href: '#' },
               ].map((link, i) => (

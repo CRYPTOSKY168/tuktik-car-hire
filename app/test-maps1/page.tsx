@@ -309,6 +309,9 @@ export default function TestMaps1Page() {
     const [paymentError, setPaymentError] = useState<string | null>(null);
     const [pendingBookingId, setPendingBookingId] = useState<string | null>(null);
 
+    // === Chat Modal State ===
+    const [showChatModal, setShowChatModal] = useState(false);
+
     // Tip options
     const tipOptions = [0, 20, 50, 100];
 
@@ -2414,7 +2417,10 @@ export default function TestMaps1Page() {
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                                             </svg>
                                         </a>
-                                        <button className="w-11 h-11 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center shadow-sm active:scale-95 transition-transform hover:bg-gray-200">
+                                        <button
+                                            onClick={() => setShowChatModal(true)}
+                                            className="w-11 h-11 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center shadow-sm active:scale-95 transition-transform hover:bg-gray-200"
+                                        >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                                             </svg>
@@ -3276,6 +3282,118 @@ export default function TestMaps1Page() {
                                     )}
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Chat Modal - Contact Options */}
+            {showChatModal && (
+                <div className="fixed inset-0 z-[100]">
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        onClick={() => setShowChatModal(false)}
+                    />
+
+                    <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl animate-slide-up">
+                        {/* Handle */}
+                        <div className="flex justify-center py-3">
+                            <div className="w-10 h-1 bg-gray-300 rounded-full" />
+                        </div>
+
+                        <div className="px-5 pb-[max(24px,env(safe-area-inset-bottom))]">
+                            {/* Header */}
+                            <div className="text-center mb-6">
+                                <div className="w-16 h-16 bg-[#00b14f]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <svg className="w-8 h-8 text-[#00b14f]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                    </svg>
+                                </div>
+                                <h2 className="text-xl font-bold text-gray-900">
+                                    {language === 'th' ? 'ติดต่อคนขับ' : 'Contact Driver'}
+                                </h2>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    {language === 'th' ? 'เลือกช่องทางติดต่อ' : 'Choose contact method'}
+                                </p>
+                            </div>
+
+                            {/* Driver Info */}
+                            <div className="bg-gray-50 rounded-2xl p-4 mb-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center text-2xl overflow-hidden">
+                                        {assignedDriver?.photo ? (
+                                            <img src={assignedDriver.photo} alt="" className="w-full h-full object-cover" />
+                                        ) : (
+                                            '👨‍✈️'
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-bold text-gray-900">
+                                            {mode === 'live' && assignedDriver ? assignedDriver.name : MOCK_DRIVER.name}
+                                        </p>
+                                        <p className="text-sm text-gray-500">
+                                            {mode === 'live' && assignedDriver ? assignedDriver.vehiclePlate : MOCK_DRIVER.vehiclePlate}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Contact Options */}
+                            <div className="space-y-3 mb-6">
+                                {/* Phone Call */}
+                                <a
+                                    href={`tel:${mode === 'live' && assignedDriver ? assignedDriver.phone : MOCK_DRIVER.phone}`}
+                                    className="w-full p-4 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl flex items-center gap-4 transition-all active:scale-[0.98]"
+                                >
+                                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                        </svg>
+                                    </div>
+                                    <div className="flex-1 text-left">
+                                        <p className="font-bold text-lg">
+                                            {language === 'th' ? 'โทรหาคนขับ' : 'Call Driver'}
+                                        </p>
+                                        <p className="text-white/80 text-sm">
+                                            {mode === 'live' && assignedDriver ? assignedDriver.phone : MOCK_DRIVER.phone}
+                                        </p>
+                                    </div>
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </a>
+
+                                {/* LINE */}
+                                <a
+                                    href="https://line.me/R/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full p-4 bg-white border-2 border-gray-200 hover:bg-gray-50 text-gray-900 rounded-2xl flex items-center gap-4 transition-all active:scale-[0.98]"
+                                >
+                                    <div className="w-12 h-12 bg-[#00C300]/10 rounded-xl flex items-center justify-center">
+                                        <svg className="w-7 h-7" viewBox="0 0 24 24" fill="#00C300">
+                                            <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/>
+                                        </svg>
+                                    </div>
+                                    <div className="flex-1 text-left">
+                                        <p className="font-semibold">LINE</p>
+                                        <p className="text-gray-500 text-sm">
+                                            {language === 'th' ? 'แชทผ่าน LINE' : 'Chat via LINE'}
+                                        </p>
+                                    </div>
+                                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                </a>
+                            </div>
+
+                            {/* Close Button */}
+                            <button
+                                onClick={() => setShowChatModal(false)}
+                                className="w-full h-14 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-semibold transition-all active:scale-[0.98]"
+                            >
+                                {language === 'th' ? 'ปิด' : 'Close'}
+                            </button>
                         </div>
                     </div>
                 </div>
