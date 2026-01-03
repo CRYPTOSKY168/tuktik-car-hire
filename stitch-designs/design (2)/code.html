@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TukTik Driver - Navigation</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Fonts: Inter for English, Noto Sans Thai for Thai support -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Noto+Sans+Thai:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#00b14f", /* Grab Green as requested */
+                        "secondary": "#FFB300", /* Amber for warnings */
+                        "background-light": "#f5f8f7",
+                        "background-dark": "#0f2318",
+                        "dark-surface": "#1E1E1E",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "Noto Sans Thai", "sans-serif"],
+                        "body": ["Inter", "Noto Sans Thai", "sans-serif"],
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem", 
+                        "lg": "1.5rem", 
+                        "xl": "2rem", 
+                        "2xl": "2.5rem",
+                        "full": "9999px"
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.1)',
+                        'glow': '0 0 15px rgba(0, 178, 80, 0.3)',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar hiding for cleaner mobile look */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        /* Perspective for 3D map effect simulation */
+        .map-perspective {
+            transform: perspective(1000px) rotateX(20deg) scale(1.2);
+            transform-origin: center 80%;
+        }
+
+        /* Pulsing animation for Live GPS */
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(0, 177, 79, 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(0, 177, 79, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 177, 79, 0); }
+        }
+        .pulse-dot {
+            animation: pulse-green 2s infinite;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-white h-screen overflow-hidden flex flex-col antialiased">
+<!-- Main Container -->
+<div class="relative flex-1 w-full h-full flex flex-col group/design-root overflow-hidden">
+<!-- MAP LAYER (Background) -->
+<div class="absolute inset-0 z-0 overflow-hidden bg-slate-200">
+<!-- Simulated Map Image with 3D perspective -->
+<div class="w-full h-full bg-cover bg-center map-perspective transition-transform duration-700" data-alt="3D map view of Bangkok city streets with navigation route" data-location="Bangkok" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBZ1qOu5G35nnXIbg50y1lEhrfhzRNY4fSz_osfq-4VRFHGhCYg_sFfSsGB_CYB5tJmhl0Mem-4tf028VjFdKFGMOhid0LWwDqah9m8_Z9hulKW4WZsSdNDbDDY4NtUtVMyXVLpYg2d7WMVick8BfOrZnoxEf1wtYgXR5TLGj0zYTUZ_P6VfZ2YgNg0vAjeHEWiFiqR2MIXS8otnoA_bDUnU1FA64NSmfHCklXxmlMKQLeI9vmzQS3wGSTQ_hm3gr1N7Xzem7tnejDw"); filter: brightness(1.1) contrast(0.9);'>
+<!-- Simulated Route Line (SVG Overlay) -->
+<svg class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full h-full opacity-80 pointer-events-none" fill="none" viewbox="0 0 400 800" xmlns="http://www.w3.org/2000/svg">
+<path d="M200 800 C 200 600, 250 500, 220 400 C 190 300, 120 250, 150 150 L 150 100" stroke="#3b82f6" stroke-linecap="round" stroke-linejoin="round" stroke-width="12"></path>
+<path d="M200 800 C 200 600, 250 500, 220 400 C 190 300, 120 250, 150 150 L 150 100" stroke="#60a5fa" stroke-linecap="round" stroke-linejoin="round" stroke-width="6"></path>
+</svg>
+<!-- Pickup Pin (Green) -->
+<div class="absolute top-[18%] left-[32%] transform -translate-x-1/2 -translate-y-full">
+<div class="flex flex-col items-center">
+<div class="bg-white px-2 py-1 rounded-lg shadow-md mb-1 whitespace-nowrap text-xs font-bold text-slate-800">Terminal 21</div>
+<span class="material-symbols-outlined text-primary text-5xl drop-shadow-lg" style="font-variation-settings: 'FILL' 1;">location_on</span>
+</div>
+</div>
+<!-- Driver/Car Icon (Center Screen) -->
+<div class="absolute top-[60%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
+<div class="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg border-4 border-white">
+<span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">directions_car</span>
+</div>
+</div>
+</div>
+<!-- Vignette for better UI contrast -->
+<div class="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/5 pointer-events-none"></div>
+</div>
+<!-- TOP UI LAYER (Floating) -->
+<div class="relative z-10 flex flex-col p-4 w-full pointer-events-none">
+<!-- Header Row: GPS Status & Menu -->
+<div class="flex justify-between items-start mb-4">
+<!-- Empty div for spacing/menu if needed later -->
+<div></div>
+<!-- GPS Status Pill -->
+<div class="pointer-events-auto bg-white/90 dark:bg-zinc-800/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 border border-white/50 dark:border-zinc-700">
+<div class="w-2.5 h-2.5 bg-primary rounded-full pulse-dot"></div>
+<span class="text-xs font-bold tracking-wide text-slate-700 dark:text-slate-200">LIVE GPS</span>
+</div>
+</div>
+<!-- Navigation Instruction Card -->
+<div class="pointer-events-auto bg-green-700 text-white rounded-2xl shadow-lg p-1 flex items-stretch min-h-[90px] overflow-hidden max-w-md mx-auto w-full">
+<!-- Turn Icon Section -->
+<div class="bg-green-800 w-20 flex flex-col items-center justify-center rounded-xl shrink-0">
+<span class="material-symbols-outlined text-4xl mb-1">turn_right</span>
+<span class="text-xs font-medium text-green-200">100 m</span>
+</div>
+<!-- Instruction Text Section -->
+<div class="flex-1 flex flex-col justify-center px-4 py-2">
+<div class="flex items-center gap-2 mb-1">
+<span class="text-xs font-medium bg-green-600 px-2 py-0.5 rounded text-green-100">Next Turn</span>
+</div>
+<h2 class="text-lg font-bold leading-tight mb-1">เลี้ยวขวาที่แยกอโศก</h2>
+<p class="text-sm text-green-100 opacity-90">Turn right at Asok Intersection</p>
+</div>
+</div>
+<!-- Secondary Info Bubble (ETA) -->
+<div class="flex justify-center mt-2">
+<div class="pointer-events-auto bg-white dark:bg-zinc-800 text-slate-800 dark:text-white rounded-full shadow-lg px-6 py-2 flex items-center gap-3 border-2 border-primary">
+<span class="font-bold text-lg">4 <span class="text-sm font-normal text-slate-500 dark:text-slate-400">min</span></span>
+<div class="w-1 h-1 bg-slate-300 rounded-full"></div>
+<span class="font-bold text-lg">1.2 <span class="text-sm font-normal text-slate-500 dark:text-slate-400">km</span></span>
+</div>
+</div>
+</div>
+<!-- Spacer to push bottom panel down -->
+<div class="flex-1 pointer-events-none"></div>
+<!-- BOTTOM UI LAYER (Sheet) -->
+<div class="relative z-20 w-full pointer-events-auto">
+<!-- Map Controls (Zoom/Compass) - Floating just above panel -->
+<div class="absolute -top-16 right-4 flex flex-col gap-3">
+<button class="w-10 h-10 bg-white dark:bg-zinc-800 rounded-full shadow-md flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors">
+<span class="material-symbols-outlined text-[20px]">explore</span>
+</button>
+<button class="w-10 h-10 bg-white dark:bg-zinc-800 rounded-full shadow-md flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors">
+<span class="material-symbols-outlined text-[20px]">my_location</span>
+</button>
+</div>
+<!-- Customer & Action Panel -->
+<div class="bg-white dark:bg-zinc-900 rounded-t-[2rem] shadow-[0_-5px_25px_rgba(0,0,0,0.15)] pb-safe">
+<!-- Drag Handle -->
+<div class="w-full flex justify-center pt-3 pb-1">
+<div class="w-12 h-1.5 bg-slate-200 dark:bg-zinc-700 rounded-full"></div>
+</div>
+<!-- Content Container -->
+<div class="px-5 pt-2 pb-6 flex flex-col gap-5">
+<!-- Status Header (Small) -->
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<span class="text-sm font-semibold text-primary uppercase tracking-wide">Picking up</span>
+</div>
+<!-- Customer Info Row -->
+<div class="flex items-center gap-4">
+<!-- Avatar -->
+<div class="relative">
+<div class="w-14 h-14 rounded-full bg-slate-100 bg-cover bg-center border-2 border-white dark:border-zinc-800 shadow-sm" data-alt="Customer profile picture" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBfnACdU8wQKQgVovR_0jnEj4Ef_So04D4VF2IhAjWntPD6AvwzdxwkzHMdRZ5KWYFcEFDlm5EEA6NzXIYz8T1brtBhBtRSlWODD9UtVlkSSpzgN1ibFUeafdjiqhAEvmIUFxg1vtDdke93rE1GdDqo5Bl13IGkM0vIlNNh8yc-Map6SjDSw8ip5v0V9I_LjA1mTPeOngkjQrzy9xo501Agle0sz9W1brxqecS1J2BW-CA09RTa6AxYSGdNulIt5wGygGWJpyP3tYFw");'>
+</div>
+<div class="absolute -bottom-1 -right-1 bg-yellow-400 text-black text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-white flex items-center gap-0.5">
+                                4.9 <span class="material-symbols-outlined text-[10px]" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+</div>
+<!-- Details -->
+<div class="flex-1 flex flex-col">
+<h3 class="text-lg font-bold text-slate-900 dark:text-white line-clamp-1">Somchai J.</h3>
+<div class="flex items-start gap-1 mt-0.5">
+<span class="material-symbols-outlined text-slate-400 text-sm mt-0.5 shrink-0">location_on</span>
+<p class="text-sm text-slate-600 dark:text-slate-400 leading-tight">Terminal 21 Asok, Gate 2<br/><span class="text-xs text-slate-400">Sukhumvit Road</span></p>
+</div>
+</div>
+<!-- Call Button -->
+<button class="shrink-0 w-11 h-11 rounded-full bg-green-50 dark:bg-green-900/30 text-primary flex items-center justify-center hover:bg-green-100 transition-colors">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">call</span>
+</button>
+<button class="shrink-0 w-11 h-11 rounded-full bg-slate-50 dark:bg-zinc-800 text-slate-600 dark:text-slate-300 flex items-center justify-center hover:bg-slate-100 transition-colors">
+<span class="material-symbols-outlined">chat_bubble</span>
+</button>
+</div>
+<!-- Primary Action Slider/Button -->
+<div class="w-full">
+<button class="w-full relative group overflow-hidden rounded-full h-14 bg-primary hover:bg-green-600 transition-all active:scale-[0.98] shadow-lg shadow-green-600/30 flex items-center justify-between pl-2 pr-6">
+<!-- Icon Circle -->
+<div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white backdrop-blur-sm">
+<span class="material-symbols-outlined">arrow_forward</span>
+</div>
+<!-- Text -->
+<span class="flex-1 text-center text-white text-lg font-bold tracking-wide">ถึงจุดรับแล้ว (Arrived)</span>
+<!-- Hidden spacer to balance icon -->
+<div class="w-10"></div>
+<!-- Shimmer Effect -->
+<div class="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent z-0 w-full h-full skew-x-12"></div>
+</button>
+</div>
+</div>
+<!-- Bottom Navigation Bar (Within the sheet context for this specific driver view) -->
+<div class="border-t border-slate-100 dark:border-zinc-800 px-6 py-3 flex justify-between items-center bg-white dark:bg-zinc-900">
+<button class="flex flex-col items-center gap-1 text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-2xl">home</span>
+<span class="text-[10px] font-medium">Home</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-primary">
+<div class="w-12 h-12 -mt-8 bg-white dark:bg-zinc-800 border-4 border-slate-50 dark:border-zinc-900 rounded-full flex items-center justify-center shadow-lg text-primary">
+<span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;">near_me</span>
+</div>
+</button>
+<button class="flex flex-col items-center gap-1 text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-2xl">person</span>
+<span class="text-[10px] font-medium">Profile</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</body></html>

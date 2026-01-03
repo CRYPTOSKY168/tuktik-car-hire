@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Trip History List</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#00b250",
+                        "background-light": "#f5f8f7",
+                        "background-dark": "#0f2318",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar hiding for clean UI */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-[#101814] dark:text-gray-100 font-display min-h-screen flex flex-col relative overflow-x-hidden group/design-root">
+<!-- Top App Bar -->
+<header class="flex items-center justify-center bg-white dark:bg-[#1a2e22] p-4 pb-2 pt-6 shadow-[0_1px_2px_rgba(0,0,0,0.03)] z-20">
+<h2 class="text-[#101814] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">Trip History</h2>
+</header>
+<!-- Sticky Header: Earnings & Filters -->
+<div class="sticky top-0 z-10 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md transition-colors duration-200">
+<!-- Total Earnings -->
+<div class="px-5 py-4">
+<p class="text-[#5e8d73] dark:text-gray-400 text-sm font-medium leading-normal mb-1">Total Earnings</p>
+<h2 class="text-[#101814] dark:text-white tracking-tight text-[32px] font-bold leading-tight">฿4,520.00</h2>
+</div>
+<!-- Filter Chips -->
+<div class="flex gap-3 px-5 pb-4 overflow-x-auto no-scrollbar items-center">
+<!-- Active Filter -->
+<button class="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full bg-primary pl-5 pr-5 shadow-lg shadow-primary/20 transition-all active:scale-95">
+<p class="text-white text-sm font-semibold leading-normal">Today</p>
+</button>
+<!-- Inactive Filters -->
+<button class="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full bg-white dark:bg-[#1a2e22] pl-5 pr-5 border border-gray-100 dark:border-gray-800 transition-all active:scale-95 hover:bg-gray-50 dark:hover:bg-[#233b2e]">
+<p class="text-[#101814] dark:text-gray-300 text-sm font-medium leading-normal">This Week</p>
+</button>
+<button class="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full bg-white dark:bg-[#1a2e22] pl-5 pr-5 border border-gray-100 dark:border-gray-800 transition-all active:scale-95 hover:bg-gray-50 dark:hover:bg-[#233b2e]">
+<p class="text-[#101814] dark:text-gray-300 text-sm font-medium leading-normal">This Month</p>
+</button>
+<button class="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full bg-white dark:bg-[#1a2e22] pl-5 pr-5 border border-gray-100 dark:border-gray-800 transition-all active:scale-95 hover:bg-gray-50 dark:hover:bg-[#233b2e]">
+<p class="text-[#101814] dark:text-gray-300 text-sm font-medium leading-normal">All</p>
+</button>
+</div>
+</div>
+<!-- Scrollable Trip List -->
+<div class="flex flex-col gap-4 px-4 pb-28 pt-2">
+<!-- Card 1: Completed -->
+<div class="flex flex-col gap-3 rounded-[1.5rem] bg-white dark:bg-[#1a2e22] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.04)] active:scale-[0.99] transition-transform duration-200">
+<!-- Header Row -->
+<div class="flex items-center justify-between">
+<span class="text-xs font-medium text-gray-400 dark:text-gray-500 tracking-wide">ID: #829102</span>
+<span class="text-xs font-semibold text-gray-500 dark:text-gray-400">Today, 14:30</span>
+</div>
+<!-- Route Visual -->
+<div class="flex gap-4">
+<!-- Timeline -->
+<div class="flex flex-col items-center pt-1.5 w-5 shrink-0">
+<div class="h-3 w-3 rounded-full border-2 border-primary bg-white dark:bg-[#1a2e22] z-10"></div>
+<div class="w-[2px] h-full bg-gray-100 dark:bg-gray-700 -my-1"></div>
+<span class="material-symbols-outlined text-primary text-[20px] z-10 bg-white dark:bg-[#1a2e22] rounded-full">location_on</span>
+</div>
+<!-- Addresses -->
+<div class="flex flex-col gap-5 flex-1 pt-0.5">
+<div class="flex flex-col gap-0.5">
+<p class="text-[#101814] dark:text-white text-sm font-medium leading-tight">Central World</p>
+<p class="text-gray-400 dark:text-gray-500 text-xs">999/9 Rama I Rd, Pathum Wan</p>
+</div>
+<div class="flex flex-col gap-0.5">
+<p class="text-[#101814] dark:text-white text-sm font-medium leading-tight">Suvarnabhumi Airport</p>
+<p class="text-gray-400 dark:text-gray-500 text-xs">Departure Level 4</p>
+</div>
+</div>
+</div>
+<div class="w-full h-px bg-gray-50 dark:bg-gray-800 my-1"></div>
+<!-- Footer Row -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5 bg-primary/10 dark:bg-primary/20 px-3 py-1.5 rounded-full">
+<span class="material-symbols-outlined text-primary text-[16px] font-bold">check</span>
+<span class="text-primary text-xs font-bold uppercase tracking-wide">Completed</span>
+</div>
+<p class="text-primary text-xl font-bold leading-tight">฿450.00</p>
+</div>
+</div>
+<!-- Card 2: Cancelled -->
+<div class="flex flex-col gap-3 rounded-[1.5rem] bg-white dark:bg-[#1a2e22] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.04)] opacity-90 active:scale-[0.99] transition-transform duration-200">
+<!-- Header Row -->
+<div class="flex items-center justify-between">
+<span class="text-xs font-medium text-gray-400 dark:text-gray-500 tracking-wide">ID: #828841</span>
+<span class="text-xs font-semibold text-gray-500 dark:text-gray-400">Today, 10:15</span>
+</div>
+<!-- Route Visual -->
+<div class="flex gap-4">
+<div class="flex flex-col items-center pt-1.5 w-5 shrink-0">
+<div class="h-3 w-3 rounded-full border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a2e22] z-10"></div>
+<div class="w-[2px] h-full bg-gray-100 dark:bg-gray-700 -my-1"></div>
+<span class="material-symbols-outlined text-gray-300 dark:text-gray-600 text-[20px] z-10 bg-white dark:bg-[#1a2e22] rounded-full">location_on</span>
+</div>
+<div class="flex flex-col gap-5 flex-1 pt-0.5">
+<div class="flex flex-col gap-0.5">
+<p class="text-gray-500 dark:text-gray-400 text-sm font-medium leading-tight">Siam Paragon</p>
+<p class="text-gray-400 dark:text-gray-600 text-xs">Rama I Rd, Pathum Wan</p>
+</div>
+<div class="flex flex-col gap-0.5">
+<p class="text-gray-500 dark:text-gray-400 text-sm font-medium leading-tight">MBK Center</p>
+<p class="text-gray-400 dark:text-gray-600 text-xs">Phayathai Rd, Pathum Wan</p>
+</div>
+</div>
+</div>
+<div class="w-full h-px bg-gray-50 dark:bg-gray-800 my-1"></div>
+<!-- Footer Row -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5 bg-[#FFB300]/10 px-3 py-1.5 rounded-full">
+<span class="material-symbols-outlined text-[#FFB300] text-[16px] font-bold">close</span>
+<span class="text-[#FFB300] text-xs font-bold uppercase tracking-wide">Cancelled</span>
+</div>
+<p class="text-gray-400 dark:text-gray-600 text-xl font-bold leading-tight line-through">฿120.00</p>
+</div>
+</div>
+<!-- Card 3: Completed (Thai) -->
+<div class="flex flex-col gap-3 rounded-[1.5rem] bg-white dark:bg-[#1a2e22] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.04)] active:scale-[0.99] transition-transform duration-200">
+<div class="flex items-center justify-between">
+<span class="text-xs font-medium text-gray-400 dark:text-gray-500 tracking-wide">ID: #828119</span>
+<span class="text-xs font-semibold text-gray-500 dark:text-gray-400">Yesterday, 18:45</span>
+</div>
+<div class="flex gap-4">
+<div class="flex flex-col items-center pt-1.5 w-5 shrink-0">
+<div class="h-3 w-3 rounded-full border-2 border-primary bg-white dark:bg-[#1a2e22] z-10"></div>
+<div class="w-[2px] h-full bg-gray-100 dark:bg-gray-700 -my-1"></div>
+<span class="material-symbols-outlined text-primary text-[20px] z-10 bg-white dark:bg-[#1a2e22] rounded-full">location_on</span>
+</div>
+<div class="flex flex-col gap-5 flex-1 pt-0.5">
+<div class="flex flex-col gap-0.5">
+<p class="text-[#101814] dark:text-white text-sm font-medium leading-tight">Terminal 21 Asok</p>
+<p class="text-gray-400 dark:text-gray-500 text-xs">Sukhumvit Soi 19, Watthana</p>
+</div>
+<div class="flex flex-col gap-0.5">
+<p class="text-[#101814] dark:text-white text-sm font-medium leading-tight">EmQuartier</p>
+<p class="text-gray-400 dark:text-gray-500 text-xs">693 Sukhumvit Road</p>
+</div>
+</div>
+</div>
+<div class="w-full h-px bg-gray-50 dark:bg-gray-800 my-1"></div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5 bg-primary/10 dark:bg-primary/20 px-3 py-1.5 rounded-full">
+<span class="material-symbols-outlined text-primary text-[16px] font-bold">check</span>
+<span class="text-primary text-xs font-bold uppercase tracking-wide">Completed</span>
+</div>
+<p class="text-primary text-xl font-bold leading-tight">฿85.00</p>
+</div>
+</div>
+</div>
+<!-- Bottom Navigation -->
+<div class="fixed bottom-0 left-0 right-0 h-20 bg-white dark:bg-[#1a2e22] border-t border-gray-100 dark:border-gray-800 flex justify-around items-center px-2 z-50">
+<button class="flex flex-col items-center justify-center w-full h-full gap-1 group">
+<span class="material-symbols-outlined text-gray-400 group-hover:text-primary transition-colors">home</span>
+<span class="text-[10px] font-medium text-gray-400 group-hover:text-primary transition-colors">Home</span>
+</button>
+<button class="flex flex-col items-center justify-center w-full h-full gap-1">
+<span class="material-symbols-outlined text-primary fill-1">assignment</span>
+<span class="text-[10px] font-medium text-primary">History</span>
+</button>
+<button class="flex flex-col items-center justify-center w-full h-full gap-1 group">
+<span class="material-symbols-outlined text-gray-400 group-hover:text-primary transition-colors">person</span>
+<span class="text-[10px] font-medium text-gray-400 group-hover:text-primary transition-colors">Profile</span>
+</button>
+</div>
+</body></html>

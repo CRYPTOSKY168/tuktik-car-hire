@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>New Job Alert Modal</title>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#00b250",
+                        "secondary": "#FFB300",
+                        "background-light": "#f5f8f7",
+                        "background-dark": "#0f2318",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem", 
+                        "lg": "2rem", 
+                        "xl": "3rem", 
+                        "full": "9999px"
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                },
+            },
+        }
+    </script>
+<style>.material-symbols-outlined {
+    font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24
+    }
+/* Custom map pattern for background */
+.bg-map-pattern {
+    background-color: #e5e7eb;
+    background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuDGqja4w4AOCtI592RVNlEWMO-7AvxX08zb3-EuEVBjbqjvQgHiB_MAofEhmcXn5OBXo2Cj2YgsSUTITQYzY_3NFD74BHeEpAM2jl_dpJ2k-wrZIx3kPoUYPzh1noQIkH0Z4KXYCb_dzSjQkQA0rmUJzu-jYrnOdin27Pzleyp6yVE5cYthKQDXgm5BGbV6qnKrrgaDEuSDorPYJp0r9rV3Qg07zkoCNc9nJ-uQrxY8kqYrRj3nwH1s3yqaQZdiDb3_-8aA9DSAm-p5)
+    }</style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-display text-gray-900 bg-background-light dark:bg-background-dark overflow-hidden selection:bg-primary/20">
+<div class="relative flex h-screen w-full flex-col overflow-hidden group/design-root">
+<!-- Main App Background (Simulated Map) -->
+<div class="absolute inset-0 z-0 w-full h-full bg-cover bg-center" data-alt="Map view of Bangkok city streets with traffic" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBXIS7GGQrDVi89kQp18uBZgy6tOX3YTVcKYyOgJ5ciRNBfI8JyUzljPGxA9dAXxhROZ4IjJi2FDVQ4u3vfZIgC7YTtxkpL8d5RkZq-iRxkRUWET3sobrQRNadBNO1BtEjL8w1fT5VcWXegyjlkTCCxahYgA6-Bq1Ry1VJ3eb45EZ5H8wv5CtxQw16ad7n9DK06pnoFaKn0qnFpC1Js_wrdwu4bJKR1UejScki1QwOnaYwsmN86vsQduOcGa916PSGkHo8qluC7-a14");'>
+<!-- Simulated Interface Elements on Map -->
+<div class="absolute top-12 left-4 right-4 flex justify-between items-start">
+<div class="bg-white/90 backdrop-blur shadow-sm p-2 rounded-full h-10 w-10 flex items-center justify-center">
+<span class="material-symbols-outlined text-gray-700">menu</span>
+</div>
+<div class="bg-white/90 backdrop-blur shadow-sm px-4 h-10 rounded-full flex items-center justify-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="text-sm font-semibold text-gray-800">Online</span>
+</div>
+</div>
+</div>
+<!-- Dimmed Backdrop -->
+<div class="absolute inset-0 bg-[#0f2318]/70 z-20 backdrop-blur-[2px]"></div>
+<!-- Bottom Navigation Bar (Visible behind backdrop effect, though technically covered by overlay z-index logic in a real app, here we simulate the layer stack) -->
+<div class="absolute bottom-0 w-full z-10 opacity-30 pointer-events-none">
+<div class="flex gap-2 border-t border-[#f0f5f2] bg-white px-4 pb-6 pt-2">
+<a class="flex flex-1 flex-col items-center justify-end gap-1 rounded-full text-primary" href="#">
+<div class="text-primary flex h-8 items-center justify-center">
+<span class="material-symbols-outlined text-[28px]">home</span>
+</div>
+</a>
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-gray-400" href="#">
+<div class="text-gray-400 flex h-8 items-center justify-center">
+<span class="material-symbols-outlined text-[28px]">assignment</span>
+</div>
+</a>
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-gray-400" href="#">
+<div class="text-gray-400 flex h-8 items-center justify-center">
+<span class="material-symbols-outlined text-[28px]">person</span>
+</div>
+</a>
+</div>
+</div>
+<!-- Bottom Sheet Modal -->
+<div class="absolute bottom-0 left-0 right-0 z-30 flex flex-col justify-end">
+<!-- Modal Container -->
+<div class="w-full bg-white dark:bg-[#12231a] rounded-t-[32px] shadow-[0_-8px_30px_rgba(0,0,0,0.2)] pb-safe relative overflow-hidden transform transition-transform duration-300 ease-out translate-y-0">
+<!-- Decorative Top Highlight -->
+<div class="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent"></div>
+<!-- Handle -->
+<div class="flex justify-center pt-3 pb-1 w-full" data-component="BottomSheetHandle">
+<div class="h-1.5 w-12 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+</div>
+<!-- Modal Content -->
+<div class="px-5 pt-2 pb-8 flex flex-col gap-5">
+<!-- Header -->
+<div class="flex items-center justify-between" data-component="HeadlineText">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-secondary text-[28px] animate-bounce">notifications_active</span>
+<h2 class="text-[#101814] dark:text-white tracking-tight text-[26px] font-bold leading-tight">งานใหม่!</h2>
+</div>
+<p class="text-gray-500 dark:text-gray-400 text-sm font-medium">GrabTaxi (Large) · Cash</p>
+</div>
+<!-- Circular Countdown Timer -->
+<div class="relative w-[60px] h-[60px] flex items-center justify-center">
+<!-- Background Circle -->
+<svg class="w-full h-full -rotate-90 transform" viewbox="0 0 36 36">
+<path class="text-gray-100 dark:text-gray-800" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3.5"></path>
+<!-- Progress Circle (approx 75% for 15s visual) -->
+<path class="text-primary transition-all duration-1000 ease-linear" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="75, 100" stroke-linecap="round" stroke-width="3.5"></path>
+</svg>
+<div class="absolute flex flex-col items-center justify-center">
+<span class="text-lg font-bold text-primary leading-none">15</span>
+<span class="text-[10px] font-medium text-gray-400 leading-none mt-0.5">sec</span>
+</div>
+</div>
+</div>
+<!-- Job Details Card -->
+<div class="bg-background-light dark:bg-[#1a2e24] rounded-2xl p-4 border border-gray-100 dark:border-gray-800 shadow-sm">
+<!-- Route Info -->
+<div class="flex flex-col relative pb-4">
+<!-- Dashed Connecting Line -->
+<div class="absolute left-[15px] top-[30px] bottom-[10px] w-[2px] border-l-2 border-dashed border-gray-300 dark:border-gray-600 z-0"></div>
+<!-- Pickup -->
+<div class="flex items-start gap-3 relative z-10 mb-5">
+<div class="w-8 h-8 rounded-full bg-green-100 dark:bg-primary/20 flex items-center justify-center shrink-0 text-primary border-2 border-white dark:border-[#1a2e24] shadow-sm">
+<span class="material-symbols-outlined text-[18px]">my_location</span>
+</div>
+<div class="flex flex-col pt-0.5">
+<span class="text-[11px] font-bold text-gray-500 dark:text-gray-400 tracking-wide uppercase">Pick Up</span>
+<span class="text-gray-900 dark:text-white font-semibold text-[15px] leading-tight mt-0.5">Siam Paragon, Gate 1</span>
+<span class="text-xs text-gray-500 dark:text-gray-500 mt-0.5 truncate max-w-[200px]">991 Rama I Rd, Pathum Wan</span>
+</div>
+</div>
+<!-- Dropoff -->
+<div class="flex items-start gap-3 relative z-10">
+<div class="w-8 h-8 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center shrink-0 text-red-500 border-2 border-white dark:border-[#1a2e24] shadow-sm">
+<span class="material-symbols-outlined text-[18px]">location_on</span>
+</div>
+<div class="flex flex-col pt-0.5">
+<span class="text-[11px] font-bold text-gray-500 dark:text-gray-400 tracking-wide uppercase">Drop Off</span>
+<span class="text-gray-900 dark:text-white font-semibold text-[15px] leading-tight mt-0.5">Suvarnabhumi Airport</span>
+<span class="text-xs text-gray-500 dark:text-gray-500 mt-0.5">Main Terminal, 4th Floor</span>
+</div>
+</div>
+</div>
+<div class="w-full h-px bg-gray-200 dark:bg-gray-700 my-1"></div>
+<!-- Customer & Stats Row -->
+<div class="flex items-center justify-between pt-3">
+<!-- Customer -->
+<div class="flex items-center gap-3">
+<div class="relative">
+<div class="bg-center bg-no-repeat bg-cover rounded-full h-10 w-10 border border-gray-100 dark:border-gray-700" data-alt="Photo of customer Somchai" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAYDqme3CBYL--88dLlFEQsoai9357TZ0G2BS8ileCuqCgNKSpt7PipsTFducalKTd-DaGFcB19X5N0euUF7HUGHVLYO6A1t7sMfF4DI0oDBjmOgEIV81psTf2774MaVof9pzk8dH_iAWmtWSusTGrw1Vg3jZX46Lnu7df2VdfAajkOB8Xcm1uTtlRtyPGjaF6X6sq-SrfEFX8-OlhBUrNnKXV2xccRPLKkzvdKLuxtN1TPrh7_zNi4g4vPj2G3Cm8g-vC4AUY450bL");'></div>
+<div class="absolute -bottom-1 -right-1 bg-white dark:bg-[#1a2e24] rounded-full p-0.5">
+<div class="bg-primary/10 rounded-full p-1 w-5 h-5 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-[12px]">call</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col justify-center">
+<div class="flex items-center gap-1.5">
+<p class="text-[#101814] dark:text-white text-sm font-semibold leading-normal">Somchai T.</p>
+<div class="flex items-center bg-secondary/10 dark:bg-secondary/20 px-1 rounded-sm">
+<span class="material-symbols-outlined text-secondary text-[10px] mr-0.5">star</span>
+<span class="text-[10px] font-bold text-secondary">4.8</span>
+</div>
+</div>
+<p class="text-gray-500 dark:text-gray-400 text-xs font-normal">Customer</p>
+</div>
+</div>
+<!-- Price & Distance -->
+<div class="flex flex-col items-end">
+<p class="text-primary text-xl font-bold leading-none tracking-tight">฿350</p>
+<p class="text-gray-500 dark:text-gray-400 text-xs font-medium mt-1">28.5 km</p>
+</div>
+</div>
+</div>
+<!-- Action Buttons -->
+<div class="grid grid-cols-2 gap-4 mt-2">
+<!-- Reject Button -->
+<button class="group flex items-center justify-center gap-2 h-14 rounded-full border border-gray-300 dark:border-gray-600 bg-transparent active:bg-red-50 dark:active:bg-red-900/20 transition-colors">
+<span class="material-symbols-outlined text-gray-500 group-active:text-red-500 dark:text-gray-400 transition-colors">close</span>
+<span class="text-gray-600 dark:text-gray-300 font-bold text-base group-active:text-red-500 transition-colors">ปฏิเสธ</span>
+</button>
+<!-- Accept Button -->
+<button class="relative flex items-center justify-center gap-2 h-14 rounded-full bg-primary text-white shadow-lg shadow-green-500/30 overflow-hidden group">
+<!-- Pulse Effect Wrapper -->
+<div class="absolute inset-0 bg-white/20 animate-pulse hidden group-hover:block"></div>
+<span class="material-symbols-outlined relative z-10">check_circle</span>
+<span class="font-bold text-base relative z-10">รับงาน</span>
+<!-- Subtle Pulse Ring Animation (using tailwind animate-ping for burst effect) -->
+<span class="absolute inline-flex h-full w-full rounded-full bg-white opacity-20 animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite]"></span>
+</button>
+</div>
+<!-- Safe Area Spacer -->
+<div class="h-2"></div>
+</div>
+</div>
+</div>
+</div>
+</body></html>

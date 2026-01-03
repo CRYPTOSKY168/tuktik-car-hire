@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Trip Completed - TukTik Driver</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Noto+Sans+Thai:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#00b250",
+                        "primary-dark": "#008f40",
+                        "secondary": "#FFB300",
+                        "background-light": "#f5f8f7",
+                        "background-dark": "#0f2318",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#182e22",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "Noto Sans Thai", "sans-serif"],
+                        "body": ["Inter", "Noto Sans Thai", "sans-serif"],
+                    },
+                    borderRadius: {"DEFAULT": "1rem", "lg": "1.5rem", "xl": "2rem", "2xl": "2.5rem", "full": "9999px"},
+                    boxShadow: {
+                        'card': '0 -4px 20px rgba(0, 0, 0, 0.05)',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar hide for cleaner UI */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        /* Dashed line for route */
+        .route-line {
+            background-image: linear-gradient(to bottom, #dae7e0 50%, transparent 50%);
+            background-size: 2px 10px;
+            background-repeat: repeat-y;
+        }
+        .dark .route-line {
+            background-image: linear-gradient(to bottom, #2a4035 50%, transparent 50%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-gray-200 dark:bg-gray-900 font-display antialiased overflow-hidden h-screen w-screen flex justify-center items-center">
+<!-- Mobile Container -->
+<div class="relative w-full max-w-md h-full max-h-[900px] bg-background-light dark:bg-background-dark overflow-hidden shadow-2xl flex flex-col">
+<!-- Background Layer (Blurred Map) -->
+<div class="absolute inset-0 z-0">
+<div class="w-full h-full bg-cover bg-center" data-alt="Blurred map background showing city streets" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDZ5Iar3eLh8GncG5kpEXsEIQymcoBA5TcObnuiVURkOn0RstCrSZvOC_MSuY7vlKPhipaxJ5ZAP_UcSWEmoPWY25uhxs0fz8lERLeFOTGlquo6UWTGqQHfygItDTQC7ZD3grDFXoccY2pvSUEJFgxUleMm0nb8hH6s9Rf3e5D--gf53IZb6bjdimUr1MMVbBGh0a0YNnISPecLVj04d-HISs64w_XFCfKS8YDYIugtyxDE5CLeoSjyWJ38M0K2LWYJ5j_zIXdrQDr3");'></div>
+<!-- Heavy Blur Overlay -->
+<div class="absolute inset-0 bg-black/20 backdrop-blur-md"></div>
+<div class="absolute inset-0 bg-gradient-to-b from-black/10 to-black/40"></div>
+</div>
+<!-- Scrollable Content Area -->
+<div class="relative z-10 flex-1 overflow-y-auto no-scrollbar pt-12 flex flex-col justify-end">
+<!-- Celebration Header (Floating above card) -->
+<div class="flex flex-col items-center justify-center mb-6 animate-fade-in-up">
+<div class="relative">
+<!-- Confetti effect simulated with dots -->
+<div class="absolute -top-6 -left-8 text-yellow-400 opacity-80"><span class="material-symbols-outlined" style="font-size: 20px;">pentagon</span></div>
+<div class="absolute -top-8 right-6 text-primary opacity-60"><span class="material-symbols-outlined" style="font-size: 16px;">circle</span></div>
+<div class="absolute top-0 -right-10 text-pink-400 opacity-70"><span class="material-symbols-outlined" style="font-size: 24px;">star</span></div>
+<div class="h-20 w-20 bg-white dark:bg-surface-dark rounded-full flex items-center justify-center shadow-lg border-4 border-white dark:border-surface-dark">
+<span class="material-symbols-outlined text-primary text-[48px] font-bold">check_circle</span>
+</div>
+</div>
+<h1 class="text-white text-3xl font-bold mt-3 tracking-tight drop-shadow-md">เสร็จสิ้น!</h1>
+<p class="text-white/90 text-sm font-medium mt-1 drop-shadow-sm">ขอบคุณสำหรับการขับขี่ที่ยอดเยี่ยม</p>
+</div>
+<!-- Main Bottom Sheet Card -->
+<div class="bg-surface-light dark:bg-surface-dark w-full rounded-t-3xl p-6 pb-8 shadow-card flex flex-col gap-6 animate-slide-up transition-colors duration-300">
+<!-- Handle Bar for visual cue -->
+<div class="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto -mt-2"></div>
+<!-- Trip Summary Section -->
+<div class="flex flex-col gap-5">
+<!-- Money & Stats Row -->
+<div class="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-5">
+<div class="flex flex-col">
+<span class="text-gray-500 dark:text-gray-400 text-sm font-medium">รายได้สุทธิ</span>
+<span class="text-primary text-3xl font-bold tracking-tight">฿150.00</span>
+</div>
+<div class="flex gap-4">
+<div class="flex flex-col items-end">
+<span class="text-gray-500 dark:text-gray-400 text-xs">ระยะเวลา</span>
+<span class="text-gray-900 dark:text-white font-semibold">24 นาที</span>
+</div>
+<div class="w-px h-8 bg-gray-200 dark:bg-gray-700"></div>
+<div class="flex flex-col items-end">
+<span class="text-gray-500 dark:text-gray-400 text-xs">ระยะทาง</span>
+<span class="text-gray-900 dark:text-white font-semibold">5.2 กม.</span>
+</div>
+</div>
+</div>
+<!-- Route Visualization -->
+<div class="flex flex-col gap-0 relative">
+<!-- Connecting Line -->
+<div class="absolute left-[19px] top-8 bottom-8 w-[2px] route-line z-0"></div>
+<!-- Pickup -->
+<div class="flex items-start gap-4 z-10">
+<div class="mt-1 flex-shrink-0 size-10 flex items-center justify-center">
+<div class="size-3 rounded-full bg-primary ring-4 ring-primary/20 dark:ring-primary/10"></div>
+</div>
+<div class="flex flex-col pb-4">
+<p class="text-gray-900 dark:text-white text-base font-medium line-clamp-1">Siam Paragon</p>
+<p class="text-gray-500 dark:text-gray-400 text-sm font-normal">991 Rama I Rd, Pathum Wan</p>
+</div>
+</div>
+<!-- Dropoff -->
+<div class="flex items-start gap-4 z-10">
+<div class="mt-1 flex-shrink-0 size-10 flex items-center justify-center">
+<span class="material-symbols-outlined text-red-500 text-2xl drop-shadow-sm fill-current" style="font-variation-settings: 'FILL' 1;">location_on</span>
+</div>
+<div class="flex flex-col">
+<p class="text-gray-900 dark:text-white text-base font-medium line-clamp-1">Sukhumvit Soi 11</p>
+<p class="text-gray-500 dark:text-gray-400 text-sm font-normal">Watthana, Bangkok</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Rating Section -->
+<div class="bg-background-light dark:bg-background-dark/50 rounded-2xl p-5 flex flex-col items-center gap-4">
+<p class="text-gray-900 dark:text-white text-lg font-semibold">ให้คะแนนผู้โดยสาร</p>
+<!-- Stars -->
+<div class="flex gap-2">
+<button class="focus:outline-none transform active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-[#FFB300] text-4xl" style="font-variation-settings: 'FILL' 1, 'wght' 400;">star</span>
+</button>
+<button class="focus:outline-none transform active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-[#FFB300] text-4xl" style="font-variation-settings: 'FILL' 1, 'wght' 400;">star</span>
+</button>
+<button class="focus:outline-none transform active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-[#FFB300] text-4xl" style="font-variation-settings: 'FILL' 1, 'wght' 400;">star</span>
+</button>
+<button class="focus:outline-none transform active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-gray-300 dark:text-gray-600 text-4xl" style="font-variation-settings: 'FILL' 1, 'wght' 400;">star</span>
+</button>
+<button class="focus:outline-none transform active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-gray-300 dark:text-gray-600 text-4xl" style="font-variation-settings: 'FILL' 1, 'wght' 400;">star</span>
+</button>
+</div>
+<!-- Reason Chips (Conditional: visible here for design demo, implying 3 stars selected) -->
+<div class="w-full pt-2">
+<p class="text-xs text-gray-500 dark:text-gray-400 mb-3 text-center">เกิดปัญหาอะไรขึ้น? (เลือกได้มากกว่า 1)</p>
+<div class="flex flex-wrap gap-2 justify-center">
+<button class="px-4 py-2 rounded-full border border-gray-200 dark:border-gray-600 bg-white dark:bg-surface-dark text-gray-600 dark:text-gray-300 text-sm font-medium hover:border-secondary hover:text-secondary transition-colors">
+                                ไม่มาตามนัด
+                            </button>
+<button class="px-4 py-2 rounded-full border border-gray-200 dark:border-gray-600 bg-white dark:bg-surface-dark text-gray-600 dark:text-gray-300 text-sm font-medium hover:border-secondary hover:text-secondary transition-colors">
+                                ทำรถสกปรก
+                            </button>
+<button class="px-4 py-2 rounded-full border border-secondary bg-secondary/10 text-secondary dark:text-secondary text-sm font-medium transition-colors">
+                                หยาบคาย
+                            </button>
+<button class="px-4 py-2 rounded-full border border-gray-200 dark:border-gray-600 bg-white dark:bg-surface-dark text-gray-600 dark:text-gray-300 text-sm font-medium hover:border-secondary hover:text-secondary transition-colors">
+                                อื่นๆ
+                            </button>
+</div>
+</div>
+<!-- Comment Input -->
+<div class="w-full mt-2">
+<div class="relative">
+<textarea class="w-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:ring-1 focus:ring-primary focus:border-primary resize-none h-20" placeholder="ความคิดเห็นเพิ่มเติม (ไม่บังคับ)"></textarea>
+</div>
+</div>
+</div>
+<!-- Action Buttons -->
+<div class="flex flex-col gap-3 mt-2">
+<button class="w-full bg-primary hover:bg-primary-dark text-white font-bold text-lg py-4 rounded-full shadow-lg shadow-primary/30 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+<span>ส่งคะแนน</span>
+<span class="material-symbols-outlined text-[20px] font-bold">arrow_forward</span>
+</button>
+<button class="w-full py-3 text-gray-500 dark:text-gray-400 font-medium text-base hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+                        ข้าม
+                    </button>
+</div>
+</div>
+</div>
+</div>
+</body></html>

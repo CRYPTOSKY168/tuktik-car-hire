@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TukTik Driver Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#00b250",
+                        "secondary": "#FFB300",
+                        "background-light": "#f5f8f7",
+                        "background-dark": "#0f2318",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#1a2e24",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar hiding for clean UI */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-50 font-display overflow-hidden h-screen w-full flex flex-col">
+<!-- Top Header -->
+<header class="flex items-center justify-between px-5 py-4 bg-surface-light dark:bg-surface-dark shadow-sm z-30 shrink-0">
+<div class="flex items-center gap-3">
+<div class="relative">
+<div class="bg-center bg-no-repeat bg-cover rounded-full size-12 border-2 border-background-light dark:border-background-dark" data-alt="Driver profile picture showing a smiling man" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBFikcUU_9E933mbRg6f4NkYczoAFuf2l4Po7vDWg24TmjSjpuYKwN-F4Lcv5Pgd4THE2LjaiRzI7dhIMMoQDcCwW4JeoV9om6SSf9ojROs3VLOA3TIR5f4nUn5yv2NONtxcAZta0I0EQV4PeuJ38GIWE4wsNtYDm9nHdaX1ebw3bH4dd3vKZtcrLGxLFULYNLkZdECTTEzAtYj4QUNcP_SZ6UW0FTAd4G3EWBUl5Dfg4XvasKlRlj5S7YJoWgF8Ope2R0vEr4wI6B1");'>
+</div>
+<!-- Status Dot -->
+<div class="absolute bottom-0 right-0 size-3.5 bg-gray-400 border-2 border-white dark:border-surface-dark rounded-full"></div>
+</div>
+<div class="flex flex-col">
+<h2 class="text-base font-bold leading-tight text-slate-900 dark:text-white">Somsak J.</h2>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-secondary text-[16px] fill-1">star</span>
+<p class="text-sm font-medium text-slate-600 dark:text-slate-400">4.9</p>
+</div>
+</div>
+</div>
+<!-- Online/Offline Toggle -->
+<label class="flex items-center cursor-pointer select-none">
+<div class="relative">
+<input class="sr-only peer" type="checkbox"/>
+<div class="block h-9 w-16 rounded-full bg-slate-200 dark:bg-slate-700 peer-checked:bg-primary/20 transition-colors"></div>
+<div class="dot absolute left-1 top-1 h-7 w-7 rounded-full bg-white peer-checked:bg-primary transition-transform peer-checked:translate-x-7 flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[16px] text-slate-400 peer-checked:text-white transition-colors">power_settings_new</span>
+</div>
+</div>
+</label>
+</header>
+<!-- Stats Carousel -->
+<div class="w-full bg-background-light dark:bg-background-dark py-4 z-20 shrink-0">
+<div class="flex overflow-x-auto px-5 gap-3 no-scrollbar pb-1">
+<!-- Card 1: Today's Trips -->
+<div class="flex min-w-[140px] flex-col gap-3 rounded-2xl bg-surface-light dark:bg-surface-dark p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-slate-100 dark:border-slate-800">
+<div class="flex items-center justify-between">
+<div class="bg-primary/10 p-2 rounded-full text-primary">
+<span class="material-symbols-outlined text-[20px]">directions_car</span>
+</div>
+<span class="text-xs font-medium text-slate-400">Today</span>
+</div>
+<div>
+<p class="text-2xl font-bold text-slate-900 dark:text-white">12</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">Trips completed</p>
+</div>
+</div>
+<!-- Card 2: Today's Earnings -->
+<div class="flex min-w-[140px] flex-col gap-3 rounded-2xl bg-surface-light dark:bg-surface-dark p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-slate-100 dark:border-slate-800">
+<div class="flex items-center justify-between">
+<div class="bg-secondary/10 p-2 rounded-full text-secondary">
+<span class="material-symbols-outlined text-[20px]">account_balance_wallet</span>
+</div>
+<span class="text-xs font-medium text-slate-400">Today</span>
+</div>
+<div>
+<p class="text-2xl font-bold text-slate-900 dark:text-white">฿1,450</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">Total earnings</p>
+</div>
+</div>
+<!-- Card 3: Weekly Summary -->
+<div class="flex min-w-[140px] flex-col gap-3 rounded-2xl bg-surface-light dark:bg-surface-dark p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-slate-100 dark:border-slate-800">
+<div class="flex items-center justify-between">
+<div class="bg-blue-500/10 p-2 rounded-full text-blue-500">
+<span class="material-symbols-outlined text-[20px]">bar_chart</span>
+</div>
+<span class="text-xs font-medium text-slate-400">Week</span>
+</div>
+<div>
+<p class="text-2xl font-bold text-slate-900 dark:text-white">฿8,200</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">Weekly summary</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Map Area -->
+<div class="relative flex-1 w-full bg-slate-100 overflow-hidden">
+<!-- Map Background -->
+<div class="absolute inset-0 bg-cover bg-center grayscale-[20%]" data-alt="Minimalist map view of Bangkok streets" data-location="Bangkok" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBRIdECaYoMq3RJvuBPtO4u2R7WsDL4cpc7Yt-voqq_C2kjoW5MTlxtSzK5PAPONG_PVmyEv77ccnJ8tCtm-cWZsfc2Ah_w7SEx0RzcFFUzLiTdrjb2z7hsDHlVso_sdwB_fsxD0sZdCwGcb1ES8MCSAxrYwnpGSp705Zt6dkLMc5G0izyxPbooixcZq_dHI5BoPw2_CDcd1S6H2OtoVP1vf6ivB5p-rpN6lRpI8tN5itO2d5LG9DA4XcUu-yjL30yCqDZSARorqEZf");'>
+<div class="absolute inset-0 bg-white/40 dark:bg-slate-900/60 mix-blend-overlay"></div>
+</div>
+<!-- Driver Marker -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center">
+<!-- Pulsing effect -->
+<div class="absolute size-16 bg-primary/20 rounded-full animate-ping"></div>
+<!-- Car Icon -->
+<div class="relative z-10 bg-surface-light dark:bg-surface-dark p-2 rounded-full shadow-lg border-2 border-white dark:border-slate-700">
+<span class="material-symbols-outlined text-primary text-[28px] rotate-[-45deg]">navigation</span>
+</div>
+</div>
+<!-- Floating Map Controls -->
+<div class="absolute right-4 bottom-6 flex flex-col gap-3">
+<button class="size-12 bg-surface-light dark:bg-surface-dark rounded-full shadow-lg flex items-center justify-center text-slate-700 dark:text-white hover:bg-slate-50 active:scale-95 transition-transform">
+<span class="material-symbols-outlined">my_location</span>
+</button>
+<button class="size-12 bg-surface-light dark:bg-surface-dark rounded-full shadow-lg flex items-center justify-center text-slate-700 dark:text-white hover:bg-slate-50 active:scale-95 transition-transform">
+<span class="material-symbols-outlined">layers</span>
+</button>
+</div>
+</div>
+<!-- Bottom Action Sheet & Navigation -->
+<div class="bg-surface-light dark:bg-surface-dark rounded-t-[2rem] shadow-[0_-4px_20px_rgba(0,0,0,0.08)] z-30 shrink-0 pb-safe">
+<!-- Drag Handle (Visual Only) -->
+<div class="w-full flex justify-center pt-3 pb-1">
+<div class="h-1 w-12 bg-slate-200 dark:bg-slate-700 rounded-full"></div>
+</div>
+<!-- Status & Main Action -->
+<div class="px-6 py-4 flex flex-col gap-4">
+<div class="flex items-center justify-center gap-2">
+<div class="size-2 rounded-full bg-slate-400"></div>
+<p class="text-slate-500 dark:text-slate-400 font-medium text-sm">You are currently offline</p>
+</div>
+<button class="relative w-full h-14 bg-primary text-white rounded-2xl font-bold text-lg tracking-wide shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:scale-[1.01] active:scale-[0.98] transition-all flex items-center justify-center group overflow-hidden">
+<div class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 rounded-2xl"></div>
+<span class="relative z-10">GO ONLINE</span>
+</button>
+</div>
+<!-- Bottom Navigation -->
+<nav class="flex items-center justify-around pt-2 pb-6 px-2 border-t border-slate-100 dark:border-slate-800/50">
+<button class="flex flex-1 flex-col items-center gap-1 p-2 text-primary">
+<span class="material-symbols-outlined text-[28px]">home</span>
+<span class="text-[10px] font-bold">Home</span>
+</button>
+<button class="flex flex-1 flex-col items-center gap-1 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+<span class="material-symbols-outlined text-[28px]">receipt_long</span>
+<span class="text-[10px] font-medium">History</span>
+</button>
+<button class="flex flex-1 flex-col items-center gap-1 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+<span class="material-symbols-outlined text-[28px]">person</span>
+<span class="text-[10px] font-medium">Profile</span>
+</button>
+</nav>
+</div>
+</body></html>
