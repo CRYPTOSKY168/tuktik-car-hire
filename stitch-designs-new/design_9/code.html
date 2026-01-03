@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TukTik Profile</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Noto+Sans+Thai:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#00b250",
+                        "secondary": "#FFB300",
+                        "background-light": "#f5f8f7",
+                        "background-dark": "#0f2318",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#162e21",
+                        "text-main": "#101814",
+                        "text-muted": "#5e8d73",
+                        "border-light": "#dae7e0",
+                        "border-dark": "#2a4a38",
+                        "danger": "#ef4444",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "Noto Sans Thai", "sans-serif"],
+                        "body": ["Inter", "Noto Sans Thai", "sans-serif"],
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "2xl": "2rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .icon-filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-text-main dark:text-white font-display antialiased selection:bg-primary/30">
+<div class="relative flex min-h-screen w-full flex-col max-w-md mx-auto overflow-hidden pb-6">
+<!-- Top App Bar -->
+<div class="sticky top-0 z-10 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md px-4 py-3 flex items-center justify-between border-b border-transparent">
+<button class="flex size-10 items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-text-main dark:text-white">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="text-lg font-bold text-text-main dark:text-white">โปรไฟล์ (Profile)</h1>
+<div class="size-10"></div> <!-- Spacer for alignment -->
+</div>
+<!-- Profile Header & Stats Container -->
+<div class="px-4 pt-2 pb-6">
+<div class="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-sm p-6 flex flex-col items-center gap-4 relative overflow-hidden">
+<!-- Decorative background blob -->
+<div class="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-primary/10 to-transparent opacity-50"></div>
+<!-- Avatar Section -->
+<div class="relative z-10">
+<div class="size-[88px] rounded-full p-1 bg-white dark:bg-surface-dark ring-1 ring-border-light dark:ring-border-dark">
+<div class="size-full rounded-full bg-cover bg-center bg-no-repeat bg-gray-200" data-alt="Portrait of a smiling Asian man wearing a casual shirt" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDXz_26VS0i_U2hstJp02fnLiuYrLPUVRppTX2-0f5c7difcYTlRHxrHwzZflZBs9ZA4l1LwxpbKLLaKmPHAIQJfH5zaj9iZenoPPEp8bRiXd5E3ZT7ECtNG8Ts-LJMOJ7moaVWRff6Ifw1d5pYMNfVrlu5UwyEKwARxdQbVrzKZnkUFoIneICOH1o2Pg6cdtiMiMR4kcgxRHjTmlAwqLX05fpsmkN4dncyTpqXpdcu2_XqZZLuG3WdBm4KteXgsOyAolZvkIPFckH5');">
+</div>
+</div>
+<!-- Edit Button -->
+<button class="absolute bottom-0 right-0 translate-x-[10%] translate-y-[10%] size-8 bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-full flex items-center justify-center shadow-md text-primary hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+<span class="material-symbols-outlined text-[16px]">edit</span>
+</button>
+</div>
+<!-- User Info -->
+<div class="flex flex-col items-center gap-1 z-10">
+<h2 class="text-xl font-bold text-text-main dark:text-white">Somsak Jaidee</h2>
+<p class="text-text-muted text-sm font-medium">+66 81 234 5678</p>
+<!-- Rating Badge -->
+<div class="mt-2 flex items-center gap-1.5 px-3 py-1 bg-surface-light dark:bg-black/20 border border-border-light dark:border-border-dark rounded-full shadow-sm">
+<span class="material-symbols-outlined text-secondary icon-filled text-[18px]">star</span>
+<span class="text-sm font-bold text-text-main dark:text-white pt-0.5">4.8</span>
+</div>
+</div>
+<!-- Stats Divider -->
+<div class="w-full h-px bg-border-light dark:bg-border-dark my-2"></div>
+<!-- Stats Row -->
+<div class="flex w-full justify-evenly items-center">
+<div class="flex flex-col items-center gap-1 flex-1 border-r border-border-light dark:border-border-dark">
+<span class="text-xs text-text-muted font-normal">Total Trips</span>
+<span class="text-lg font-bold text-text-main dark:text-white">54</span>
+</div>
+<div class="flex flex-col items-center gap-1 flex-1">
+<span class="text-xs text-text-muted font-normal">Member Since</span>
+<span class="text-lg font-bold text-text-main dark:text-white">Jan 2023</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Menu List -->
+<div class="px-4 flex flex-col gap-4">
+<h3 class="text-sm font-semibold text-text-muted uppercase tracking-wider px-2">Menu</h3>
+<div class="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-sm overflow-hidden divide-y divide-border-light dark:divide-border-dark">
+<!-- Saved Places -->
+<button class="w-full flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
+<div class="flex items-center justify-center size-10 rounded-full bg-green-50 dark:bg-primary/10 text-primary shrink-0 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined icon-filled">location_on</span>
+</div>
+<div class="flex-1 text-left">
+<p class="text-base font-medium text-text-main dark:text-white">ที่อยู่ที่บันทึก</p>
+<p class="text-xs text-text-muted">Saved Places</p>
+</div>
+<span class="material-symbols-outlined text-gray-400 dark:text-gray-500">chevron_right</span>
+</button>
+<!-- Payment Methods -->
+<button class="w-full flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
+<div class="flex items-center justify-center size-10 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 shrink-0 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined icon-filled">credit_card</span>
+</div>
+<div class="flex-1 text-left">
+<p class="text-base font-medium text-text-main dark:text-white">วิธีการชำระเงิน</p>
+<p class="text-xs text-text-muted">Payment Methods</p>
+</div>
+<span class="material-symbols-outlined text-gray-400 dark:text-gray-500">chevron_right</span>
+</button>
+<!-- Promotions -->
+<button class="w-full flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
+<div class="flex items-center justify-center size-10 rounded-full bg-purple-50 dark:bg-purple-500/10 text-purple-600 shrink-0 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined icon-filled">card_giftcard</span>
+</div>
+<div class="flex-1 text-left">
+<p class="text-base font-medium text-text-main dark:text-white">โปรโมชั่น</p>
+<p class="text-xs text-text-muted">Promotions</p>
+</div>
+<span class="material-symbols-outlined text-gray-400 dark:text-gray-500">chevron_right</span>
+</button>
+<!-- Settings -->
+<button class="w-full flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
+<div class="flex items-center justify-center size-10 rounded-full bg-gray-50 dark:bg-gray-500/10 text-gray-600 dark:text-gray-300 shrink-0 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined">settings</span>
+</div>
+<div class="flex-1 text-left">
+<p class="text-base font-medium text-text-main dark:text-white">ตั้งค่า</p>
+<p class="text-xs text-text-muted">Settings</p>
+</div>
+<span class="material-symbols-outlined text-gray-400 dark:text-gray-500">chevron_right</span>
+</button>
+<!-- Help -->
+<button class="w-full flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
+<div class="flex items-center justify-center size-10 rounded-full bg-orange-50 dark:bg-orange-500/10 text-orange-600 shrink-0 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined">help</span>
+</div>
+<div class="flex-1 text-left">
+<p class="text-base font-medium text-text-main dark:text-white">ช่วยเหลือ</p>
+<p class="text-xs text-text-muted">Help</p>
+</div>
+<span class="material-symbols-outlined text-gray-400 dark:text-gray-500">chevron_right</span>
+</button>
+</div>
+<!-- Logout -->
+<button class="w-full flex items-center gap-4 p-4 mt-2 bg-surface-light dark:bg-surface-dark rounded-2xl shadow-sm hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors group">
+<div class="flex items-center justify-center size-10 rounded-full bg-red-50 dark:bg-red-500/10 text-danger shrink-0 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined">logout</span>
+</div>
+<div class="flex-1 text-left">
+<p class="text-base font-medium text-danger">ออกจากระบบ</p>
+<p class="text-xs text-danger/70">Log Out</p>
+</div>
+</button>
+<div class="h-6"></div> <!-- Bottom Spacer -->
+<p class="text-center text-xs text-text-muted opacity-60">Version 2.4.0 (Build 1024)</p>
+</div>
+</div>
+</body></html>

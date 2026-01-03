@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+
+<html class="light" lang="th"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TukTik - Trip in Progress</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Noto+Sans+Thai:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#00b250",
+                        "secondary": "#FFB300",
+                        "background-light": "#f5f8f7",
+                        "background-dark": "#0f2318",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#1c2e26",
+                        "border-light": "#dae7e0",
+                        "border-dark": "#2a4034",
+                        "text-main": "#101814",
+                        "text-muted": "#5e8d73",
+                        "alert": "#ef4444",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "Noto Sans Thai", "sans-serif"],
+                        "sans": ["Inter", "Noto Sans Thai", "sans-serif"],
+                    },
+                    borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
+                    boxShadow: {
+                        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                        'float': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar hide for cleaner UI */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display antialiased text-text-main overflow-hidden h-screen w-full relative">
+<!-- Map Background Area -->
+<!-- This acts as the base layer. The map image simulates the route. -->
+<div class="absolute inset-0 z-0 bg-cover bg-center" data-alt="Map of Bangkok city streets with green route line" data-location="Bangkok" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCM5-s3WwoHO66IyN_gx-d_laG568JBOA5MOsCees_-Bb2LZ3j2qtep0P-G7qV-DckBSPAmx2_-AdMg7YdlQXidPKFx46i3LJVVc2lvYyD6IpN2zfrvD8T1dg3yU8RP6cyJ486EqFGHBo8ecRaDMIf1am3rVvRpV6v-61UdMZkaQMeMI2pS8ilVYX3aLPHCY2V2H7g7XsW7YF1yuEZo4o_btpkr_cOCWOhp3haaW7VcN7Q5U_zGHaphhA-AfDsq6OmRqShP2flUEw1x');">
+<!-- Overlay to simulate map style (desaturated) -->
+<div class="absolute inset-0 bg-white/10 backdrop-grayscale-[0.3]"></div>
+<!-- Simulated Route Line & Car Marker -->
+<!-- In a real app, this is canvas/SVG. Here we simulate the marker. -->
+<div class="absolute top-[35%] left-[45%] flex flex-col items-center">
+<!-- Car Icon -->
+<div class="z-20 p-2 bg-white rounded-full shadow-lg border-2 border-primary transform -rotate-45">
+<span class="material-symbols-outlined text-primary text-2xl rotate-45">directions_car</span>
+</div>
+<!-- Pulse Effect -->
+<div class="absolute top-2 w-10 h-10 bg-primary/30 rounded-full animate-ping"></div>
+</div>
+<!-- Destination Pin Simulation -->
+<div class="absolute top-[20%] right-[20%] flex flex-col items-center">
+<span class="material-symbols-outlined text-red-500 text-4xl drop-shadow-md">location_on</span>
+</div>
+</div>
+<!-- UI Overlay Layer -->
+<div class="relative z-10 flex flex-col h-full pointer-events-none">
+<!-- Top Navigation Header (Floating) -->
+<div class="pt-12 px-4 pointer-events-auto">
+<div class="bg-primary text-white p-4 rounded-xl shadow-float flex items-center justify-between gap-3">
+<div class="flex items-center gap-3 flex-1">
+<div class="bg-white/20 p-2 rounded-lg backdrop-blur-sm flex items-center justify-center">
+<span class="material-symbols-outlined text-white">turn_right</span>
+</div>
+<div class="flex flex-col">
+<h2 class="text-lg font-bold leading-tight">กำลังเดินทางไปส่ง</h2>
+<p class="text-white/80 text-xs">Heading to dropoff</p>
+</div>
+</div>
+<div class="text-right flex flex-col items-end">
+<span class="text-xl font-bold font-display">14:30</span>
+<span class="text-white/80 text-xs font-medium bg-black/10 px-2 py-0.5 rounded-full">15 min</span>
+</div>
+</div>
+</div>
+<!-- Spacer to push content down -->
+<div class="flex-1"></div>
+<!-- Bottom Sheet Area -->
+<div class="bg-surface-light dark:bg-surface-dark rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)] pointer-events-auto flex flex-col pb-6 max-h-[60vh] overflow-y-auto no-scrollbar">
+<!-- Drag Handle -->
+<div class="flex justify-center pt-3 pb-1 w-full">
+<div class="h-1.5 w-12 rounded-full bg-gray-300 dark:bg-gray-600"></div>
+</div>
+<!-- Trip Progress Bar -->
+<div class="px-6 pt-2 pb-4">
+<div class="flex justify-between items-end mb-2">
+<span class="text-text-muted text-xs font-medium">Progress</span>
+<span class="text-primary text-xs font-bold">65%</span>
+</div>
+<div class="h-1.5 w-full bg-border-light dark:bg-border-dark rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[65%] rounded-full shadow-[0_0_10px_rgba(0,178,80,0.5)]"></div>
+</div>
+</div>
+<!-- Content Container -->
+<div class="px-5 flex flex-col gap-5">
+<!-- Destination Card -->
+<div class="flex items-start gap-4">
+<div class="mt-1 flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-red-50 text-red-500">
+<span class="material-symbols-outlined filled">location_on</span>
+</div>
+<div class="flex-1 min-w-0 border-b border-border-light dark:border-border-dark pb-4">
+<h3 class="text-text-main dark:text-white text-base font-semibold truncate">Suvarnabhumi Airport</h3>
+<p class="text-text-muted text-sm truncate">999 Soi Mu Ban Nakhon Thong 1, Nong Prue</p>
+<div class="flex items-center gap-2 mt-1">
+<span class="bg-gray-100 dark:bg-gray-700 text-text-muted text-[10px] px-2 py-0.5 rounded font-medium">DROP-OFF</span>
+<p class="text-text-muted text-xs">ระยะทาง: <span class="text-text-main dark:text-gray-200 font-medium">25.5 กม.</span></p>
+</div>
+</div>
+</div>
+<!-- Driver Info Section -->
+<div class="flex items-center justify-between gap-3">
+<div class="flex items-center gap-3 flex-1">
+<div class="relative">
+<div class="w-12 h-12 rounded-full bg-gray-200 bg-cover bg-center border-2 border-white dark:border-gray-700 shadow-sm" data-alt="Portrait of the driver smiling" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBOM129DaDk8cATKHALBJEQFVMa4RwVyJuVdMydNkH3KJBgQxPOSwsiE3VfLq9jlyEui2JQysSuYoYXFbCIOJCDhsEFqcqcVmSG_KwsQHQVfM1R2Hvse16LPC-ucBqGh4TtoeGSlwm_NvMtYPv9fKDeHAwXXdGnMSbBJ_dmphiWDbj3nW9U-SZSvi0We_mMXL_mKe9Mp9MawbwASSNpUuGsOrOO5045ds-Ivqt2RcqYbRI8Iq5jYf7udFCMjIq72BD8D-nz3nmTiHkF');">
+</div>
+<div class="absolute -bottom-1 -right-1 bg-white dark:bg-gray-800 rounded-full p-0.5 shadow-sm">
+<span class="material-symbols-outlined text-secondary text-[14px]">star</span>
+</div>
+</div>
+<div>
+<h4 class="font-bold text-text-main dark:text-white text-sm">Somchai</h4>
+<div class="flex items-center gap-1.5 text-xs text-text-muted">
+<span>Toyota Camry</span>
+<span class="w-1 h-1 bg-gray-300 rounded-full"></span>
+<span class="font-medium bg-gray-100 dark:bg-gray-700 px-1.5 rounded text-text-main dark:text-gray-200 border border-gray-200 dark:border-gray-600">1กก-1234</span>
+</div>
+</div>
+</div>
+<button class="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors">
+<span class="material-symbols-outlined">call</span>
+</button>
+<button class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 text-text-main dark:text-white hover:bg-gray-200 transition-colors">
+<span class="material-symbols-outlined">chat</span>
+</button>
+</div>
+<!-- Safety Actions Toolbar -->
+<div class="grid grid-cols-2 gap-3 pt-2">
+<button class="flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark text-text-main dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+<span class="material-symbols-outlined text-primary">share_location</span>
+<span class="text-sm font-medium">แชร์การเดินทาง</span>
+</button>
+<button class="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-alert/10 text-alert border border-alert/20 hover:bg-alert hover:text-white transition-colors group">
+<span class="material-symbols-outlined group-hover:animate-pulse">sos</span>
+<span class="text-sm font-bold">SOS</span>
+</button>
+</div>
+</div>
+<!-- Bottom Safe Area Spacer for iOS Home Indicator -->
+<div class="h-4 w-full"></div>
+</div>
+</div>
+</body></html>

@@ -17,6 +17,18 @@
   --color-background-dark: #101922;
   --color-text-main: #111418;
   --color-text-muted: #617589;
+
+  /* TukTik Design System (Stitch) */
+  --color-primary: #00b250;
+  --color-secondary: #FFB300;
+  --color-tuktik-bg-light: #f5f8f7;
+  --color-tuktik-bg-dark: #0f2318;
+  --color-tuktik-surface-light: #ffffff;
+  --color-tuktik-surface-dark: #182b21;
+  --color-tuktik-border-light: #dae7e0;
+  --color-tuktik-border-dark: #2a4236;
+  --color-tuktik-text-main: #101814;
+  --color-tuktik-text-muted: #5e8d73;
 }
 
 @media (prefers-color-scheme: dark) {

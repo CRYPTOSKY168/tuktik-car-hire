@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+
+<html class="light" lang="th"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TukTik - Trip History</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Noto+Sans+Thai:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#00b250",
+                        "secondary": "#FFB300",
+                        "background-light": "#f5f8f7",
+                        "background-dark": "#0f2318",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#1a2e24",
+                        "border-light": "#dae7e0",
+                        "border-dark": "#2a4034",
+                        "text-primary-light": "#101814",
+                        "text-primary-dark": "#e0f2e9",
+                        "text-secondary-light": "#5e8d73",
+                        "text-secondary-dark": "#8bad9b",
+                    },
+                    fontFamily: {
+                        "display": ['"Inter"', '"Noto Sans Thai"', 'sans-serif'],
+                        "body": ['"Inter"', '"Noto Sans Thai"', 'sans-serif'],
+                    },
+                    borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', 'Noto Sans Thai', sans-serif;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark min-h-screen text-text-primary-light dark:text-text-primary-dark antialiased overflow-x-hidden selection:bg-primary/20">
+<div class="mx-auto max-w-md w-full relative min-h-screen flex flex-col shadow-xl bg-background-light dark:bg-background-dark">
+<!-- Header -->
+<header class="sticky top-0 z-30 bg-background-light dark:bg-background-dark/95 backdrop-blur-md border-b border-border-light dark:border-border-dark px-4 pt-4 pb-2">
+<div class="flex items-center justify-between h-12">
+<button class="flex items-center justify-center size-10 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-text-primary-light dark:text-text-primary-dark">arrow_back</span>
+</button>
+<h1 class="text-lg font-bold flex-1 text-center">ประวัติการเดินทาง</h1>
+<button class="flex items-center justify-center px-2 py-1 rounded-full hover:bg-primary/10 transition-colors">
+<span class="text-primary text-sm font-bold">ช่วยเหลือ</span>
+</button>
+</div>
+<!-- Tabs -->
+<div class="mt-2 flex gap-4 px-2">
+<button class="flex-1 relative pb-3 group">
+<span class="text-primary font-bold text-sm block text-center">ทั้งหมด</span>
+<div class="absolute bottom-0 left-0 w-full h-[3px] bg-primary rounded-t-full"></div>
+</button>
+<button class="flex-1 relative pb-3 group">
+<span class="text-text-secondary-light dark:text-text-secondary-dark font-medium text-sm block text-center group-hover:text-primary transition-colors">สำเร็จ</span>
+<div class="absolute bottom-0 left-0 w-full h-[3px] bg-transparent group-hover:bg-primary/30 rounded-t-full transition-colors"></div>
+</button>
+<button class="flex-1 relative pb-3 group">
+<span class="text-text-secondary-light dark:text-text-secondary-dark font-medium text-sm block text-center group-hover:text-primary transition-colors">ยกเลิก</span>
+<div class="absolute bottom-0 left-0 w-full h-[3px] bg-transparent group-hover:bg-primary/30 rounded-t-full transition-colors"></div>
+</button>
+</div>
+</header>
+<!-- Content List -->
+<main class="flex-1 px-4 py-6 space-y-4">
+<!-- Card 1: Completed -->
+<article class="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden group cursor-pointer hover:shadow-md transition-shadow">
+<!-- Card Header -->
+<div class="px-4 py-3 border-b border-border-light/50 dark:border-border-dark/50 flex justify-between items-center bg-gray-50/50 dark:bg-white/5">
+<div class="flex items-center gap-2 text-text-secondary-light dark:text-text-secondary-dark text-xs font-medium">
+<span class="material-symbols-outlined text-[16px]">calendar_today</span>
+                        12 ต.ค. 2023, 10:30
+                    </div>
+<div class="bg-primary/10 text-primary px-2.5 py-0.5 rounded-full text-xs font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] fill-1">check_circle</span>
+                        สำเร็จ
+                    </div>
+</div>
+<!-- Card Body -->
+<div class="p-4 grid grid-cols-[24px_1fr] gap-x-3">
+<!-- Route Visual -->
+<div class="flex flex-col items-center pt-1.5 h-full">
+<div class="size-3 rounded-full bg-primary border-2 border-surface-light dark:border-surface-dark shadow-sm z-10"></div>
+<div class="w-0.5 border-l-2 border-dashed border-border-light dark:border-border-dark grow my-1 min-h-[24px]"></div>
+<div class="size-3 rounded-full bg-red-500 border-2 border-surface-light dark:border-surface-dark shadow-sm z-10"></div>
+</div>
+<!-- Route Text -->
+<div class="flex flex-col gap-4 pb-1">
+<div>
+<p class="text-xs text-text-secondary-light dark:text-text-secondary-dark mb-0.5">รับที่</p>
+<p class="text-sm font-medium leading-tight text-text-primary-light dark:text-text-primary-dark line-clamp-1">สนามบินสุวรรณภูมิ (Suvarnabhumi Airport)</p>
+</div>
+<div>
+<p class="text-xs text-text-secondary-light dark:text-text-secondary-dark mb-0.5">ส่งที่</p>
+<p class="text-sm font-medium leading-tight text-text-primary-light dark:text-text-primary-dark line-clamp-1">อาคารอโศก (Asoke Tower)</p>
+</div>
+</div>
+</div>
+<!-- Card Footer -->
+<div class="px-4 pb-4 pt-0 flex justify-between items-end">
+<button class="text-xs font-semibold text-text-secondary-light dark:text-text-secondary-dark flex items-center hover:text-primary transition-colors group/btn">
+                        ดูรายละเอียด
+                        <span class="material-symbols-outlined text-[16px] group-hover/btn:translate-x-0.5 transition-transform">chevron_right</span>
+</button>
+<p class="text-lg font-bold text-primary">฿450</p>
+</div>
+</article>
+<!-- Card 2: Completed (Different Date) -->
+<article class="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden group cursor-pointer hover:shadow-md transition-shadow">
+<div class="px-4 py-3 border-b border-border-light/50 dark:border-border-dark/50 flex justify-between items-center bg-gray-50/50 dark:bg-white/5">
+<div class="flex items-center gap-2 text-text-secondary-light dark:text-text-secondary-dark text-xs font-medium">
+<span class="material-symbols-outlined text-[16px]">calendar_today</span>
+                        11 ต.ค. 2023, 18:45
+                    </div>
+<div class="bg-primary/10 text-primary px-2.5 py-0.5 rounded-full text-xs font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] fill-1">check_circle</span>
+                        สำเร็จ
+                    </div>
+</div>
+<div class="p-4 grid grid-cols-[24px_1fr] gap-x-3">
+<div class="flex flex-col items-center pt-1.5 h-full">
+<div class="size-3 rounded-full bg-primary border-2 border-surface-light dark:border-surface-dark shadow-sm z-10"></div>
+<div class="w-0.5 border-l-2 border-dashed border-border-light dark:border-border-dark grow my-1 min-h-[24px]"></div>
+<div class="size-3 rounded-full bg-red-500 border-2 border-surface-light dark:border-surface-dark shadow-sm z-10"></div>
+</div>
+<div class="flex flex-col gap-4 pb-1">
+<div>
+<p class="text-xs text-text-secondary-light dark:text-text-secondary-dark mb-0.5">รับที่</p>
+<p class="text-sm font-medium leading-tight text-text-primary-light dark:text-text-primary-dark line-clamp-1">เซ็นทรัลเวิลด์ (Central World)</p>
+</div>
+<div>
+<p class="text-xs text-text-secondary-light dark:text-text-secondary-dark mb-0.5">ส่งที่</p>
+<p class="text-sm font-medium leading-tight text-text-primary-light dark:text-text-primary-dark line-clamp-1">โรงแรมสยามเคมปินสกี้ (Siam Kempinski Hotel)</p>
+</div>
+</div>
+</div>
+<div class="px-4 pb-4 pt-0 flex justify-between items-end">
+<button class="text-xs font-semibold text-text-secondary-light dark:text-text-secondary-dark flex items-center hover:text-primary transition-colors group/btn">
+                        ดูรายละเอียด
+                        <span class="material-symbols-outlined text-[16px] group-hover/btn:translate-x-0.5 transition-transform">chevron_right</span>
+</button>
+<p class="text-lg font-bold text-primary">฿120</p>
+</div>
+</article>
+<!-- Card 3: Cancelled -->
+<article class="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden group cursor-pointer hover:shadow-md transition-shadow opacity-90">
+<div class="px-4 py-3 border-b border-border-light/50 dark:border-border-dark/50 flex justify-between items-center bg-gray-50/50 dark:bg-white/5">
+<div class="flex items-center gap-2 text-text-secondary-light dark:text-text-secondary-dark text-xs font-medium">
+<span class="material-symbols-outlined text-[16px]">calendar_today</span>
+                        10 ต.ค. 2023, 08:15
+                    </div>
+<div class="bg-secondary/10 text-secondary px-2.5 py-0.5 rounded-full text-xs font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] fill-1">cancel</span>
+                        ยกเลิก
+                    </div>
+</div>
+<div class="p-4 grid grid-cols-[24px_1fr] gap-x-3">
+<div class="flex flex-col items-center pt-1.5 h-full">
+<div class="size-3 rounded-full bg-gray-400 border-2 border-surface-light dark:border-surface-dark shadow-sm z-10"></div>
+<div class="w-0.5 border-l-2 border-dashed border-border-light dark:border-border-dark grow my-1 min-h-[24px]"></div>
+<div class="size-3 rounded-full bg-gray-400 border-2 border-surface-light dark:border-surface-dark shadow-sm z-10"></div>
+</div>
+<div class="flex flex-col gap-4 pb-1">
+<div>
+<p class="text-xs text-text-secondary-light dark:text-text-secondary-dark mb-0.5">รับที่</p>
+<p class="text-sm font-medium leading-tight text-text-primary-light/70 dark:text-text-primary-dark/70 line-clamp-1">BTS พร้อมพงษ์ (Phrom Phong BTS)</p>
+</div>
+<div>
+<p class="text-xs text-text-secondary-light dark:text-text-secondary-dark mb-0.5">ส่งที่</p>
+<p class="text-sm font-medium leading-tight text-text-primary-light/70 dark:text-text-primary-dark/70 line-clamp-1">เอ็มควอเทียร์ (EmQuartier)</p>
+</div>
+</div>
+</div>
+<div class="px-4 pb-4 pt-0 flex justify-between items-end">
+<button class="text-xs font-semibold text-text-secondary-light dark:text-text-secondary-dark flex items-center hover:text-primary transition-colors group/btn">
+                        ดูรายละเอียด
+                        <span class="material-symbols-outlined text-[16px] group-hover/btn:translate-x-0.5 transition-transform">chevron_right</span>
+</button>
+<p class="text-lg font-medium text-text-secondary-light dark:text-text-secondary-dark line-through decoration-2">฿80</p>
+</div>
+</article>
+<!-- Empty State Illustration Placeholder (Hidden by default but ready for logic) -->
+<!-- 
+            <div class="flex flex-col items-center justify-center py-12 text-center">
+                <div class="size-32 bg-border-light rounded-full mb-4 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-6xl text-text-secondary-light">commute</span>
+                </div>
+                <h3 class="text-lg font-bold text-text-primary-light mb-1">ยังไม่มีประวัติการเดินทาง</h3>
+                <p class="text-sm text-text-secondary-light">เมื่อคุณเริ่มใช้บริการ ประวัติการเดินทางจะปรากฏที่นี่</p>
+            </div>
+             -->
+</main>
+<!-- Bottom Navigation (Fixed) -->
+<nav class="sticky bottom-0 bg-surface-light dark:bg-surface-dark border-t border-border-light dark:border-border-dark pb-safe">
+<div class="flex justify-around items-center h-16">
+<a class="flex flex-col items-center gap-1 w-full text-text-secondary-light dark:text-text-secondary-dark hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl">home</span>
+<span class="text-[10px] font-medium">หน้าหลัก</span>
+</a>
+<a class="flex flex-col items-center gap-1 w-full text-primary" href="#">
+<span class="material-symbols-outlined text-2xl fill-1">history</span>
+<span class="text-[10px] font-bold">กิจกรรม</span>
+</a>
+<a class="flex flex-col items-center gap-1 w-full text-text-secondary-light dark:text-text-secondary-dark hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-2xl">account_circle</span>
+<span class="text-[10px] font-medium">บัญชี</span>
+</a>
+</div>
+</nav>
+</div>
+</body></html>

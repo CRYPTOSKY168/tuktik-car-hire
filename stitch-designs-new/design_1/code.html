@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+
+<html class="light" lang="th"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Select Vehicle &amp; Payment</title>
+<!-- Fonts: Inter for English/Numbers, Noto Sans Thai for Thai -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Noto+Sans+Thai:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#00b250",
+                        "secondary": "#FFB300",
+                        "background-light": "#f5f8f7",
+                        "background-dark": "#0f2318",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#1a2e24",
+                        "border-light": "#dae7e0",
+                        "border-dark": "#2a4034",
+                        "text-main": "#101814",
+                        "text-muted": "#5e8d73",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "Noto Sans Thai", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "2xl": "1.25rem",
+                        "full": "9999px"
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+                        'top': '0 -4px 20px -2px rgba(0, 0, 0, 0.05)',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar hiding for clean UI */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-text-main dark:text-gray-100 antialiased overflow-x-hidden selection:bg-primary/20">
+<div class="relative flex flex-col min-h-screen pb-[240px]"> <!-- Padding bottom for sticky footer -->
+<!-- Header -->
+<header class="sticky top-0 z-40 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md px-4 py-3 flex items-center justify-between border-b border-border-light/50 dark:border-border-dark/50 shadow-sm">
+<button class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-2xl">arrow_back</span>
+</button>
+<div class="flex-1 text-center px-2">
+<h1 class="text-lg font-bold truncate">สนามบินสุวรรณภูมิ → สุขุมวิท</h1>
+</div>
+<div class="w-10"></div> <!-- Spacer for balance -->
+</header>
+<main class="flex flex-col gap-5 p-4">
+<!-- Route Info Card -->
+<section class="bg-surface-light dark:bg-surface-dark rounded-xl p-4 shadow-soft border border-border-light dark:border-border-dark flex items-stretch justify-between gap-4">
+<div class="flex flex-col justify-center gap-1.5 flex-[2]">
+<div class="flex items-center gap-2 text-primary font-bold">
+<span class="material-symbols-outlined text-[20px]">schedule</span>
+<span class="text-lg">~45 นาที</span>
+</div>
+<div class="flex items-center gap-2 text-text-muted dark:text-gray-400 text-sm font-medium">
+<span class="material-symbols-outlined text-[18px]">distance</span>
+<span>25.5 กม. • การจราจรปกติ</span>
+</div>
+</div>
+<div class="flex-1 aspect-[4/3] rounded-lg overflow-hidden relative shadow-inner bg-gray-200">
+<img alt="Map showing route from Suvarnabhumi to Sukhumvit" class="w-full h-full object-cover opacity-80" data-location="Bangkok" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSksaR7OFfL-XgqDNqGI9GUvPGfAHXzZMLQSBLJ5fdt01ZDiVoqvCEgvr-WaFDqm5cuIrdH_95icYVzJxcilXmM9dLO5kezIYHu-kXXG0GrJtAvpx5t3q7VH6TpNb080pseXiMyLw4S1Enl4fr0OnXhEj4kIlGD73CIGHprjiLAIRSTWfoBvC7XjEM2K6-40TWn577SMrfFBOIPYJPlYiVHaDtZl7Jum9HE-5ZBsj9kB4CKSDZnL8dyJ4aLk1fZL_x4ww2w-gpa_EF"/>
+<!-- Map overlay gradient -->
+<div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+</div>
+</section>
+<!-- Vehicle Selection -->
+<section>
+<h2 class="text-lg font-bold mb-3 px-1">เลือกประเภทรถ</h2>
+<div class="flex flex-col gap-3">
+<!-- Selected Item: Sedan -->
+<div class="group relative flex items-center gap-4 bg-surface-light dark:bg-surface-dark p-4 rounded-xl border-2 border-primary shadow-md cursor-pointer transition-all">
+<!-- Checkmark Badge -->
+<div class="absolute -top-2 -right-2 bg-primary text-white rounded-full p-1 shadow-md z-10">
+<span class="material-symbols-outlined text-sm font-bold block">check</span>
+</div>
+<div class="w-20 h-20 shrink-0 bg-gray-50 dark:bg-white/5 rounded-lg flex items-center justify-center p-1">
+<img alt="Sedan" class="w-full h-auto object-contain drop-shadow-sm" data-alt="White sedan car side view" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAyRTVa5l-_TVQ-Na0Wf__wv1OsMPBNAkIWJPjRQhdMvcidCQYKPUn9hZgAs_KDD08TY7gGK_Qd1hup47_tORRk2qnMm1uQPrcUWRqeQr4GZbttu8dq3uIbb84sDHHQf-ooMxMyqK9gT7Trbs5BNCrN0k7_zmt4KRAZzPrHr8R5ae41altoNjgSR2lICZis_ZdlTpBTE9TyEuRwlzIV8FDixv7ha_pbzWGVvVzxeK7_5FeaHe8fFGNja-TbpDUAEVYqD4_YGmGhEKcH"/>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-2 mb-0.5">
+<h3 class="font-bold text-base text-text-main dark:text-white">Sedan</h3>
+<span class="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full font-bold">Recommended</span>
+</div>
+<p class="text-sm text-text-muted dark:text-gray-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">person</span> 4 ที่นั่ง • 
+                                <span class="material-symbols-outlined text-[14px] ml-1">luggage</span> 2 กระเป๋า
+                            </p>
+</div>
+<div class="text-right">
+<p class="text-xl font-bold text-primary">฿450</p>
+</div>
+</div>
+<!-- Unselected Item: SUV -->
+<div class="group relative flex items-center gap-4 bg-surface-light dark:bg-surface-dark p-4 rounded-xl border border-border-light dark:border-border-dark hover:border-primary/50 cursor-pointer transition-all shadow-sm">
+<div class="w-20 h-20 shrink-0 bg-gray-50 dark:bg-white/5 rounded-lg flex items-center justify-center p-1">
+<img alt="SUV" class="w-full h-auto object-contain drop-shadow-sm grayscale opacity-80 group-hover:grayscale-0 group-hover:opacity-100 transition-all" data-alt="Black SUV car side view" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAQO47PyLirvPeKytSIK0QVSu8z4Zw6wDNC1YcwrDQtK3T9xQB57JLqPFhP12aXxyE0clqJ1PES168CGlSxXTNWBLhjtBqdrtFpH-sPBcWymiaxsOQzZe4jd7qfcNyAEwy8hoRWT-WKZrWQ1FQA-c6LXL1LWX9PM-tzu5LBbLWxfauhcbOlFvh0Dy_B6WwDoW3k8lgHpeZUWmC3Z-BPWu6Ah0CrPE0JqRjEKXdaS0wYsuP6WEBoyCHQ625FuQwSSGI3QpRJNpCqWxmz"/>
+</div>
+<div class="flex-1 min-w-0">
+<h3 class="font-bold text-base text-text-main dark:text-white mb-0.5">SUV</h3>
+<p class="text-sm text-text-muted dark:text-gray-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">person</span> 6 ที่นั่ง • 
+                                <span class="material-symbols-outlined text-[14px] ml-1">luggage</span> 4 กระเป๋า
+                            </p>
+</div>
+<div class="text-right">
+<p class="text-lg font-bold text-text-main dark:text-white">฿650</p>
+</div>
+</div>
+<!-- Unselected Item: VAN -->
+<div class="group relative flex items-center gap-4 bg-surface-light dark:bg-surface-dark p-4 rounded-xl border border-border-light dark:border-border-dark hover:border-primary/50 cursor-pointer transition-all shadow-sm">
+<div class="w-20 h-20 shrink-0 bg-gray-50 dark:bg-white/5 rounded-lg flex items-center justify-center p-1">
+<img alt="Van" class="w-full h-auto object-contain drop-shadow-sm grayscale opacity-80 group-hover:grayscale-0 group-hover:opacity-100 transition-all" data-alt="Silver van side view" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDLaERlNsz9xxfdl5HofDfls3uAaI4YlrOQ_skRUG2VrYO4mKMhdRjOlhpNhfq2LnHL9DFsZbmcOTrrDfx9OI2cmihwXG4_SJRaUT2SJlMITzXKMwK80s_Rq8Z-lXEditvJC_K2Tg264eFeTM2IskQF_kk_2KpJJ3PstmTQgfk5Y_uTPkZ6RdlQ8dqPNDvQ63kqFhCSCR6pHwU2vwjEkeLs8YpkQ-Bnx9kbx5LRJG1nI_gYz0kK3UdtOJ3fgGGRd2v1fq8hvskgfGgB"/>
+</div>
+<div class="flex-1 min-w-0">
+<h3 class="font-bold text-base text-text-main dark:text-white mb-0.5">VAN</h3>
+<p class="text-sm text-text-muted dark:text-gray-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">person</span> 10 ที่นั่ง • 
+                                <span class="material-symbols-outlined text-[14px] ml-1">luggage</span> 6 กระเป๋า
+                            </p>
+</div>
+<div class="text-right">
+<p class="text-lg font-bold text-text-main dark:text-white">฿900</p>
+</div>
+</div>
+<!-- Unselected Item: Luxury -->
+<div class="group relative flex items-center gap-4 bg-surface-light dark:bg-surface-dark p-4 rounded-xl border border-border-light dark:border-border-dark hover:border-primary/50 cursor-pointer transition-all shadow-sm opacity-60">
+<!-- Unavailable Overlay hint -->
+<div class="w-20 h-20 shrink-0 bg-gray-50 dark:bg-white/5 rounded-lg flex items-center justify-center p-1">
+<img alt="Luxury" class="w-full h-auto object-contain drop-shadow-sm grayscale" data-alt="Luxury black limousine car" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB6OD2aSi7hV_Te_nJfHwFRp7PSnWC7pkGBbmEIF_r_A3_TX8uguKJ-sgPak4DzkLWuqxnSA0Dw49M9W40NGiUXjQpmTYOjueGyRJ9Zc8UolitPKyR6FjVYdwKZoXERszyOntd9JEYQ6geCo6K5_9FfC54QPLeafpeTQgph1PWC8RLy91kwt--sB_hd4eL6nxRsonEVqJZA_5sczn571rxk-Pa_GKjEJCyOqIGV6u2ZBE060kkkBNe5bvM15LE-uUQnB-NBNDHexG11"/>
+</div>
+<div class="flex-1 min-w-0">
+<h3 class="font-bold text-base text-text-main dark:text-white mb-0.5">Luxury</h3>
+<p class="text-sm text-text-muted dark:text-gray-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">person</span> 4 ที่นั่ง • 
+                                <span class="material-symbols-outlined text-[14px] ml-1">luggage</span> 3 กระเป๋า
+                            </p>
+</div>
+<div class="text-right">
+<p class="text-sm font-medium text-text-muted">ไม่ว่าง</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Payment Method -->
+<section>
+<h2 class="text-lg font-bold mb-3 px-1">การชำระเงิน</h2>
+<div class="grid grid-cols-2 gap-3">
+<!-- Option: Credit Card (Unselected) -->
+<button class="flex flex-col items-center justify-center gap-2 p-4 rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+<span class="material-symbols-outlined text-3xl text-text-muted">credit_card</span>
+<span class="text-sm font-medium">บัตรเครดิต</span>
+</button>
+<!-- Option: Cash (Selected) -->
+<button class="relative flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 border-primary bg-green-50/50 dark:bg-primary/10 transition-colors">
+<div class="absolute top-2 right-2 text-primary">
+<span class="material-symbols-outlined text-[20px] font-bold">check_circle</span>
+</div>
+<span class="material-symbols-outlined text-3xl text-primary">payments</span>
+<span class="text-sm font-bold text-primary">เงินสด</span>
+</button>
+</div>
+</section>
+<!-- Promo Code -->
+<section class="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[20px]">card_giftcard</span>
+</div>
+<span class="text-base font-medium text-text-main dark:text-white">ใส่โค้ดส่วนลด</span>
+</div>
+<span class="material-symbols-outlined text-text-muted">chevron_right</span>
+</section>
+</main>
+<!-- Sticky Footer -->
+<footer class="fixed bottom-0 left-0 right-0 bg-surface-light dark:bg-surface-dark shadow-top rounded-t-3xl z-50 border-t border-border-light dark:border-border-dark overflow-hidden">
+<div class="p-5 flex flex-col gap-4 max-w-lg mx-auto w-full">
+<!-- Price Breakdown (Collapsible style visually) -->
+<div class="flex flex-col gap-1 text-sm">
+<div class="flex justify-between items-center text-text-muted dark:text-gray-400">
+<span>ค่าโดยสารเริ่มต้น</span>
+<span>฿450</span>
+</div>
+<div class="flex justify-between items-center text-primary">
+<span>ส่วนลด</span>
+<span>-฿0</span>
+</div>
+<div class="flex justify-between items-center mt-2 pt-2 border-t border-border-light dark:border-border-dark">
+<span class="text-base font-bold text-text-main dark:text-white">รวมทั้งหมด</span>
+<span class="text-2xl font-bold text-primary">฿450</span>
+</div>
+</div>
+<!-- CTA Button -->
+<button class="w-full h-14 bg-primary hover:bg-green-600 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg shadow-primary/20 transition-all active:scale-[0.98]">
+<span>จองเลย</span>
+<span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+<!-- Safe area spacer for iOS home indicator -->
+<div class="h-6 w-full bg-surface-light dark:bg-surface-dark"></div>
+</footer>
+</div>
+</body></html>
