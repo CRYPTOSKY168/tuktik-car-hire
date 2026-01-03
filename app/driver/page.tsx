@@ -92,13 +92,18 @@ const lightMapStyles: google.maps.MapTypeStyle[] = [
     { featureType: 'road.local', elementType: 'geometry.fill', stylers: [{ color: '#ffffff' }] },
 ];
 
-const mapOptions: google.maps.MapOptions = {
+// Base map options - will be combined with dynamic options for 3D navigation
+const baseMapOptions: google.maps.MapOptions = {
     disableDefaultUI: true,
     zoomControl: false,
     styles: lightMapStyles,
     gestureHandling: 'greedy',
-    heading: 0,
-    tilt: 0,
+};
+
+// 3D Navigation settings
+const NAVIGATION_3D_CONFIG = {
+    tilt: 45,       // 45 degrees tilt for 3D perspective (like Google Maps)
+    zoom: 18,       // Closer zoom when navigating
 };
 
 // Pickup Marker SVG
@@ -564,6 +569,9 @@ export default function DemoDriverPage() {
         );
     }, [bookings]);
 
+    // 3D Navigation Mode state
+    const [is3DNavigationMode, setIs3DNavigationMode] = useState(true);
+
     // Get directions when there's active booking (debounced, only on status change or significant location change)
     useEffect(() => {
         if (!isLoaded || !activeBooking) {
@@ -685,6 +693,46 @@ export default function DemoDriverPage() {
             }
         }
     }, [locationTracking.latitude, locationTracking.longitude]);
+
+    // Dynamic map options with 3D navigation support
+    const mapOptions = useMemo((): google.maps.MapOptions => {
+        const isNavigating = activeBooking && ['driver_en_route', 'in_progress'].includes(activeBooking.status);
+        const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID;
+
+        if (isNavigating && is3DNavigationMode && mapId) {
+            // 3D Navigation mode - with tilt and heading
+            return {
+                ...baseMapOptions,
+                mapId,
+                tilt: NAVIGATION_3D_CONFIG.tilt,
+                heading: locationTracking.heading || 0,
+            };
+        }
+
+        // Normal 2D mode
+        return {
+            ...baseMapOptions,
+            ...(mapId ? { mapId } : {}),
+            tilt: 0,
+            heading: 0,
+        };
+    }, [activeBooking?.status, is3DNavigationMode, locationTracking.heading]);
+
+    // Update map heading in real-time when navigating in 3D mode
+    useEffect(() => {
+        if (!mapRef.current || !is3DNavigationMode) return;
+
+        const isNavigating = activeBooking && ['driver_en_route', 'in_progress'].includes(activeBooking.status);
+        if (!isNavigating) return;
+
+        const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID;
+        if (!mapId) return;
+
+        // Update heading smoothly
+        const heading = locationTracking.heading || 0;
+        mapRef.current.setHeading(heading);
+        mapRef.current.setTilt(NAVIGATION_3D_CONFIG.tilt);
+    }, [activeBooking?.status, is3DNavigationMode, locationTracking.heading]);
 
     // Handle status change
     const handleStatusChange = async (newStatus: DriverStatus) => {
@@ -1173,6 +1221,23 @@ export default function DemoDriverPage() {
 
                 {/* ===== FLOATING ACTION BUTTONS ===== */}
                 <div className="absolute right-4 bottom-[50%] z-20 flex flex-col gap-2">
+                    {/* 3D Navigation Toggle - only show when navigating */}
+                    {activeBooking && ['driver_en_route', 'in_progress'].includes(activeBooking.status) && (
+                        <button
+                            onClick={() => setIs3DNavigationMode(prev => !prev)}
+                            className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg active:scale-95 border transition-all ${
+                                is3DNavigationMode
+                                    ? 'bg-[#00b14f] text-white border-[#00b14f]'
+                                    : 'bg-white text-gray-700 border-gray-200'
+                            }`}
+                            title={is3DNavigationMode ? 'ปิด 3D' : 'เปิด 3D'}
+                        >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" />
+                            </svg>
+                        </button>
+                    )}
+
                     {/* Recenter button */}
                     <button
                         onClick={() => mapRef.current?.panTo(driverLocation)}
