@@ -659,11 +659,78 @@ export default function DemoDriverPage() {
     const smoothHeadingRef = useRef(0); // Smoothly interpolated heading for 3D camera
     const lastPanTimeRef = useRef(0); // Track last camera update to throttle
     const hasZoomedIn = useRef(false); // Track if we've zoomed in already (don't reset on every change)
+    const autoResumeTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Auto-resume follow mode after 10 seconds (like Grab)
+    const autoResumeIntervalRef = useRef<NodeJS.Timeout | null>(null); // Interval for countdown
+    const [autoResumeCountdown, setAutoResumeCountdown] = useState<number | null>(null); // Countdown display
+    const AUTO_RESUME_DELAY = 10; // 10 seconds
 
     // Sync isFollowMode state to ref
     useEffect(() => {
         isFollowModeRef.current = isFollowMode;
     }, [isFollowMode]);
+
+    // Handle user map interaction - pause follow and start auto-resume timer (like Grab)
+    const handleUserMapInteraction = useCallback(() => {
+        // Clear any existing timers
+        if (autoResumeTimeoutRef.current) {
+            clearTimeout(autoResumeTimeoutRef.current);
+            autoResumeTimeoutRef.current = null;
+        }
+        if (autoResumeIntervalRef.current) {
+            clearInterval(autoResumeIntervalRef.current);
+            autoResumeIntervalRef.current = null;
+        }
+
+        // Pause follow mode
+        setIsFollowMode(false);
+
+        // Start countdown
+        let secondsLeft = AUTO_RESUME_DELAY;
+        setAutoResumeCountdown(secondsLeft);
+
+        // Update countdown every second
+        autoResumeIntervalRef.current = setInterval(() => {
+            secondsLeft -= 1;
+            if (secondsLeft <= 0) {
+                // Time's up - resume follow mode
+                setIsFollowMode(true);
+                setAutoResumeCountdown(null);
+                if (autoResumeIntervalRef.current) {
+                    clearInterval(autoResumeIntervalRef.current);
+                    autoResumeIntervalRef.current = null;
+                }
+            } else {
+                setAutoResumeCountdown(secondsLeft);
+            }
+        }, 1000);
+    }, []);
+
+    // Clear auto-resume timer when follow mode is manually re-enabled
+    useEffect(() => {
+        if (isFollowMode) {
+            if (autoResumeTimeoutRef.current) {
+                clearTimeout(autoResumeTimeoutRef.current);
+                autoResumeTimeoutRef.current = null;
+            }
+            if (autoResumeIntervalRef.current) {
+                clearInterval(autoResumeIntervalRef.current);
+                autoResumeIntervalRef.current = null;
+            }
+            setAutoResumeCountdown(null);
+        }
+    }, [isFollowMode]);
+
+    // Cleanup auto-resume timers on unmount
+    useEffect(() => {
+        return () => {
+            if (autoResumeTimeoutRef.current) {
+                clearTimeout(autoResumeTimeoutRef.current);
+            }
+            if (autoResumeIntervalRef.current) {
+                clearInterval(autoResumeIntervalRef.current);
+            }
+        };
+    }, []);
 
     // Smooth animation refs (like test-drive-simulation)
     const animatedPositionRef = useRef(driverLocation); // Smoothly interpolated position
@@ -1296,7 +1363,7 @@ export default function DemoDriverPage() {
                         zoom={16}
                         options={mapOptions}
                         onLoad={onMapLoad}
-                        onDragStart={() => setIsFollowMode(false)} // Pause follow when user drags (like Grab/Uber)
+                        onDragStart={handleUserMapInteraction} // Pause follow when user drags, auto-resume after 10s (like Grab/Uber)
                     >
                         {/* Driver Location with heading */}
                         <DriverMarker
@@ -1437,7 +1504,7 @@ export default function DemoDriverPage() {
                             setIsFollowMode(true);
                             mapRef.current?.panTo(driverLocation);
                         }}
-                        className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${
+                        className={`relative w-11 h-11 rounded-xl flex items-center justify-center transition-all ${
                             isFollowMode
                                 ? 'bg-white/95 text-gray-600 shadow-md'
                                 : 'bg-[#00b14f] text-white shadow-lg' // Green when not following
@@ -1448,6 +1515,12 @@ export default function DemoDriverPage() {
                             <circle cx="12" cy="12" r="3" />
                             <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
                         </svg>
+                        {/* Countdown badge */}
+                        {autoResumeCountdown !== null && (
+                            <span className="absolute -top-1 -right-1 w-5 h-5 bg-white text-[#00b14f] text-[10px] font-bold rounded-full flex items-center justify-center shadow-md border border-[#00b14f]">
+                                {autoResumeCountdown}
+                            </span>
+                        )}
                     </button>
 
                     {/* 3D Toggle - Only show when navigating */}
