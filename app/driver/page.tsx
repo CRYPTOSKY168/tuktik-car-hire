@@ -694,45 +694,37 @@ export default function DemoDriverPage() {
         }
     }, [locationTracking.latitude, locationTracking.longitude]);
 
-    // Dynamic map options with 3D navigation support
+    // Map ID must be set at initialization - cannot be changed later
+    const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID;
+
+    // Static map options (mapId must be included at initialization for Vector Maps)
     const mapOptions = useMemo((): google.maps.MapOptions => {
-        const isNavigating = activeBooking && ['driver_en_route', 'in_progress'].includes(activeBooking.status);
-        const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID;
-
-        if (isNavigating && is3DNavigationMode && mapId) {
-            // 3D Navigation mode - with tilt and heading
-            return {
-                ...baseMapOptions,
-                mapId,
-                tilt: NAVIGATION_3D_CONFIG.tilt,
-                heading: locationTracking.heading || 0,
-            };
-        }
-
-        // Normal 2D mode
         return {
             ...baseMapOptions,
             ...(mapId ? { mapId } : {}),
+            // tilt and heading will be controlled dynamically via useEffect
             tilt: 0,
             heading: 0,
         };
-    }, [activeBooking?.status, is3DNavigationMode, locationTracking.heading]);
+    }, [mapId]);
 
-    // Update map heading in real-time when navigating in 3D mode
+    // Update map tilt and heading dynamically based on navigation mode
     useEffect(() => {
-        if (!mapRef.current || !is3DNavigationMode) return;
+        if (!mapRef.current) return;
 
         const isNavigating = activeBooking && ['driver_en_route', 'in_progress'].includes(activeBooking.status);
-        if (!isNavigating) return;
 
-        const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID;
-        if (!mapId) return;
-
-        // Update heading smoothly
-        const heading = locationTracking.heading || 0;
-        mapRef.current.setHeading(heading);
-        mapRef.current.setTilt(NAVIGATION_3D_CONFIG.tilt);
-    }, [activeBooking?.status, is3DNavigationMode, locationTracking.heading]);
+        if (isNavigating && is3DNavigationMode && mapId) {
+            // 3D Navigation mode - tilt and rotate map
+            const heading = locationTracking.heading || 0;
+            mapRef.current.setTilt(NAVIGATION_3D_CONFIG.tilt);
+            mapRef.current.setHeading(heading);
+        } else {
+            // 2D mode - flat view
+            mapRef.current.setTilt(0);
+            mapRef.current.setHeading(0);
+        }
+    }, [activeBooking?.status, is3DNavigationMode, locationTracking.heading, mapId]);
 
     // Handle status change
     const handleStatusChange = async (newStatus: DriverStatus) => {
