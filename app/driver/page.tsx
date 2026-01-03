@@ -153,6 +153,14 @@ function calculateBearing(from: { lat: number; lng: number }, to: { lat: number;
     return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
+// Smooth angle interpolation (handles 360->0 wraparound)
+function interpolateAngle(from: number, to: number, fraction: number): number {
+    let diff = to - from;
+    if (diff > 180) diff -= 360;
+    if (diff < -180) diff += 360;
+    return (from + diff * fraction + 360) % 360;
+}
+
 // Driver Car Marker with Heading (Light Theme)
 function DriverMarker({ position, heading = 0, isOnline = false }: {
     position: { lat: number; lng: number };
@@ -572,6 +580,8 @@ export default function DemoDriverPage() {
 
     // 3D Navigation Mode state
     const [is3DNavigationMode, setIs3DNavigationMode] = useState(true);
+    const smoothHeadingRef = useRef(0); // Smoothly interpolated heading for 3D camera (using ref to avoid re-renders)
+    const animationFrameRef = useRef<number | null>(null);
 
     // Get directions when there's active booking (debounced, only on status change or significant location change)
     useEffect(() => {
@@ -708,7 +718,7 @@ export default function DemoDriverPage() {
         };
     }, [mapId]);
 
-    // Update map tilt and heading dynamically based on navigation mode
+    // Update map tilt and heading dynamically based on navigation mode (smooth animation)
     useEffect(() => {
         // Wait for map to be ready
         if (!mapRef.current || !isMapReady) return;
@@ -716,16 +726,44 @@ export default function DemoDriverPage() {
         const isNavigating = activeBooking && ['driver_en_route', 'in_progress'].includes(activeBooking.status);
 
         if (isNavigating && is3DNavigationMode && mapId) {
-            // 3D Navigation mode - tilt and rotate map
-            const heading = locationTracking.heading || 0;
-            try {
-                mapRef.current.setTilt(NAVIGATION_3D_CONFIG.tilt);
-                mapRef.current.setHeading(heading);
-            } catch (err) {
-                console.error('Error setting 3D tilt/heading:', err);
-            }
+            // 3D Navigation mode - animate smooth camera follow
+            const targetHeading = locationTracking.heading || 0;
+
+            const animate = () => {
+                if (!mapRef.current) return;
+
+                // Smooth interpolation (0.1 = smooth, higher = faster response)
+                smoothHeadingRef.current = interpolateAngle(smoothHeadingRef.current, targetHeading, 0.1);
+
+                try {
+                    // Apply 3D tilt and smooth heading
+                    mapRef.current.setTilt(NAVIGATION_3D_CONFIG.tilt);
+                    mapRef.current.setHeading(smoothHeadingRef.current);
+
+                    // Smooth camera follow driver position
+                    mapRef.current.panTo(driverLocation);
+                } catch (err) {
+                    console.error('Error setting 3D tilt/heading:', err);
+                }
+
+                // Continue animation if still navigating and 3D mode
+                animationFrameRef.current = requestAnimationFrame(animate);
+            };
+
+            // Start animation loop
+            animationFrameRef.current = requestAnimationFrame(animate);
+
+            // Cleanup
+            return () => {
+                if (animationFrameRef.current) {
+                    cancelAnimationFrame(animationFrameRef.current);
+                }
+            };
         } else {
-            // 2D mode - flat view
+            // 2D mode - flat view, stop animation
+            if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current);
+            }
             try {
                 mapRef.current.setTilt(0);
                 mapRef.current.setHeading(0);
@@ -733,7 +771,7 @@ export default function DemoDriverPage() {
                 console.error('Error resetting tilt/heading:', err);
             }
         }
-    }, [activeBooking?.status, is3DNavigationMode, locationTracking.heading, mapId, isMapReady]);
+    }, [activeBooking?.status, is3DNavigationMode, locationTracking.heading, mapId, isMapReady, driverLocation]);
 
     // Handle status change
     const handleStatusChange = async (newStatus: DriverStatus) => {
