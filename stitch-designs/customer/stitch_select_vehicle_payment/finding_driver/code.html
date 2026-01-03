@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Finding Driver - TukTik</title>
+<!-- Fonts: Inter, Noto Sans Thai, Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Noto+Sans+Thai:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#00b250", // TukTik Green
+                        "secondary": "#FFB300", // Amber
+                        "background-light": "#f5f8f7",
+                        "background-dark": "#0f2318",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#1c2e26",
+                        "text-main": "#101814",
+                        "text-muted": "#5e8d73",
+                        "border-color": "#dae7e0",
+                        "error": "#ef4444",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "Noto Sans Thai", "sans-serif"],
+                        "thai": ["Noto Sans Thai", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "2xl": "2rem", "full": "9999px"},
+                    boxShadow: {
+                        'up': '0 -4px 20px -5px rgba(0, 0, 0, 0.1)',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar hiding */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display antialiased overflow-hidden">
+<div class="relative flex h-screen w-full flex-col group/design-root overflow-hidden">
+<!-- Full Screen Map Background -->
+<div class="absolute inset-0 z-0 w-full h-full">
+<!-- Map Image -->
+<div class="w-full h-full bg-cover bg-center opacity-80" data-alt="Abstract map of city streets with light background" data-location="Bangkok, Thailand" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCM5-s3WwoHO66IyN_gx-d_laG568JBOA5MOsCees_-Bb2LZ3j2qtep0P-G7qV-DckBSPAmx2_-AdMg7YdlQXidPKFx46i3LJVVc2lvYyD6IpN2zfrvD8T1dg3yU8RP6cyJ486EqFGHBo8ecRaDMIf1am3rVvRpV6v-61UdMZkaQMeMI2pS8ilVYX3aLPHCY2V2H7g7XsW7YF1yuEZo4o_btpkr_cOCWOhp3haaW7VcN7Q5U_zGHaphhA-AfDsq6OmRqShP2flUEw1x");'>
+</div>
+<!-- Map Overlay Gradient (for better text contrast at top) -->
+<div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-white/60 to-transparent pointer-events-none"></div>
+<!-- Pulsing Pickup Marker (Center) -->
+<div class="absolute top-[40%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
+<!-- Outer Rings (Static representation of pulse) -->
+<div class="absolute w-32 h-32 bg-primary/10 rounded-full"></div>
+<div class="absolute w-20 h-20 bg-primary/20 rounded-full"></div>
+<!-- Pin -->
+<div class="relative z-10 text-primary drop-shadow-md">
+<span class="material-symbols-outlined text-[48px] fill-1">location_on</span>
+</div>
+<!-- Pin Shadow -->
+<div class="absolute -bottom-1 w-4 h-1.5 bg-black/20 rounded-[100%] blur-[2px]"></div>
+</div>
+</div>
+<!-- Top Navigation (Floating) -->
+<div class="absolute top-0 left-0 w-full z-10 pt-12 pb-4 px-4 flex justify-between items-start pointer-events-none">
+<button class="pointer-events-auto bg-surface-light dark:bg-surface-dark shadow-md rounded-full w-10 h-10 flex items-center justify-center text-text-main dark:text-white transition-colors">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<button class="pointer-events-auto bg-surface-light/90 dark:bg-surface-dark/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm text-sm font-semibold text-text-main dark:text-white border border-border-color">
+                Help
+            </button>
+</div>
+<!-- Bottom Sheet (Floating Overlay) -->
+<div class="absolute bottom-0 left-0 w-full z-20 flex flex-col justify-end pointer-events-none">
+<!-- Sheet Container -->
+<div class="bg-surface-light dark:bg-surface-dark w-full rounded-t-[32px] shadow-up pb-8 pointer-events-auto">
+<!-- Handle -->
+<div class="flex flex-col items-center pt-3 pb-2 w-full">
+<div class="h-1.5 w-12 rounded-full bg-border-color dark:bg-gray-600"></div>
+</div>
+<!-- Searching Status Section -->
+<div class="px-6 py-4 flex flex-col items-center text-center">
+<!-- Loading Spinner (Static visual) -->
+<div class="relative w-16 h-16 mb-4 flex items-center justify-center">
+<!-- Background Circle -->
+<div class="absolute inset-0 border-[5px] border-primary/20 rounded-full"></div>
+<!-- Progress Arc (75% completed representation) -->
+<svg class="absolute inset-0 w-full h-full rotate-[-90deg]" viewbox="0 0 100 100">
+<circle cx="50" cy="50" fill="none" r="42" stroke="#00b250" stroke-dasharray="264" stroke-dashoffset="66" stroke-linecap="round" stroke-width="10"></circle>
+</svg>
+<!-- Icon inside spinner -->
+<span class="material-symbols-outlined text-primary text-2xl">local_taxi</span>
+</div>
+<h2 class="text-text-main dark:text-white font-thai text-2xl font-bold leading-tight mb-2">
+                        กำลังหาคนขับให้คุณ...
+                    </h2>
+<p class="text-text-muted text-sm font-medium flex items-center gap-2">
+<span>พยายามครั้งที่ 1/3</span>
+<span class="w-1 h-1 rounded-full bg-text-muted"></span>
+<span>รอไม่เกิน 3 นาที</span>
+</p>
+</div>
+<!-- Divider -->
+<div class="h-px w-full bg-border-color/60 dark:bg-gray-700 my-2"></div>
+<!-- Trip Details -->
+<div class="px-6 py-4">
+<!-- Route Timeline -->
+<div class="relative flex flex-col gap-6 pl-2">
+<!-- Connecting Line -->
+<div class="absolute left-[11px] top-3 bottom-3 w-0.5 bg-gray-200 dark:bg-gray-600 -z-10 border-l border-dashed border-gray-300 dark:border-gray-600"></div>
+<!-- Pickup -->
+<div class="flex items-start gap-4">
+<div class="mt-1 w-6 flex flex-col items-center shrink-0">
+<div class="w-2.5 h-2.5 rounded-full bg-primary ring-4 ring-primary/20"></div>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-xs text-text-muted font-medium mb-0.5">รับที่ • Pickup</p>
+<p class="text-text-main dark:text-white font-semibold truncate text-base">Suvarnabhumi Airport</p>
+<p class="text-text-muted text-xs truncate">Departure Level 4, Gate 3</p>
+</div>
+</div>
+<!-- Dropoff -->
+<div class="flex items-start gap-4">
+<div class="mt-1 w-6 flex flex-col items-center shrink-0">
+<span class="material-symbols-outlined text-secondary text-[22px] leading-none fill-1">location_on</span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-xs text-text-muted font-medium mb-0.5">ส่งที่ • Drop-off</p>
+<p class="text-text-main dark:text-white font-semibold truncate text-base">Grand Hyatt Erawan Bangkok</p>
+<p class="text-text-muted text-xs truncate">494 Rajdamri Road</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Vehicle & Payment Card -->
+<div class="mx-6 p-4 bg-background-light dark:bg-black/20 rounded-xl border border-border-color dark:border-gray-700 flex items-center justify-between mb-6">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm text-text-main dark:text-white">
+<span class="material-symbols-outlined">airport_shuttle</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-2">
+<span class="text-text-main dark:text-white font-bold text-sm">SUV</span>
+<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-secondary/10 text-secondary border border-secondary/20">4 Pax</span>
+</div>
+<div class="flex items-center gap-1 text-xs text-text-muted">
+<span class="material-symbols-outlined text-[14px]">payments</span>
+<span>Cash</span>
+</div>
+</div>
+</div>
+<div class="text-right">
+<span class="block text-primary font-bold text-lg">฿450</span>
+<span class="block text-xs text-text-muted line-through">฿600</span>
+</div>
+</div>
+<!-- Actions -->
+<div class="px-6 pb-2 safe-area-bottom">
+<button class="w-full flex items-center justify-center h-12 rounded-xl border border-red-200 dark:border-red-900 bg-white dark:bg-transparent text-error font-thai font-bold text-base hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shadow-sm">
+<span class="material-symbols-outlined mr-2 text-[20px]">close</span>
+                        ยกเลิกการจอง
+                    </button>
+</div>
+</div>
+</div>
+</div>
+</body></html>

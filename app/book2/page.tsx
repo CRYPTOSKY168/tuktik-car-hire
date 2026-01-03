@@ -340,12 +340,16 @@ export default function Book2Page() {
     // Modals
     const [showNoDriverModal, setShowNoDriverModal] = useState(false);
     const [showRatingModal, setShowRatingModal] = useState(false);
+    const [showContactModal, setShowContactModal] = useState(false);
 
     // Rating state
     const [ratingStars, setRatingStars] = useState(5);
     const [ratingComment, setRatingComment] = useState('');
     const [selectedTip, setSelectedTip] = useState(0);
     const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+
+    // Bottom sheet minimized state
+    const [isBottomSheetMinimized, setIsBottomSheetMinimized] = useState(false);
 
     // Real-time driver tracking hook
     const { location: liveDriverLocation } = useDriverTracking(
@@ -578,7 +582,15 @@ export default function Book2Page() {
         );
 
         return () => unsubscribe();
-    }, [bookingId, availableDrivers, user]);
+    }, [bookingId, availableDrivers, user, isRematching]);
+
+    // Cleanup timeouts on unmount (Bug 3.6 fix)
+    useEffect(() => {
+        return () => {
+            if (rematchTimeoutRef.current) clearTimeout(rematchTimeoutRef.current);
+            if (driverResponseTimeoutRef.current) clearTimeout(driverResponseTimeoutRef.current);
+        };
+    }, []);
 
     // Update driver location from tracking
     useEffect(() => {
@@ -587,6 +599,78 @@ export default function Book2Page() {
             if (liveDriverLocation.heading) setDriverBearing(liveDriverLocation.heading);
         }
     }, [liveDriverLocation]);
+
+    // Set initial driver location from assigned driver's currentLocation
+    useEffect(() => {
+        if (assignedDriver && !driverLocation) {
+            // Check if driver has currentLocation in Firestore
+            const currentLoc = (assignedDriver as any).currentLocation;
+            if (currentLoc?.lat && currentLoc?.lng) {
+                setDriverLocation({ lat: currentLoc.lat, lng: currentLoc.lng });
+                if (currentLoc.heading) setDriverBearing(currentLoc.heading);
+            }
+        }
+    }, [assignedDriver, driverLocation]);
+
+    // Calculate ETA based on driver location using Directions API
+    useEffect(() => {
+        if (!isLoaded) return;
+
+        const calculateEta = async () => {
+            try {
+                const directionsService = new google.maps.DirectionsService();
+
+                // Calculate ETA to pickup (when driver is en route)
+                if (status === 'driver_en_route' && pickup.lat && pickup.lng) {
+                    // Use driver location if available, otherwise use a nearby point for estimation
+                    const origin = driverLocation || { lat: pickup.lat + 0.01, lng: pickup.lng + 0.01 };
+
+                    console.log('[ETA] Calculating to pickup:', { origin, destination: pickup });
+
+                    const result = await directionsService.route({
+                        origin,
+                        destination: { lat: pickup.lat, lng: pickup.lng },
+                        travelMode: google.maps.TravelMode.DRIVING,
+                    });
+
+                    if (result.routes[0]?.legs[0]?.duration) {
+                        const durationSeconds = result.routes[0].legs[0].duration.value;
+                        const etaMinutes = Math.max(1, Math.ceil(durationSeconds / 60));
+                        console.log('[ETA] To pickup:', etaMinutes, 'minutes');
+                        setLiveEta(prev => ({ ...prev, toPickup: etaMinutes }));
+                    }
+                }
+
+                // Calculate ETA to dropoff (when trip is in progress)
+                if (status === 'in_progress' && dropoff.lat && dropoff.lng) {
+                    // Use driver location if available, otherwise use pickup as origin
+                    const origin = driverLocation || { lat: pickup.lat, lng: pickup.lng };
+
+                    console.log('[ETA] Calculating to dropoff:', { origin, destination: dropoff });
+
+                    const result = await directionsService.route({
+                        origin,
+                        destination: { lat: dropoff.lat, lng: dropoff.lng },
+                        travelMode: google.maps.TravelMode.DRIVING,
+                    });
+
+                    if (result.routes[0]?.legs[0]?.duration) {
+                        const durationSeconds = result.routes[0].legs[0].duration.value;
+                        const etaMinutes = Math.max(1, Math.ceil(durationSeconds / 60));
+                        console.log('[ETA] To dropoff:', etaMinutes, 'minutes');
+                        setLiveEta(prev => ({ ...prev, toDropoff: etaMinutes }));
+                    }
+                }
+            } catch (error) {
+                console.error('[ETA] Error calculating:', error);
+            }
+        };
+
+        // Calculate ETA when status changes or driver moves
+        if (status === 'driver_en_route' || status === 'in_progress') {
+            calculateEta();
+        }
+    }, [driverLocation, status, pickup.lat, pickup.lng, dropoff.lat, dropoff.lng, isLoaded]);
 
     // Reverse geocode coordinates to address
     const reverseGeocode = useCallback(async (lat: number, lng: number): Promise<string> => {
@@ -779,6 +863,12 @@ export default function Book2Page() {
 
     // Find and assign driver
     const findAndAssignDriver = async (bookingIdToAssign: string, excludeDrivers: string[] = []): Promise<boolean> => {
+        // Bug fix: Check if availableDrivers is loaded
+        if (!availableDrivers || availableDrivers.length === 0) {
+            console.warn('[findAndAssignDriver] No drivers available yet');
+            return false;
+        }
+
         const eligibleDrivers = availableDrivers.filter(d =>
             d.userId !== user?.uid && !excludeDrivers.includes(d.id)
         );
@@ -788,7 +878,10 @@ export default function Book2Page() {
         try {
             const driver = eligibleDrivers[Math.floor(Math.random() * eligibleDrivers.length)];
             const token = await getAuthToken();
-            if (!token) return false;
+            if (!token) {
+                console.error('[findAndAssignDriver] No auth token');
+                return false;
+            }
 
             const response = await fetch('/api/booking/assign-driver', {
                 method: 'POST',
@@ -805,13 +898,20 @@ export default function Book2Page() {
             });
 
             const result = await response.json();
+
+            // Bug fix: Check HTTP response status and show detailed error
+            if (!response.ok) {
+                console.error('[findAndAssignDriver] API error:', response.status, result.error);
+                return false;
+            }
             if (result.success) {
                 setAssignedDriver(driver);
                 return true;
             }
+            console.warn('[findAndAssignDriver] API returned:', result.error);
             return false;
         } catch (error) {
-            console.error('Error assigning driver:', error);
+            console.error('[findAndAssignDriver] Error:', error);
             return false;
         }
     };
@@ -953,6 +1053,10 @@ export default function Book2Page() {
         setStatus('searching');
         searchStartTimeRef.current = Date.now();
 
+        // ⚠️ FIX: Update booking status to 'pending' BEFORE assigning driver
+        // Booking was created with 'awaiting_payment' status, need to change to 'pending' first
+        await BookingService.updateBookingStatus(pendingBookingId, 'pending', 'Payment completed');
+
         const assigned = await findAndAssignDriver(pendingBookingId);
         if (!assigned) {
             setShowNoDriverModal(true);
@@ -976,6 +1080,14 @@ export default function Book2Page() {
     const confirmCancelBooking = async () => {
         if (!activeBooking?.id) return;
 
+        // Bug 5.3 fix: Validate booking status before cancelling
+        const cancellableStatuses = ['pending', 'confirmed', 'driver_assigned'];
+        if (!cancellableStatuses.includes(activeBooking.status)) {
+            alert('ไม่สามารถยกเลิกได้ในขั้นตอนนี้ (คนขับกำลังเดินทางหรือกำลังเดินทางอยู่)');
+            setShowCancelModal(false);
+            return;
+        }
+
         setIsCancellingBooking(true);
         try {
             await BookingService.updateBookingStatus(activeBooking.id, 'cancelled', 'ผู้ใช้ยกเลิกการจอง');
@@ -988,6 +1100,7 @@ export default function Book2Page() {
             setShowCancelModal(false);
         } catch (error) {
             console.error('Error cancelling booking:', error);
+            alert('เกิดข้อผิดพลาดในการยกเลิก กรุณาลองใหม่');
         } finally {
             setIsCancellingBooking(false);
         }
@@ -1015,7 +1128,14 @@ export default function Book2Page() {
         setIsSubmittingRating(true);
         try {
             const token = await getAuthToken();
-            await fetch('/api/booking/rate', {
+            // Bug 7.3 fix: Validate token before making API call
+            if (!token) {
+                console.error('[submitRating] No auth token available');
+                alert('กรุณาเข้าสู่ระบบใหม่');
+                return;
+            }
+
+            const response = await fetch('/api/booking/rate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
@@ -1026,6 +1146,10 @@ export default function Book2Page() {
                     tip: selectedTip > 0 ? selectedTip : undefined,
                 }),
             });
+
+            if (!response.ok) {
+                console.error('[submitRating] API error:', response.status);
+            }
 
             setShowRatingModal(false);
             resetTrip();
@@ -1150,44 +1274,48 @@ export default function Book2Page() {
                 </Link>
             </div>
 
-            {/* Search Card */}
+            {/* Search Card - Stitch Design */}
             <div className="relative z-20 px-4 pt-16">
-                <div className="bg-white dark:bg-[#182b21] rounded-2xl shadow-lg p-4 border border-[#dae7e0] dark:border-[#2a4a38]">
-                    {/* Pickup */}
-                    <div className="flex items-center gap-3 h-12">
-                        <div className="w-6 flex justify-center">
-                            <div className="w-3 h-3 rounded-full bg-[#00b250]" />
+                <div className="bg-white dark:bg-[#182b21] rounded-xl shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] p-4 border border-[#dae7e0] dark:border-[#2a4a38]">
+                    {/* Pickup Input Row */}
+                    <div className="flex items-center gap-3 relative h-12">
+                        <div className="flex flex-col items-center justify-center w-6 h-full">
+                            <span className="material-symbols-outlined text-[#00b250] text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>radio_button_checked</span>
+                            {/* Dotted Line Connector */}
+                            <div className="w-0.5 flex-1 border-l-2 border-dashed border-gray-300 dark:border-gray-600 my-1"></div>
                         </div>
-                        {isLoaded && status === 'selecting' ? (
-                            <Autocomplete
-                                onLoad={(autocomplete) => { pickupAutocompleteRef.current = autocomplete; }}
-                                onPlaceChanged={onPickupPlaceSelect}
-                                options={{ componentRestrictions: { country: 'th' } }}
-                                className="flex-1"
-                            >
+                        <div className="flex-1 border-b border-[#dae7e0] dark:border-[#2a4a38] h-full flex items-center">
+                            {isLoaded && status === 'selecting' ? (
+                                <Autocomplete
+                                    onLoad={(autocomplete) => { pickupAutocompleteRef.current = autocomplete; }}
+                                    onPlaceChanged={onPickupPlaceSelect}
+                                    options={{ componentRestrictions: { country: 'th' } }}
+                                    className="flex-1"
+                                >
+                                    <input
+                                        type="text"
+                                        placeholder="เลือกจุดรับ"
+                                        value={pickup.name}
+                                        onChange={(e) => setPickup({ ...pickup, name: e.target.value })}
+                                        className="w-full bg-transparent border-none focus:ring-0 p-0 text-base font-medium placeholder:text-[#5e8d73] placeholder:font-normal text-[#101814] dark:text-white"
+                                    />
+                                </Autocomplete>
+                            ) : (
                                 <input
                                     type="text"
-                                    placeholder="จุดรับ - พิมพ์ค้นหา"
+                                    placeholder="เลือกจุดรับ"
                                     value={pickup.name}
-                                    onChange={(e) => setPickup({ ...pickup, name: e.target.value })}
-                                    className="w-full bg-transparent text-[#101814] dark:text-white placeholder-[#5e8d73] outline-none text-base"
+                                    className="w-full bg-transparent border-none p-0 text-base font-medium text-[#101814] dark:text-white"
+                                    disabled
                                 />
-                            </Autocomplete>
-                        ) : (
-                            <input
-                                type="text"
-                                placeholder="จุดรับ"
-                                value={pickup.name}
-                                className="flex-1 bg-transparent text-[#101814] dark:text-white placeholder-[#5e8d73] outline-none text-base"
-                                disabled
-                            />
-                        )}
+                            )}
+                        </div>
                         {/* GPS Button */}
                         {status === 'selecting' && (
                             <button
                                 onClick={getCurrentLocation}
                                 disabled={isGettingLocation}
-                                className="w-10 h-10 rounded-full bg-[#00b250]/10 hover:bg-[#00b250]/20 flex items-center justify-center transition-colors"
+                                className="w-10 h-10 rounded-full bg-[#00b250]/10 hover:bg-[#00b250]/20 flex items-center justify-center transition-colors active:scale-95"
                                 title="ใช้ตำแหน่งปัจจุบัน"
                             >
                                 {isGettingLocation ? (
@@ -1199,139 +1327,467 @@ export default function Book2Page() {
                         )}
                     </div>
 
-                    <div className="h-px bg-[#dae7e0] dark:bg-[#2a4a38] ml-9" />
-
-                    {/* Dropoff */}
-                    <div className="flex items-center gap-3 h-12">
-                        <div className="w-6 flex justify-center">
-                            <div className="w-3 h-3 rounded-sm bg-red-500" />
+                    {/* Dropoff Input Row */}
+                    <div className="flex items-center gap-3 relative h-12">
+                        <div className="flex flex-col items-center justify-center w-6 h-full pt-1">
+                            <span className="material-symbols-outlined text-[#FFB300] text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
                         </div>
-                        {isLoaded && status === 'selecting' ? (
-                            <Autocomplete
-                                onLoad={(autocomplete) => { dropoffAutocompleteRef.current = autocomplete; }}
-                                onPlaceChanged={onDropoffPlaceSelect}
-                                options={{ componentRestrictions: { country: 'th' } }}
-                                className="flex-1"
-                            >
+                        <div className="flex-1 h-full flex items-center">
+                            {isLoaded && status === 'selecting' ? (
+                                <Autocomplete
+                                    onLoad={(autocomplete) => { dropoffAutocompleteRef.current = autocomplete; }}
+                                    onPlaceChanged={onDropoffPlaceSelect}
+                                    options={{ componentRestrictions: { country: 'th' } }}
+                                    className="flex-1"
+                                >
+                                    <input
+                                        type="text"
+                                        placeholder="ไปไหน?"
+                                        value={dropoff.name}
+                                        onChange={(e) => setDropoff({ ...dropoff, name: e.target.value })}
+                                        className="w-full bg-transparent border-none focus:ring-0 p-0 text-base font-medium placeholder:text-[#5e8d73] placeholder:font-normal text-[#101814] dark:text-white"
+                                    />
+                                </Autocomplete>
+                            ) : (
                                 <input
                                     type="text"
-                                    placeholder="จุดส่ง - พิมพ์ค้นหา"
+                                    placeholder="ไปไหน?"
                                     value={dropoff.name}
-                                    onChange={(e) => setDropoff({ ...dropoff, name: e.target.value })}
-                                    className="w-full bg-transparent text-[#101814] dark:text-white placeholder-[#5e8d73] outline-none text-base"
+                                    className="w-full bg-transparent border-none p-0 text-base font-medium text-[#101814] dark:text-white"
+                                    disabled
                                 />
-                            </Autocomplete>
-                        ) : (
-                            <input
-                                type="text"
-                                placeholder="จุดส่ง"
-                                value={dropoff.name}
-                                className="flex-1 bg-transparent text-[#101814] dark:text-white placeholder-[#5e8d73] outline-none text-base"
-                                disabled
-                            />
-                        )}
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                {/* Popular locations */}
+                {/* Popular Locations Chips - Stitch Design */}
                 {status === 'selecting' && (
-                    <div className="flex gap-2 mt-3 overflow-x-auto pb-2">
+                    <div className="flex gap-2 mt-3 overflow-x-auto pb-1 no-scrollbar">
                         {POPULAR_LOCATIONS.map(loc => (
                             <button
                                 key={loc.id}
                                 onClick={() => setDropoff({ lat: loc.lat, lng: loc.lng, name: loc.name, id: loc.id })}
-                                className="flex-shrink-0 px-4 py-2 bg-white dark:bg-[#182b21] rounded-full border border-[#dae7e0] dark:border-[#2a4a38] text-sm font-medium text-[#101814] dark:text-white hover:border-[#00b250] transition-colors"
+                                className="flex items-center justify-center h-9 px-4 rounded-full bg-white dark:bg-[#182b21] shadow-sm border border-[#dae7e0] dark:border-[#2a4a38] whitespace-nowrap active:scale-95 transition-transform hover:border-[#00b250]"
                             >
-                                {loc.name}
+                                <span className="text-sm font-medium text-[#101814] dark:text-white">{loc.name}</span>
                             </button>
                         ))}
                     </div>
                 )}
             </div>
 
-            {/* Bottom Sheet */}
-            <div className="absolute bottom-0 left-0 right-0 z-30">
-                <div className="bg-white dark:bg-[#162e21] rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)] border-t border-[#dae7e0] dark:border-[#2a4a38]">
-                    <div className="p-4 pb-8">
-                        {/* Status indicator */}
-                        {status !== 'selecting' && (
-                            <div className="flex items-center justify-center gap-2 mb-4">
-                                <div className={`w-2 h-2 rounded-full animate-pulse ${
-                                    status === 'completed' ? 'bg-green-500' : 'bg-[#00b250]'
-                                }`} />
-                                <span className="text-sm font-semibold text-[#101814] dark:text-white">
-                                    {isRematching ? rematchMessage : getStatusLabel(status)}
-                                </span>
-                            </div>
+            {/* Floating GPS Button - Above Bottom Sheet */}
+            {status === 'selecting' && (
+                <div className="absolute z-20 right-4 bottom-[42%] flex flex-col gap-3">
+                    <button
+                        onClick={getCurrentLocation}
+                        disabled={isGettingLocation}
+                        className="size-12 rounded-full bg-white dark:bg-[#182b21] shadow-lg flex items-center justify-center text-[#101814] dark:text-white active:bg-gray-50 dark:active:bg-[#2a4a38] transition-colors"
+                    >
+                        {isGettingLocation ? (
+                            <div className="w-5 h-5 border-2 border-[#00b250] border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <span className="material-symbols-outlined text-[#00b250]">my_location</span>
                         )}
+                    </button>
+                </div>
+            )}
 
-                        {/* Driver info */}
-                        {assignedDriver && status !== 'selecting' && status !== 'searching' && (
-                            <div className="bg-[#f5f8f7] dark:bg-[#0f2318] rounded-xl p-4 mb-4">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-14 h-14 rounded-full bg-[#00b250]/10 flex items-center justify-center">
-                                        <span className="material-symbols-outlined text-[#00b250] text-3xl">person</span>
+            {/* Bottom Sheet - Stitch Design */}
+            <div className="absolute bottom-0 left-0 right-0 z-30">
+                <div className={`bg-white dark:bg-[#182b21] rounded-t-[32px] shadow-[0_-5px_20px_rgba(0,0,0,0.1)] pt-2 transition-all duration-300 ease-out ${isBottomSheetMinimized ? 'pb-4' : 'pb-8'}`}>
+                    {/* Drag Handle - Clickable */}
+                    <button
+                        onClick={() => setIsBottomSheetMinimized(!isBottomSheetMinimized)}
+                        className="w-full flex items-center justify-center py-2 focus:outline-none active:opacity-70 transition-opacity"
+                        aria-label={isBottomSheetMinimized ? 'ขยายรายละเอียด' : 'ย่อรายละเอียด'}
+                    >
+                        <span className={`material-symbols-outlined text-gray-400 text-[22px] transition-transform duration-300 ${isBottomSheetMinimized ? 'rotate-180' : ''}`}>
+                            expand_more
+                        </span>
+                    </button>
+
+                    {/* === MINIMIZED VIEW === */}
+                    {isBottomSheetMinimized && status === 'selecting' && selectedVehicle && (
+                        <div className="px-5 pb-2">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-lg bg-[#00b250]/10 flex items-center justify-center">
+                                        <span className="material-symbols-outlined text-[#00b250]">directions_car</span>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-[#101814] dark:text-white">{selectedVehicle.name}</p>
+                                        <p className="text-xs text-[#5e8d73]">{selectedVehicle.seats} ที่นั่ง</p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-lg font-bold text-[#00b250]">฿{tripInfo?.price?.toLocaleString() || selectedVehicle.price?.toLocaleString()}</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* === MINIMIZED VIEW - SELECTING (No vehicle selected) === */}
+                    {isBottomSheetMinimized && status === 'selecting' && !selectedVehicle && (
+                        <div className="px-5 pb-2">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                                    <span className="material-symbols-outlined text-[#5e8d73]">directions_car</span>
+                                </div>
+                                <p className="text-sm font-medium text-[#5e8d73]">แตะเพื่อเลือกรถและจอง</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* === MINIMIZED VIEW - SEARCHING === */}
+                    {isBottomSheetMinimized && status === 'searching' && (
+                        <div className="px-5 pb-2">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="relative w-8 h-8 flex items-center justify-center">
+                                        <div className="absolute inset-0 border-[3px] border-[#00b250]/20 rounded-full"></div>
+                                        <svg className="absolute inset-0 w-full h-full animate-spin" style={{ animationDuration: '2s' }} viewBox="0 0 100 100">
+                                            <circle cx="50" cy="50" fill="none" r="42" stroke="#00b250" strokeDasharray="264" strokeDashoffset="66" strokeLinecap="round" strokeWidth="12" />
+                                        </svg>
+                                    </div>
+                                    <p className="text-sm font-bold text-[#101814] dark:text-white">กำลังหาคนขับ...</p>
+                                </div>
+                                <p className="text-lg font-bold text-[#00b250]">฿{tripInfo?.price?.toLocaleString()}</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* === MINIMIZED VIEW - DRIVER ASSIGNED / EN ROUTE === */}
+                    {isBottomSheetMinimized && assignedDriver && (status === 'driver_assigned' || status === 'driver_en_route' || status === 'in_progress') && (
+                        <div className="px-5 pb-2">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    {assignedDriver.photo ? (
+                                        <img src={assignedDriver.photo} alt={assignedDriver.name} className="size-10 rounded-full object-cover" />
+                                    ) : (
+                                        <div className="size-10 rounded-full bg-[#00b250]/10 flex items-center justify-center">
+                                            <span className="material-symbols-outlined text-[#00b250]">person</span>
+                                        </div>
+                                    )}
+                                    <div>
+                                        <p className="text-sm font-bold text-[#101814] dark:text-white">{assignedDriver.name}</p>
+                                        <p className="text-xs text-[#5e8d73]">
+                                            {status === 'driver_en_route' ? `${liveEta.toPickup || 3} นาที` : status === 'in_progress' ? 'กำลังเดินทาง' : 'รอรับงาน'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <a
+                                    href={`tel:${assignedDriver.phone}`}
+                                    className="size-10 rounded-full bg-[#00b250] flex items-center justify-center"
+                                >
+                                    <span className="material-symbols-outlined text-white text-[20px]">call</span>
+                                </a>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* === MINIMIZED VIEW - COMPLETED === */}
+                    {isBottomSheetMinimized && status === 'completed' && (
+                        <div className="px-5 pb-2">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="size-10 rounded-full bg-[#00b250] flex items-center justify-center">
+                                        <span className="material-symbols-outlined text-white text-[20px]">check</span>
+                                    </div>
+                                    <p className="text-sm font-bold text-[#101814] dark:text-white">ถึงจุดหมายแล้ว!</p>
+                                </div>
+                                <p className="text-lg font-bold text-[#00b250]">฿{tripInfo?.price?.toLocaleString()}</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* === SEARCHING STATE (design_3) === */}
+                    {status === 'searching' && !isBottomSheetMinimized && (
+                        <div className="px-6 py-4">
+                            {/* Searching Status Section */}
+                            <div className="flex flex-col items-center text-center">
+                                {/* Loading Spinner */}
+                                <div className="relative w-16 h-16 mb-4 flex items-center justify-center">
+                                    <div className="absolute inset-0 border-[5px] border-[#00b250]/20 rounded-full"></div>
+                                    <svg className="absolute inset-0 w-full h-full animate-spin" style={{ animationDuration: '2s' }} viewBox="0 0 100 100">
+                                        <circle cx="50" cy="50" fill="none" r="42" stroke="#00b250" strokeDasharray="264" strokeDashoffset="66" strokeLinecap="round" strokeWidth="10" />
+                                    </svg>
+                                    <span className="material-symbols-outlined text-[#00b250] text-2xl">local_taxi</span>
+                                </div>
+                                <h2 className="text-[#101814] dark:text-white text-2xl font-bold leading-tight mb-2">
+                                    {isRematching ? 'กำลังหาคนขับใหม่...' : 'กำลังหาคนขับให้คุณ...'}
+                                </h2>
+                                <p className="text-[#5e8d73] text-sm font-medium flex items-center gap-2">
+                                    <span>พยายามครั้งที่ {rematchAttempt + 1}/{REMATCH_CONFIG.MAX_ATTEMPTS}</span>
+                                    <span className="w-1 h-1 rounded-full bg-[#5e8d73]"></span>
+                                    <span>รอไม่เกิน 3 นาที</span>
+                                </p>
+                            </div>
+
+                            {/* Divider */}
+                            <div className="h-px w-full bg-[#dae7e0]/60 dark:bg-gray-700 my-4"></div>
+
+                            {/* Trip Details Timeline */}
+                            <div className="relative flex flex-col gap-6 pl-2">
+                                <div className="absolute left-[11px] top-3 bottom-3 w-0.5 border-l-2 border-dashed border-gray-300 dark:border-gray-600"></div>
+                                {/* Pickup */}
+                                <div className="flex items-start gap-4">
+                                    <div className="mt-1 w-6 flex flex-col items-center shrink-0">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-[#00b250] ring-4 ring-[#00b250]/20"></div>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs text-[#5e8d73] font-medium mb-0.5">รับที่ • Pickup</p>
+                                        <p className="text-[#101814] dark:text-white font-semibold truncate text-base">{tripInfo?.pickup || pickup.name}</p>
+                                    </div>
+                                </div>
+                                {/* Dropoff */}
+                                <div className="flex items-start gap-4">
+                                    <div className="mt-1 w-6 flex flex-col items-center shrink-0">
+                                        <span className="material-symbols-outlined text-[#FFB300] text-[22px] leading-none" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs text-[#5e8d73] font-medium mb-0.5">ส่งที่ • Drop-off</p>
+                                        <p className="text-[#101814] dark:text-white font-semibold truncate text-base">{tripInfo?.dropoff || dropoff.name}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Vehicle & Price Card */}
+                            {selectedVehicle && tripInfo && (
+                                <div className="mt-4 p-4 bg-[#f5f8f7] dark:bg-black/20 rounded-xl border border-[#dae7e0] dark:border-gray-700 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm">
+                                            <span className="material-symbols-outlined text-[#101814] dark:text-white">directions_car</span>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[#101814] dark:text-white font-bold text-sm">{selectedVehicle.name}</span>
+                                            <div className="flex items-center gap-1 text-xs text-[#5e8d73]">
+                                                <span className="material-symbols-outlined text-[14px]">payments</span>
+                                                <span>{paymentMethod === 'cash' ? 'เงินสด' : 'บัตรเครดิต'}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <span className="text-[#00b250] font-bold text-lg">฿{tripInfo.price.toLocaleString()}</span>
+                                </div>
+                            )}
+
+                            {/* Cancel Button */}
+                            <button
+                                onClick={() => setShowCancelModal(true)}
+                                className="w-full flex items-center justify-center h-12 rounded-xl border border-red-200 dark:border-red-900 bg-white dark:bg-transparent text-red-500 font-bold text-base hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shadow-sm mt-6"
+                            >
+                                <span className="material-symbols-outlined mr-2 text-[20px]">close</span>
+                                ยกเลิกการจอง
+                            </button>
+                        </div>
+                    )}
+
+                    {/* === DRIVER ASSIGNED / EN ROUTE (design_5) === */}
+                    {assignedDriver && (status === 'driver_assigned' || status === 'driver_en_route' || status === 'in_progress') && !isBottomSheetMinimized && (
+                        <div className="px-6 pt-2 flex flex-col gap-4">
+                            {/* ETA Card */}
+                            {status === 'driver_en_route' && (
+                                <div className="bg-[#f5f8f7] dark:bg-black/20 rounded-xl p-4 flex items-center gap-4 relative overflow-hidden">
+                                    <div className="absolute -right-4 -top-4 w-16 h-16 bg-[#00b250]/10 rounded-full blur-xl"></div>
+                                    <div className="flex-1 flex flex-col">
+                                        <h2 className="text-3xl font-bold text-[#101814] dark:text-white tracking-tight">
+                                            {liveEta.toPickup || 3} นาที
+                                        </h2>
+                                        <p className="text-sm font-medium text-[#5e8d73]">คนขับกำลังเดินทางมารับคุณ</p>
+                                    </div>
+                                    <div className="size-10 bg-green-50 dark:bg-[#00b250]/20 rounded-full flex items-center justify-center shrink-0">
+                                        <span className="material-symbols-outlined text-[#00b250]" style={{ fontVariationSettings: "'FILL' 1" }}>access_time_filled</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* In Progress Status */}
+                            {status === 'in_progress' && (
+                                <div className="bg-cyan-50 dark:bg-cyan-900/20 rounded-xl p-4 flex items-center gap-4 relative overflow-hidden">
+                                    <div className="absolute -right-4 -top-4 w-16 h-16 bg-cyan-500/10 rounded-full blur-xl"></div>
+                                    <div className="flex-1 flex flex-col">
+                                        <h2 className="text-3xl font-bold text-[#101814] dark:text-white tracking-tight">
+                                            {liveEta.toDropoff || tripInfo?.duration || '-'} นาที
+                                        </h2>
+                                        <p className="text-sm font-medium text-[#5e8d73]">ถึงปลายทางประมาณ</p>
+                                    </div>
+                                    <div className="size-10 bg-cyan-100 dark:bg-cyan-800/30 rounded-full flex items-center justify-center shrink-0">
+                                        <span className="material-symbols-outlined text-cyan-600" style={{ fontVariationSettings: "'FILL' 1" }}>local_taxi</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Driver Assigned Status */}
+                            {status === 'driver_assigned' && (
+                                <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4 flex items-center gap-4">
+                                    <div className="size-10 bg-purple-100 dark:bg-purple-800/30 rounded-full flex items-center justify-center">
+                                        <span className="material-symbols-outlined text-purple-600" style={{ fontVariationSettings: "'FILL' 1" }}>person_pin</span>
                                     </div>
                                     <div className="flex-1">
-                                        <p className="font-bold text-[#101814] dark:text-white">{assignedDriver.name}</p>
-                                        <p className="text-sm text-[#5e8d73]">{assignedDriver.vehicleModel} • {assignedDriver.vehiclePlate}</p>
+                                        <h2 className="text-lg font-bold text-[#101814] dark:text-white">พบคนขับแล้ว!</h2>
+                                        <p className="text-sm text-[#5e8d73]">รอคนขับตอบรับ...</p>
                                     </div>
-                                    <a
-                                        href={`tel:${assignedDriver.phone}`}
-                                        className="w-12 h-12 rounded-full bg-[#00b250] flex items-center justify-center"
-                                    >
-                                        <span className="material-symbols-outlined text-white">call</span>
-                                    </a>
                                 </div>
-                                {liveEta.toPickup && status === 'driver_en_route' && (
-                                    <div className="mt-3 text-center">
-                                        <span className="text-sm text-[#5e8d73]">ถึงใน </span>
-                                        <span className="font-bold text-[#00b250]">{liveEta.toPickup} นาที</span>
+                            )}
+
+                            {/* Driver Header */}
+                            <div className="flex items-center gap-4">
+                                <div className="relative">
+                                    {assignedDriver.photo ? (
+                                        <img
+                                            src={assignedDriver.photo}
+                                            alt={assignedDriver.name}
+                                            className="size-14 rounded-full object-cover border-2 border-white shadow-sm ring-1 ring-gray-100"
+                                        />
+                                    ) : (
+                                        <div className="size-14 rounded-full bg-[#00b250]/10 flex items-center justify-center border-2 border-white shadow-sm ring-1 ring-gray-100">
+                                            <span className="material-symbols-outlined text-[#00b250] text-3xl">person</span>
+                                        </div>
+                                    )}
+                                    <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
+                                        <span className="material-symbols-outlined text-[#00b250] text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
                                     </div>
+                                </div>
+                                <div className="flex flex-col flex-1">
+                                    <h3 className="text-lg font-bold text-[#101814] dark:text-white">{assignedDriver.name}</h3>
+                                    <div className="flex items-center gap-1">
+                                        <span className="material-symbols-outlined text-[#FFB300] text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                                        <span className="text-sm font-semibold text-[#101814] dark:text-white">{assignedDriver.rating?.toFixed(1) || '4.9'}</span>
+                                        <span className="text-xs text-[#5e8d73]">({assignedDriver.totalTrips || 0} เที่ยว)</span>
+                                    </div>
+                                </div>
+                                <span className="text-xs font-bold text-[#00b250] bg-[#00b250]/10 px-2 py-0.5 rounded-full">TukTik Car</span>
+                            </div>
+
+                            {/* Vehicle Details */}
+                            <div className="flex items-center justify-between bg-[#f5f8f7] dark:bg-black/20 p-3 rounded-xl border border-[#dae7e0]/50">
+                                <div className="flex flex-col">
+                                    <span className="text-xs text-[#5e8d73] font-medium mb-0.5">{assignedDriver.vehicleModel}</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="size-3 rounded-full bg-white border border-gray-300 shadow-sm" title="สีรถ"></span>
+                                        <span className="text-xs text-[#101814] dark:text-white">{assignedDriver.vehicleColor || 'สีขาว'}</span>
+                                    </div>
+                                </div>
+                                <div className="border-2 border-gray-200 bg-white px-3 py-1 rounded-lg flex flex-col items-center justify-center min-w-[80px]">
+                                    <span className="text-[10px] leading-none text-gray-500 mb-0.5">ทะเบียน</span>
+                                    <span className="text-lg font-bold leading-none text-gray-800 tracking-wide">{assignedDriver.vehiclePlate}</span>
+                                </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <a
+                                    href={`tel:${assignedDriver.phone}`}
+                                    className="flex items-center justify-center gap-2 bg-[#00b250] hover:bg-[#008f40] active:scale-[0.98] transition-all text-white py-3.5 rounded-xl font-bold shadow-lg shadow-[#00b250]/30"
+                                >
+                                    <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>call</span>
+                                    <span>โทร</span>
+                                </a>
+                                <button
+                                    onClick={() => setShowContactModal(true)}
+                                    className="flex items-center justify-center gap-2 bg-white hover:bg-green-50 active:scale-[0.98] transition-all text-[#00b250] border border-[#00b250] py-3.5 rounded-xl font-bold"
+                                >
+                                    <span className="material-symbols-outlined text-[20px]">chat_bubble</span>
+                                    <span>แชท</span>
+                                </button>
+                            </div>
+
+                            {/* Footer Links */}
+                            <div className="flex items-center justify-between pt-1 pb-4">
+                                <button className="flex items-center gap-2 text-[#5e8d73] hover:text-[#00b250] transition-colors">
+                                    <span className="material-symbols-outlined text-[18px]">ios_share</span>
+                                    <span className="text-sm font-medium">แชร์การเดินทาง</span>
+                                </button>
+                                {['driver_assigned'].includes(status) && (
+                                    <button
+                                        onClick={() => setShowCancelModal(true)}
+                                        className="flex items-center gap-1 text-red-500 hover:text-red-600 transition-colors opacity-80 hover:opacity-100"
+                                    >
+                                        <span className="text-sm font-medium">ยกเลิก</span>
+                                    </button>
                                 )}
                             </div>
-                        )}
+                        </div>
+                    )}
 
-                        {/* Vehicle selection */}
-                        {status === 'selecting' && selectedVehicle && (
-                            <button
-                                onClick={() => setShowVehiclePicker(true)}
-                                className="w-full flex items-center gap-4 p-3 bg-[#f5f8f7] dark:bg-[#0f2318] rounded-xl mb-4"
-                            >
-                                <div className="w-12 h-12 rounded-lg bg-white dark:bg-[#182b21] flex items-center justify-center">
-                                    <span className="material-symbols-outlined text-[#00b250] text-2xl">directions_car</span>
-                                </div>
-                                <div className="flex-1 text-left">
-                                    <p className="font-bold text-[#101814] dark:text-white">{selectedVehicle.name}</p>
-                                    <p className="text-sm text-[#5e8d73]">{selectedVehicle.seats} ที่นั่ง</p>
-                                </div>
-                                <span className="text-lg font-bold text-[#00b250]">฿{selectedVehicle.price.toLocaleString()}</span>
-                                <span className="material-symbols-outlined text-[#5e8d73]">chevron_right</span>
-                            </button>
-                        )}
+                    {/* === SELECTING STATE (design_0) === */}
+                    {status === 'selecting' && !isBottomSheetMinimized && (
+                        <div className="flex flex-col px-5 pb-4 gap-4">
+                            {/* Heading */}
+                            <div className="flex justify-between items-center">
+                                <h2 className="text-lg font-bold text-[#101814] dark:text-white">เลือกรถและจอง</h2>
+                                <button
+                                    onClick={() => setShowVehiclePicker(true)}
+                                    className="text-[#00b250] text-sm font-semibold"
+                                >
+                                    ดูทั้งหมด
+                                </button>
+                            </div>
 
-                        {/* Action buttons */}
-                        {status === 'selecting' && (
+                            {/* Vehicle Selection List (Horizontal) */}
+                            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 -mx-5 px-5">
+                                {vehicles.slice(0, 4).map(vehicle => (
+                                    <div
+                                        key={vehicle.id}
+                                        onClick={() => setSelectedVehicle(vehicle)}
+                                        className={`flex-none w-[140px] flex flex-col gap-2 p-3 rounded-xl cursor-pointer relative transition-all ${
+                                            selectedVehicle?.id === vehicle.id
+                                                ? 'border-2 border-[#00b250] bg-[#00b250]/5'
+                                                : 'border border-[#dae7e0] dark:border-[#2a4a38] bg-white dark:bg-[#182b21] opacity-80 hover:opacity-100'
+                                        }`}
+                                    >
+                                        {selectedVehicle?.id === vehicle.id && (
+                                            <div className="absolute top-2 right-2 size-5 rounded-full bg-[#00b250] flex items-center justify-center">
+                                                <span className="material-symbols-outlined text-white text-[16px]">check</span>
+                                            </div>
+                                        )}
+                                        <div className="h-16 w-full flex items-center justify-center mb-1">
+                                            <span className="material-symbols-outlined text-[#00b250] text-[56px]">directions_car</span>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-[#101814] dark:text-white leading-tight">{vehicle.name}</p>
+                                            <p className="text-xs text-[#5e8d73]">{vehicle.seats} ที่นั่ง</p>
+                                        </div>
+                                        <div className="flex justify-between items-end mt-1">
+                                            <p className="text-base font-bold text-[#101814] dark:text-white">฿{vehicle.price}</p>
+                                            <p className="text-[10px] text-[#5e8d73] font-medium bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">3 min</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Primary Action Button */}
                             <button
                                 onClick={handleBookNowClick}
                                 disabled={!pickup.name || !dropoff.name || !selectedVehicle}
-                                className="w-full h-14 rounded-xl bg-[#00b250] text-white font-bold text-lg shadow-lg shadow-[#00b250]/30 disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
+                                className="w-full bg-[#00b250] text-white font-bold text-lg h-12 rounded-xl shadow-lg shadow-[#00b250]/30 mt-2 active:scale-[0.98] transition-transform flex items-center justify-center gap-2 disabled:opacity-50 disabled:shadow-none"
                             >
-                                <span>จองเลย</span>
-                                <span className="material-symbols-outlined">arrow_forward</span>
+                                <span>จอง {selectedVehicle?.name || 'รถ'}</span>
+                                <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
                             </button>
-                        )}
+                        </div>
+                    )}
 
-                        {/* Cancel button for active booking */}
-                        {activeBooking && ['pending', 'confirmed', 'driver_assigned'].includes(activeBooking.status) && (
+                    {/* === COMPLETED STATE === */}
+                    {status === 'completed' && !isBottomSheetMinimized && (
+                        <div className="px-6 py-4 text-center">
+                            <div className="w-20 h-20 rounded-full bg-[#00b250] flex items-center justify-center mx-auto mb-4">
+                                <span className="material-symbols-outlined text-white text-4xl">check</span>
+                            </div>
+                            <h2 className="text-2xl font-bold text-[#101814] dark:text-white mb-2">ถึงจุดหมายแล้ว!</h2>
+                            <p className="text-[#5e8d73] mb-6">ขอบคุณที่ใช้บริการ</p>
+                            {tripInfo && (
+                                <p className="text-3xl font-bold text-[#00b250] mb-6">฿{tripInfo.price.toLocaleString()}</p>
+                            )}
                             <button
-                                onClick={() => setShowCancelModal(true)}
-                                className="w-full h-12 rounded-xl border-2 border-red-500 text-red-500 font-semibold mt-3"
+                                onClick={() => setShowRatingModal(true)}
+                                className="w-full h-14 rounded-xl bg-[#00b250] text-white font-bold text-lg"
                             >
-                                ยกเลิกการจอง
+                                ให้คะแนนคนขับ
                             </button>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -1535,21 +1991,178 @@ export default function Book2Page() {
                 </div>
             )}
 
-            {/* Rating Modal */}
-            {showRatingModal && (
-                <div className="fixed inset-0 z-50 bg-black/50 flex items-end">
-                    <div className="w-full bg-white dark:bg-[#162e21] rounded-t-3xl max-h-[90vh] overflow-y-auto">
-                        <div className="sticky top-0 bg-white dark:bg-[#162e21] p-4 border-b border-[#dae7e0] dark:border-[#2a4a38]">
-                            <h3 className="text-lg font-bold text-center text-[#101814] dark:text-white">ให้คะแนนการเดินทาง</h3>
+            {/* Contact Modal */}
+            {showContactModal && assignedDriver && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-end" onClick={() => setShowContactModal(false)}>
+                    <div className="w-full bg-white dark:bg-[#162e21] rounded-t-3xl p-6" onClick={e => e.stopPropagation()}>
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-lg font-bold text-[#101814] dark:text-white">ติดต่อคนขับ</h3>
+                            <button
+                                onClick={() => setShowContactModal(false)}
+                                className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center"
+                            >
+                                <span className="material-symbols-outlined text-[#5e8d73]">close</span>
+                            </button>
                         </div>
-                        <div className="p-6 space-y-6">
+
+                        {/* Driver Info */}
+                        <div className="flex items-center gap-3 mb-6 p-3 bg-[#f5f8f7] dark:bg-black/20 rounded-xl">
+                            {assignedDriver.photo ? (
+                                <img src={assignedDriver.photo} alt={assignedDriver.name} className="size-12 rounded-full object-cover" />
+                            ) : (
+                                <div className="size-12 rounded-full bg-[#00b250]/10 flex items-center justify-center">
+                                    <span className="material-symbols-outlined text-[#00b250] text-2xl">person</span>
+                                </div>
+                            )}
+                            <div>
+                                <p className="font-semibold text-[#101814] dark:text-white">{assignedDriver.name}</p>
+                                <p className="text-sm text-[#5e8d73]">{assignedDriver.vehicleModel} • {assignedDriver.vehiclePlate}</p>
+                            </div>
+                        </div>
+
+                        {/* Contact Options */}
+                        <div className="space-y-3">
+                            <a
+                                href={`tel:${assignedDriver.phone}`}
+                                className="flex items-center gap-4 p-4 bg-[#00b250] hover:bg-[#008f40] text-white rounded-xl transition-colors"
+                            >
+                                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                                    <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>call</span>
+                                </div>
+                                <div>
+                                    <p className="font-bold">โทรหาคนขับ</p>
+                                    <p className="text-sm text-white/80">{assignedDriver.phone}</p>
+                                </div>
+                            </a>
+
+                            <a
+                                href="https://line.me/ti/p/@tuktik"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-4 p-4 bg-[#06C755] hover:bg-[#05a648] text-white rounded-xl transition-colors"
+                            >
+                                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                                    <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p className="font-bold">LINE @TukTik</p>
+                                    <p className="text-sm text-white/80">ติดต่อฝ่ายบริการลูกค้า</p>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Rating Modal - Stitch Design (design_7) */}
+            {showRatingModal && (
+                <div className="fixed inset-0 z-50 bg-[#f5f8f7] dark:bg-[#0f2318] overflow-y-auto">
+                    {/* Confetti Decoration */}
+                    <div className="fixed top-0 left-0 w-full h-full pointer-events-none overflow-hidden z-0 opacity-40">
+                        <div className="absolute top-10 left-[10%] w-3 h-3 bg-[#00b250] rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="absolute top-20 right-[20%] w-2 h-2 bg-[#FFB300] rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></div>
+                        <div className="absolute top-40 left-[80%] w-4 h-4 bg-[#00b250]/30 rounded-full animate-bounce" style={{ animationDelay: '0.5s' }}></div>
+                    </div>
+
+                    {/* Main Content */}
+                    <main className="relative z-10 flex-1 flex flex-col w-full max-w-md mx-auto p-4 pb-32">
+                        {/* Success Header */}
+                        <div className="flex flex-col items-center justify-center pt-8 pb-6 text-center space-y-4">
+                            <div className="bg-[#00b250]/10 rounded-full p-4 ring-8 ring-[#00b250]/5">
+                                <span className="material-symbols-outlined text-[#00b250] text-[64px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                            </div>
+                            <div className="space-y-1">
+                                <h1 className="text-2xl font-bold text-[#101814] dark:text-white">ถึงจุดหมายแล้ว!</h1>
+                                <p className="text-[#5e8d73] text-sm">Hope you enjoyed your ride</p>
+                            </div>
+                            {tripInfo && (
+                                <div className="text-[40px] font-bold text-[#00b250] tracking-tight">฿{tripInfo.price.toLocaleString()}</div>
+                            )}
+                        </div>
+
+                        {/* Trip Summary Card */}
+                        <div className="bg-white dark:bg-[#162e22] rounded-xl shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] border border-[#dae7e0] dark:border-[#2a4a38] p-5 mb-4">
+                            {/* Route Visualization */}
+                            <div className="relative flex flex-col gap-6 pl-2">
+                                {/* Line Connector */}
+                                <div className="absolute left-[11px] top-3 bottom-8 w-0.5 border-l-2 border-[#00b250]/30 border-dashed"></div>
+                                {/* Pickup */}
+                                <div className="flex items-start gap-4 relative z-10">
+                                    <div className="w-6 h-6 rounded-full border-4 border-[#00b250] bg-white dark:bg-[#162e22] shrink-0 mt-0.5"></div>
+                                    <div className="flex flex-col">
+                                        <span className="text-xs font-semibold text-[#5e8d73] uppercase tracking-wider">Pickup</span>
+                                        <span className="text-sm font-medium text-[#101814] dark:text-white">{tripInfo?.pickup || pickup.name}</span>
+                                    </div>
+                                </div>
+                                {/* Dropoff */}
+                                <div className="flex items-start gap-4 relative z-10">
+                                    <span className="material-symbols-outlined text-[#00b250] shrink-0 text-2xl -ml-[1px]" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
+                                    <div className="flex flex-col">
+                                        <span className="text-xs font-semibold text-[#5e8d73] uppercase tracking-wider">Dropoff</span>
+                                        <span className="text-sm font-medium text-[#101814] dark:text-white">{tripInfo?.dropoff || dropoff.name}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="h-px bg-[#dae7e0] dark:bg-[#2a4a38] my-4"></div>
+                            {/* Trip Stats */}
+                            <div className="flex items-center justify-between text-sm">
+                                <div className="flex items-center gap-6">
+                                    <div className="flex flex-col">
+                                        <span className="text-xs text-[#5e8d73]">ระยะทาง</span>
+                                        <span className="font-medium text-[#101814] dark:text-white">{tripInfo?.distance || '-'} km</span>
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="text-xs text-[#5e8d73]">เวลา</span>
+                                        <span className="font-medium text-[#101814] dark:text-white">{tripInfo?.duration || '-'} นาที</span>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 bg-[#f5f8f7] dark:bg-[#0f2318]/50 px-3 py-1.5 rounded-lg border border-[#dae7e0] dark:border-[#2a4a38]">
+                                    <span className="material-symbols-outlined text-[#101814] dark:text-white text-base">payments</span>
+                                    <span className="font-medium text-xs text-[#101814] dark:text-white">{paymentMethod === 'cash' ? 'เงินสด' : 'บัตร'}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Driver Card */}
+                        {assignedDriver && (
+                            <div className="bg-white dark:bg-[#162e22] rounded-xl shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] border border-[#dae7e0] dark:border-[#2a4a38] p-4 flex items-center justify-between mb-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="relative">
+                                        <div className="w-12 h-12 rounded-full bg-[#00b250]/10 flex items-center justify-center border border-[#dae7e0]">
+                                            <span className="material-symbols-outlined text-[#00b250] text-2xl">person</span>
+                                        </div>
+                                        <div className="absolute -bottom-1 -right-1 bg-white dark:bg-gray-800 rounded-full p-0.5 shadow-sm">
+                                            <span className="material-symbols-outlined text-[#FFB300] text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h3 className="font-medium text-[#101814] dark:text-white text-base">{assignedDriver.name}</h3>
+                                        <p className="text-xs text-[#5e8d73]">{assignedDriver.vehicleModel} • {assignedDriver.vehiclePlate}</p>
+                                    </div>
+                                </div>
+                                <a href={`tel:${assignedDriver.phone}`} className="w-10 h-10 flex items-center justify-center rounded-full bg-[#f5f8f7] dark:bg-[#0f2318] text-[#5e8d73] hover:text-[#00b250] transition-colors">
+                                    <span className="material-symbols-outlined text-xl">chat</span>
+                                </a>
+                            </div>
+                        )}
+
+                        {/* Rating Section */}
+                        <div className="flex flex-col items-center space-y-4 mb-8">
+                            <h2 className="font-bold text-lg text-[#101814] dark:text-white">ให้คะแนนคนขับ</h2>
                             {/* Stars */}
-                            <div className="flex justify-center gap-2">
+                            <div className="flex gap-3">
                                 {[1, 2, 3, 4, 5].map(star => (
-                                    <button key={star} onClick={() => setRatingStars(star)}>
+                                    <button
+                                        key={star}
+                                        onClick={() => setRatingStars(star)}
+                                        className="group focus:outline-none"
+                                    >
                                         <span
-                                            className={`material-symbols-outlined text-4xl ${
-                                                star <= ratingStars ? 'text-yellow-400' : 'text-gray-300'
+                                            className={`material-symbols-outlined text-4xl group-hover:scale-110 transition-transform ${
+                                                star <= ratingStars ? 'text-[#FFB300]' : 'text-gray-300'
                                             }`}
                                             style={{ fontVariationSettings: star <= ratingStars ? "'FILL' 1" : "'FILL' 0" }}
                                         >
@@ -1558,40 +2171,55 @@ export default function Book2Page() {
                                     </button>
                                 ))}
                             </div>
+                            {/* Feedback Chips */}
+                            <div className="flex flex-wrap justify-center gap-2 w-full pt-2">
+                                {['ขับรถดี', 'รถสะอาด', 'บริการสุภาพ', 'ถึงเร็ว'].map(chip => (
+                                    <button
+                                        key={chip}
+                                        onClick={() => setRatingComment(prev => prev ? `${prev}, ${chip}` : chip)}
+                                        className="px-4 py-2 rounded-full border border-[#dae7e0] dark:border-[#2a4a38] bg-white dark:bg-[#162e22] text-sm text-[#101814] dark:text-gray-300 hover:bg-[#00b250]/5 hover:border-[#00b250] hover:text-[#00b250] transition-all"
+                                    >
+                                        {chip}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
 
-                            {/* Comment */}
+                        {/* Tipping Section */}
+                        <div className="bg-white dark:bg-[#162e22] rounded-xl p-5 mb-6 border border-[#dae7e0] dark:border-[#2a4a38]">
+                            <h3 className="font-bold text-base mb-4 text-[#101814] dark:text-white">ให้ทิปคนขับ</h3>
+                            <div className="grid grid-cols-4 gap-3 mb-4">
+                                {[0, 20, 50, 100].map(tip => (
+                                    <button
+                                        key={tip}
+                                        onClick={() => setSelectedTip(tip)}
+                                        className={`py-2 rounded-lg border font-medium text-sm transition-colors ${
+                                            selectedTip === tip
+                                                ? 'border-[#00b250] bg-[#00b250]/10 text-[#00b250] font-bold'
+                                                : 'border-[#dae7e0] dark:border-[#2a4a38] bg-[#f5f8f7] dark:bg-[#0f2318] text-[#101814] dark:text-gray-300 hover:border-[#00b250] hover:text-[#00b250]'
+                                        }`}
+                                    >
+                                        {tip === 0 ? 'ไม่ทิป' : `฿${tip}`}
+                                    </button>
+                                ))}
+                            </div>
                             <textarea
-                                placeholder="ความคิดเห็น (ไม่บังคับ)"
+                                className="w-full bg-[#f5f8f7] dark:bg-[#0f2318] border border-[#dae7e0] dark:border-[#2a4a38] rounded-lg p-3 text-sm focus:ring-1 focus:ring-[#00b250] focus:border-[#00b250] outline-none resize-none text-[#101814] dark:text-white placeholder-[#5e8d73]"
+                                placeholder="เขียนข้อเสนอแนะเพิ่มเติม (Optional)"
+                                rows={2}
                                 value={ratingComment}
                                 onChange={(e) => setRatingComment(e.target.value)}
-                                className="w-full h-24 p-3 border border-[#dae7e0] dark:border-[#2a4a38] rounded-xl bg-transparent text-[#101814] dark:text-white resize-none"
                             />
+                        </div>
+                    </main>
 
-                            {/* Tip */}
-                            <div>
-                                <p className="text-sm font-semibold text-[#5e8d73] mb-2">ทิป</p>
-                                <div className="flex gap-2">
-                                    {[0, 20, 50, 100].map(tip => (
-                                        <button
-                                            key={tip}
-                                            onClick={() => setSelectedTip(tip)}
-                                            className={`flex-1 py-2 rounded-xl border-2 font-semibold ${
-                                                selectedTip === tip
-                                                    ? 'border-[#00b250] bg-[#00b250]/5 text-[#00b250]'
-                                                    : 'border-[#dae7e0] dark:border-[#2a4a38] text-[#5e8d73]'
-                                            }`}
-                                        >
-                                            {tip === 0 ? 'ไม่ทิป' : `฿${tip}`}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Submit */}
+                    {/* Fixed Bottom Actions */}
+                    <div className="fixed bottom-0 left-0 w-full bg-white dark:bg-[#162e22] border-t border-[#dae7e0] dark:border-[#2a4a38] p-4 z-20 pb-8">
+                        <div className="max-w-md mx-auto flex flex-col gap-3">
                             <button
                                 onClick={submitRating}
                                 disabled={isSubmittingRating}
-                                className="w-full h-14 rounded-xl bg-[#00b250] text-white font-bold flex items-center justify-center gap-2"
+                                className="w-full bg-[#00b250] hover:bg-[#009140] text-white font-bold py-3.5 rounded-full shadow-lg shadow-[#00b250]/20 transition-all active:scale-[0.98] text-base flex items-center justify-center gap-2"
                             >
                                 {isSubmittingRating ? (
                                     <>
@@ -1601,6 +2229,12 @@ export default function Book2Page() {
                                 ) : (
                                     <span>ส่งคะแนน</span>
                                 )}
+                            </button>
+                            <button
+                                onClick={() => { setShowRatingModal(false); resetTrip(); }}
+                                className="w-full text-[#5e8d73] hover:text-[#101814] dark:text-gray-400 dark:hover:text-white font-medium py-2 text-sm transition-colors"
+                            >
+                                ข้าม
                             </button>
                         </div>
                     </div>

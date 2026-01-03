@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TukTik - Select Route</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Noto+Sans+Thai:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#00b250",
+                        "secondary": "#FFB300",
+                        "background-light": "#f5f8f7",
+                        "background-dark": "#0f2318",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#182b21",
+                        "border-light": "#dae7e0",
+                        "border-dark": "#2a4236",
+                        "text-main": "#101814",
+                        "text-muted": "#5e8d73",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "Noto Sans Thai", "sans-serif"],
+                        "sans": ["Inter", "Noto Sans Thai", "sans-serif"],
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "3xl": "2rem",
+                        "full": "9999px"
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+                        'card': '0 2px 10px rgba(0, 0, 0, 0.03)',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar hiding */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-display bg-background-light dark:bg-background-dark text-text-main dark:text-white h-screen w-full overflow-hidden flex flex-col relative">
+<!-- Map Background -->
+<div class="absolute inset-0 w-full h-full z-0 bg-gray-200">
+<!-- Abstract Map Background -->
+<div class="w-full h-full bg-cover bg-center opacity-80" data-alt="Detailed abstract city map view from top down with streets and blocks" data-location="Bangkok" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCM5-s3WwoHO66IyN_gx-d_laG568JBOA5MOsCees_-Bb2LZ3j2qtep0P-G7qV-DckBSPAmx2_-AdMg7YdlQXidPKFx46i3LJVVc2lvYyD6IpN2zfrvD8T1dg3yU8RP6cyJ486EqFGHBo8ecRaDMIf1am3rVvRpV6v-61UdMZkaQMeMI2pS8ilVYX3aLPHCY2V2H7g7XsW7YF1yuEZo4o_btpkr_cOCWOhp3haaW7VcN7Q5U_zGHaphhA-AfDsq6OmRqShP2flUEw1x');">
+</div>
+<!-- Gradient Overlay for better text contrast at top/bottom -->
+<div class="absolute inset-0 bg-gradient-to-b from-white/60 via-transparent to-transparent pointer-events-none"></div>
+</div>
+<!-- Top Section: Search & Chips -->
+<div class="relative z-20 flex flex-col gap-4 px-4 pt-12 pb-4">
+<!-- Search Card -->
+<div class="bg-surface-light dark:bg-surface-dark rounded-xl shadow-soft p-4 border border-border-light dark:border-border-dark">
+<div class="flex flex-col gap-0">
+<!-- Pick Up Input Row -->
+<div class="flex items-center gap-3 relative h-12">
+<div class="flex flex-col items-center justify-center w-6 h-full">
+<span class="material-symbols-outlined text-primary text-[20px]">radio_button_checked</span>
+<!-- Dotted Line Connector -->
+<div class="w-0.5 flex-1 border-l-2 border-dashed border-gray-300 dark:border-gray-600 my-1"></div>
+</div>
+<div class="flex-1 border-b border-border-light dark:border-border-dark h-full flex items-center">
+<input class="w-full bg-transparent border-none focus:ring-0 p-0 text-base font-medium placeholder:text-text-muted placeholder:font-normal text-text-main dark:text-white" placeholder="เลือกจุดรับ" type="text" value="Siam Paragon"/>
+</div>
+</div>
+<!-- Drop Off Input Row -->
+<div class="flex items-center gap-3 relative h-12">
+<div class="flex flex-col items-center justify-center w-6 h-full pt-1">
+<span class="material-symbols-outlined text-secondary text-[24px]">location_on</span>
+</div>
+<div class="flex-1 h-full flex items-center">
+<input class="w-full bg-transparent border-none focus:ring-0 p-0 text-base font-medium placeholder:text-text-muted placeholder:font-normal text-text-main dark:text-white" placeholder="ไปไหน?" type="text"/>
+</div>
+</div>
+</div>
+</div>
+<!-- Popular Locations Chips -->
+<div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+<button class="flex items-center justify-center h-9 px-4 rounded-full bg-white dark:bg-surface-dark shadow-sm border border-border-light dark:border-border-dark whitespace-nowrap active:scale-95 transition-transform">
+<span class="text-sm font-medium text-text-main dark:text-white">สุวรรณภูมิ</span>
+</button>
+<button class="flex items-center justify-center h-9 px-4 rounded-full bg-white dark:bg-surface-dark shadow-sm border border-border-light dark:border-border-dark whitespace-nowrap active:scale-95 transition-transform">
+<span class="text-sm font-medium text-text-main dark:text-white">ดอนเมือง</span>
+</button>
+<button class="flex items-center justify-center h-9 px-4 rounded-full bg-white dark:bg-surface-dark shadow-sm border border-border-light dark:border-border-dark whitespace-nowrap active:scale-95 transition-transform">
+<span class="text-sm font-medium text-text-main dark:text-white">เซ็นทรัลเวิลด์</span>
+</button>
+<button class="flex items-center justify-center h-9 px-4 rounded-full bg-white dark:bg-surface-dark shadow-sm border border-border-light dark:border-border-dark whitespace-nowrap active:scale-95 transition-transform">
+<span class="text-sm font-medium text-text-main dark:text-white">สยามพารากอน</span>
+</button>
+</div>
+</div>
+<!-- Floating Action Buttons Area (Above Bottom Sheet) -->
+<div class="absolute z-20 right-4 bottom-[40%] flex flex-col gap-3">
+<!-- Current Location Button -->
+<button class="size-12 rounded-full bg-white dark:bg-surface-dark shadow-lg flex items-center justify-center text-text-main dark:text-white active:bg-gray-50 dark:active:bg-gray-700 transition-colors">
+<span class="material-symbols-outlined text-primary">my_location</span>
+</button>
+</div>
+<!-- Bottom Sheet Container -->
+<div class="flex-1"></div> <!-- Spacer to push sheet down -->
+<div class="relative z-30 bg-white dark:bg-surface-dark rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.1)] pt-2 pb-0 flex flex-col max-h-[45%]">
+<!-- Drag Handle -->
+<div class="w-full flex justify-center py-2">
+<div class="w-12 h-1.5 rounded-full bg-gray-300 dark:bg-gray-600"></div>
+</div>
+<!-- Bottom Sheet Content -->
+<div class="flex flex-col px-5 pb-4 gap-4">
+<!-- Heading -->
+<div class="flex justify-between items-center">
+<h2 class="text-lg font-bold text-text-main dark:text-white">เลือกรถและจอง</h2>
+<button class="text-primary text-sm font-semibold">ดูทั้งหมด</button>
+</div>
+<!-- Vehicle Selection List (Horizontal) -->
+<div class="flex gap-4 overflow-x-auto no-scrollbar pb-2 -mx-5 px-5">
+<!-- Vehicle Card 1 (Active) -->
+<div class="flex-none w-[140px] flex flex-col gap-2 p-3 rounded-xl border-2 border-primary bg-primary/5 dark:bg-primary/10 cursor-pointer relative">
+<div class="absolute top-2 right-2 size-5 rounded-full bg-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-[16px]">check</span>
+</div>
+<div class="h-16 w-full flex items-center justify-center mb-1">
+<!-- Abstract Car Illustration -->
+<span class="material-symbols-outlined text-primary text-[56px]" data-alt="Sedan car icon">directions_car</span>
+</div>
+<div>
+<p class="text-sm font-bold text-text-main dark:text-white leading-tight">TukTik Car</p>
+<p class="text-xs text-text-muted">4 ที่นั่ง</p>
+</div>
+<div class="flex justify-between items-end mt-1">
+<p class="text-base font-bold text-text-main dark:text-white">฿154</p>
+<p class="text-[10px] text-text-muted font-medium bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">3 min</p>
+</div>
+</div>
+<!-- Vehicle Card 2 -->
+<div class="flex-none w-[140px] flex flex-col gap-2 p-3 rounded-xl border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark cursor-pointer opacity-80 hover:opacity-100 transition-opacity">
+<div class="h-16 w-full flex items-center justify-center mb-1">
+<span class="material-symbols-outlined text-gray-800 dark:text-gray-300 text-[56px]" data-alt="SUV car icon">airport_shuttle</span>
+</div>
+<div>
+<p class="text-sm font-bold text-text-main dark:text-white leading-tight">TukTik SUV</p>
+<p class="text-xs text-text-muted">6 ที่นั่ง</p>
+</div>
+<div class="flex justify-between items-end mt-1">
+<p class="text-base font-bold text-text-main dark:text-white">฿230</p>
+<p class="text-[10px] text-text-muted font-medium bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">8 min</p>
+</div>
+</div>
+<!-- Vehicle Card 3 -->
+<div class="flex-none w-[140px] flex flex-col gap-2 p-3 rounded-xl border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark cursor-pointer opacity-80 hover:opacity-100 transition-opacity">
+<div class="h-16 w-full flex items-center justify-center mb-1">
+<span class="material-symbols-outlined text-secondary text-[56px]" data-alt="Tuk Tuk icon">electric_rickshaw</span>
+</div>
+<div>
+<p class="text-sm font-bold text-text-main dark:text-white leading-tight">TukTuk</p>
+<p class="text-xs text-text-muted">3 ที่นั่ง</p>
+</div>
+<div class="flex justify-between items-end mt-1">
+<p class="text-base font-bold text-text-main dark:text-white">฿120</p>
+<p class="text-[10px] text-text-muted font-medium bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">1 min</p>
+</div>
+</div>
+<!-- Vehicle Card 4 -->
+<div class="flex-none w-[140px] flex flex-col gap-2 p-3 rounded-xl border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark cursor-pointer opacity-80 hover:opacity-100 transition-opacity">
+<div class="h-16 w-full flex items-center justify-center mb-1">
+<span class="material-symbols-outlined text-gray-600 text-[56px]" data-alt="Motorcycle icon">two_wheeler</span>
+</div>
+<div>
+<p class="text-sm font-bold text-text-main dark:text-white leading-tight">Bike</p>
+<p class="text-xs text-text-muted">1 ที่นั่ง</p>
+</div>
+<div class="flex justify-between items-end mt-1">
+<p class="text-base font-bold text-text-main dark:text-white">฿45</p>
+<p class="text-[10px] text-text-muted font-medium bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">2 min</p>
+</div>
+</div>
+</div>
+<!-- Primary Action Button -->
+<button class="w-full bg-primary text-white font-bold text-lg h-12 rounded-xl shadow-lg shadow-primary/30 mt-2 active:scale-[0.98] transition-transform flex items-center justify-center gap-2">
+<span>จอง TukTik Car</span>
+<span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Bottom Navigation Bar -->
+<div class="z-40 w-full bg-white dark:bg-surface-dark border-t border-border-light dark:border-border-dark flex justify-around items-center h-20 pb-4 shrink-0">
+<!-- Nav Item: Home (Active) -->
+<button class="flex flex-col items-center justify-center gap-1 w-16 h-full text-primary">
+<span class="material-symbols-outlined fill-current text-[28px]">home</span>
+<span class="text-[10px] font-medium">หน้าหลัก</span>
+</button>
+<!-- Nav Item: Trips -->
+<button class="flex flex-col items-center justify-center gap-1 w-16 h-full text-gray-400 dark:text-gray-500 hover:text-text-main dark:hover:text-gray-300 transition-colors">
+<span class="material-symbols-outlined text-[28px]">receipt_long</span>
+<span class="text-[10px] font-medium">รายการ</span>
+</button>
+<!-- Nav Item: Profile -->
+<button class="flex flex-col items-center justify-center gap-1 w-16 h-full text-gray-400 dark:text-gray-500 hover:text-text-main dark:hover:text-gray-300 transition-colors">
+<span class="material-symbols-outlined text-[28px]">person</span>
+<span class="text-[10px] font-medium">โปรไฟล์</span>
+</button>
+</div>
+</body></html>
