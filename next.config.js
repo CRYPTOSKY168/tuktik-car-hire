@@ -106,8 +106,8 @@ const nextConfig = {
       "img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://firebasestorage.googleapis.com https://*.google.com https://*.googleusercontent.com",
       // Fonts: self + Google Fonts
       "font-src 'self' https://fonts.gstatic.com",
-      // Connections: Firebase, Stripe, Google APIs, reCAPTCHA
-      "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.stripe.com https://maps.googleapis.com wss://*.firebaseio.com https://www.google.com",
+      // Connections: Firebase, Stripe, Google APIs, Google Maps Vector, reCAPTCHA
+      "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.stripe.com https://maps.googleapis.com https://*.gstatic.com wss://*.firebaseio.com https://www.google.com data:",
       // Frames: Stripe payment iframe + reCAPTCHA
       "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://*.firebaseapp.com https://www.google.com https://recaptcha.google.com",
       // Workers: self + blob (for PWA service worker)

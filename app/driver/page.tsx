@@ -210,6 +210,7 @@ export default function DemoDriverPage() {
     // Map States
     const [driverLocation, setDriverLocation] = useState(BANGKOK_CENTER);
     const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
+    const [isMapReady, setIsMapReady] = useState(false);
 
     // ETA and Distance from directions
     const [routeInfo, setRouteInfo] = useState<{ duration: string; distance: string } | null>(null);
@@ -694,15 +695,14 @@ export default function DemoDriverPage() {
         }
     }, [locationTracking.latitude, locationTracking.longitude]);
 
-    // Map ID must be set at initialization - cannot be changed later
+    // Map ID for Vector Maps (enables 3D tilt and rotation)
     const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID;
 
-    // Static map options (mapId must be included at initialization for Vector Maps)
+    // Static map options (mapId enables Vector Maps for 3D features)
     const mapOptions = useMemo((): google.maps.MapOptions => {
         return {
             ...baseMapOptions,
             ...(mapId ? { mapId } : {}),
-            // tilt and heading will be controlled dynamically via useEffect
             tilt: 0,
             heading: 0,
         };
@@ -710,21 +710,30 @@ export default function DemoDriverPage() {
 
     // Update map tilt and heading dynamically based on navigation mode
     useEffect(() => {
-        if (!mapRef.current) return;
+        // Wait for map to be ready
+        if (!mapRef.current || !isMapReady) return;
 
         const isNavigating = activeBooking && ['driver_en_route', 'in_progress'].includes(activeBooking.status);
 
         if (isNavigating && is3DNavigationMode && mapId) {
             // 3D Navigation mode - tilt and rotate map
             const heading = locationTracking.heading || 0;
-            mapRef.current.setTilt(NAVIGATION_3D_CONFIG.tilt);
-            mapRef.current.setHeading(heading);
+            try {
+                mapRef.current.setTilt(NAVIGATION_3D_CONFIG.tilt);
+                mapRef.current.setHeading(heading);
+            } catch (err) {
+                console.error('Error setting 3D tilt/heading:', err);
+            }
         } else {
             // 2D mode - flat view
-            mapRef.current.setTilt(0);
-            mapRef.current.setHeading(0);
+            try {
+                mapRef.current.setTilt(0);
+                mapRef.current.setHeading(0);
+            } catch (err) {
+                console.error('Error resetting tilt/heading:', err);
+            }
         }
-    }, [activeBooking?.status, is3DNavigationMode, locationTracking.heading, mapId]);
+    }, [activeBooking?.status, is3DNavigationMode, locationTracking.heading, mapId, isMapReady]);
 
     // Handle status change
     const handleStatusChange = async (newStatus: DriverStatus) => {
@@ -963,9 +972,25 @@ export default function DemoDriverPage() {
     }, []);
 
     // Map load handler
-    const onMapLoad = (map: google.maps.Map) => {
+    const onMapLoad = useCallback((map: google.maps.Map) => {
         mapRef.current = map;
-    };
+        setIsMapReady(true);
+
+        // Apply 3D navigation settings immediately if navigating
+        const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID;
+        const isNavigating = activeBooking && ['driver_en_route', 'in_progress'].includes(activeBooking.status);
+
+        if (isNavigating && is3DNavigationMode && mapId) {
+            // Delay to ensure map is fully initialized
+            setTimeout(() => {
+                if (mapRef.current) {
+                    const heading = locationTracking.heading || 0;
+                    mapRef.current.setTilt(NAVIGATION_3D_CONFIG.tilt);
+                    mapRef.current.setHeading(heading);
+                }
+            }, 500);
+        }
+    }, [activeBooking, is3DNavigationMode, locationTracking.heading]);
 
     // Fit bounds (uses ref to avoid re-creating on every location change)
     const fitBounds = useCallback(() => {
