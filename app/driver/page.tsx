@@ -161,42 +161,116 @@ function interpolateAngle(from: number, to: number, fraction: number): number {
     return (from + diff * fraction + 360) % 360;
 }
 
-// Driver Car Marker with Heading (Light Theme)
+// Interpolate between two positions (for smooth GPS movement)
+function interpolatePosition(
+    from: { lat: number; lng: number },
+    to: { lat: number; lng: number },
+    fraction: number
+): { lat: number; lng: number } {
+    return {
+        lat: from.lat + (to.lat - from.lat) * fraction,
+        lng: from.lng + (to.lng - from.lng) * fraction,
+    };
+}
+
+// Professional Driver Car Marker with Heading (Grab/Uber Style)
 function DriverMarker({ position, heading = 0, isOnline = false }: {
     position: { lat: number; lng: number };
     heading?: number;
     isOnline?: boolean;
 }) {
+    const primaryColor = isOnline ? "#00b14f" : "#6b7280";
+    const secondaryColor = isOnline ? "#00d15e" : "#9ca3af";
+
     return (
         <OverlayView position={position} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}>
             <div className="relative" style={{ transform: 'translate(-50%, -50%)' }}>
-                {/* Pulse effect when online */}
+                {/* Outer glow pulse when online */}
                 {isOnline && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-20 h-20 bg-green-500/40 rounded-full animate-ping"></div>
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="w-16 h-16 rounded-full animate-ping" style={{ backgroundColor: `${primaryColor}30` }}></div>
                     </div>
                 )}
-                {/* Car body with rotation */}
+
+                {/* Car container with rotation */}
                 <div
-                    className="relative transition-transform duration-300"
-                    style={{ transform: `rotate(${heading}deg)` }}
+                    className="relative"
+                    style={{
+                        transform: `rotate(${heading}deg)`,
+                        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                    }}
                 >
-                    {/* Car SVG - Light/Grab style */}
-                    <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
-                        {/* Shadow */}
-                        <ellipse cx="26" cy="44" rx="12" ry="4" fill="rgba(0,0,0,0.15)" />
-                        {/* Car body */}
-                        <ellipse cx="26" cy="24" rx="14" ry="20" fill={isOnline ? "#00b14f" : "#9ca3af"} />
-                        <ellipse cx="26" cy="24" rx="12" ry="18" fill={isOnline ? "#00d15e" : "#d1d5db"} />
-                        {/* Front lights */}
-                        <rect x="19" y="7" width="4" height="3" rx="1" fill="#fef3c7" />
-                        <rect x="29" y="7" width="4" height="3" rx="1" fill="#fef3c7" />
-                        {/* Windshield */}
-                        <ellipse cx="26" cy="16" rx="7" ry="4" fill="rgba(255,255,255,0.6)" />
-                        {/* Direction indicator */}
-                        <path d="M26 2 L30 9 H22 Z" fill="white" />
+                    {/* Professional Car SVG - Top-down view like Grab */}
+                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        {/* Drop shadow */}
+                        <defs>
+                            <filter id="carShadow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.3"/>
+                            </filter>
+                            <linearGradient id="carGradient" x1="24" y1="4" x2="24" y2="44" gradientUnits="userSpaceOnUse">
+                                <stop stopColor={secondaryColor}/>
+                                <stop offset="1" stopColor={primaryColor}/>
+                            </linearGradient>
+                        </defs>
+
+                        {/* Car body - sleek sedan shape */}
+                        <g filter="url(#carShadow)">
+                            {/* Main body */}
+                            <path
+                                d="M17 38C14 38 12 36 12 33V18C12 12 15 8 24 8C33 8 36 12 36 18V33C36 36 34 38 31 38H17Z"
+                                fill="url(#carGradient)"
+                            />
+
+                            {/* Hood (front) */}
+                            <path
+                                d="M16 14C16 11 19 9 24 9C29 9 32 11 32 14V16H16V14Z"
+                                fill={primaryColor}
+                            />
+
+                            {/* Windshield */}
+                            <path
+                                d="M17 17H31V22C31 23 30 24 29 24H19C18 24 17 23 17 22V17Z"
+                                fill="rgba(200, 230, 255, 0.9)"
+                            />
+
+                            {/* Roof */}
+                            <rect x="18" y="24" width="12" height="8" rx="1" fill={isOnline ? "#009940" : "#4b5563"} />
+
+                            {/* Rear windshield */}
+                            <path
+                                d="M17 32H31V34C31 35 30 36 29 36H19C18 36 17 35 17 34V32Z"
+                                fill="rgba(200, 230, 255, 0.9)"
+                            />
+
+                            {/* Side mirrors */}
+                            <rect x="10" y="18" width="3" height="2" rx="0.5" fill={primaryColor} />
+                            <rect x="35" y="18" width="3" height="2" rx="0.5" fill={primaryColor} />
+
+                            {/* Headlights */}
+                            <rect x="17" y="10" width="3" height="2" rx="0.5" fill="#fef08a" />
+                            <rect x="28" y="10" width="3" height="2" rx="0.5" fill="#fef08a" />
+
+                            {/* Tail lights */}
+                            <rect x="17" y="36" width="3" height="1.5" rx="0.5" fill="#ef4444" />
+                            <rect x="28" y="36" width="3" height="1.5" rx="0.5" fill="#ef4444" />
+                        </g>
+
+                        {/* Direction arrow on top */}
+                        <path
+                            d="M24 2L28 8H20L24 2Z"
+                            fill="white"
+                            stroke={primaryColor}
+                            strokeWidth="1"
+                        />
                     </svg>
                 </div>
+
+                {/* Online indicator dot */}
+                {isOnline && (
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-md flex items-center justify-center">
+                        <div className="w-2 h-2 bg-white rounded-full"></div>
+                    </div>
+                )}
             </div>
         </OverlayView>
     );
@@ -581,14 +655,36 @@ export default function DemoDriverPage() {
     // 3D Navigation Mode state
     const [is3DNavigationMode, setIs3DNavigationMode] = useState(true);
     const [isFollowMode, setIsFollowMode] = useState(true); // Camera follows driver (like Grab - can be paused when user pans)
+    const isFollowModeRef = useRef(true); // Ref for animation loop to read without causing re-render
     const smoothHeadingRef = useRef(0); // Smoothly interpolated heading for 3D camera
     const lastPanTimeRef = useRef(0); // Track last camera update to throttle
+    const hasZoomedIn = useRef(false); // Track if we've zoomed in already (don't reset on every change)
+
+    // Sync isFollowMode state to ref
+    useEffect(() => {
+        isFollowModeRef.current = isFollowMode;
+    }, [isFollowMode]);
+
+    // Smooth animation refs (like test-drive-simulation)
+    const animatedPositionRef = useRef(driverLocation); // Smoothly interpolated position
+    const targetPositionRef = useRef(driverLocation); // Target position from GPS (updated separately)
+    const targetHeadingRef = useRef(0); // Target heading from GPS
+    const animationFrameRef = useRef<number | null>(null); // requestAnimationFrame ID
+    const lastFrameTimeRef = useRef(0); // For deltaTime calculation
+
+    // Update target position when GPS changes (ref update, no re-render)
+    useEffect(() => {
+        targetPositionRef.current = driverLocation;
+    }, [driverLocation]);
+    // NOTE: targetHeadingRef is updated in a useEffect below, after locationTracking is declared
 
     // Get directions when there's active booking (debounced, only on status change or significant location change)
     useEffect(() => {
         if (!isLoaded || !activeBooking) {
+            // Clear all directions and route state when no active booking
             setDirections(null);
             setRouteInfo(null);
+            lastDirectionsStatusRef.current = null; // Reset the ref so next booking gets fresh directions
             return;
         }
 
@@ -706,6 +802,11 @@ export default function DemoDriverPage() {
         }
     }, [locationTracking.latitude, locationTracking.longitude]);
 
+    // Update target heading when GPS heading changes (for smooth animation)
+    useEffect(() => {
+        targetHeadingRef.current = locationTracking.heading || 0;
+    }, [locationTracking.heading]);
+
     // Map ID for Vector Maps (enables 3D tilt and rotation)
     const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID;
 
@@ -719,48 +820,103 @@ export default function DemoDriverPage() {
         };
     }, [mapId]);
 
-    // Update map tilt and heading dynamically based on navigation mode (Grab/Uber style)
-    // Only updates when GPS changes, not every frame - to allow smooth user interaction
+    // Smooth animation loop with requestAnimationFrame (like test-drive-simulation)
+    // This runs continuously when navigating for smooth camera movement
+    // IMPORTANT: Uses refs for position/heading/followMode to avoid restarting loop on every change
     useEffect(() => {
         // Wait for map to be ready
         if (!mapRef.current || !isMapReady) return;
 
         const isNavigating = activeBooking && ['driver_en_route', 'in_progress'].includes(activeBooking.status);
 
-        if (isNavigating && is3DNavigationMode && mapId) {
-            // 3D Navigation mode
-            const targetHeading = locationTracking.heading || 0;
-
-            // Smooth interpolation for heading (prevents jerky rotation)
-            smoothHeadingRef.current = interpolateAngle(smoothHeadingRef.current, targetHeading, 0.3);
-
-            try {
-                // Apply 3D tilt and heading
-                mapRef.current.setTilt(NAVIGATION_3D_CONFIG.tilt);
-                mapRef.current.setHeading(smoothHeadingRef.current);
-
-                // Only pan to driver if follow mode is ON (allows user to freely pan when OFF)
-                if (isFollowMode) {
-                    // Throttle panTo to max once per 500ms to prevent fighting with user gestures
-                    const now = Date.now();
-                    if (now - lastPanTimeRef.current > 500) {
-                        mapRef.current.panTo(driverLocation);
-                        lastPanTimeRef.current = now;
-                    }
-                }
-            } catch (err) {
-                console.error('Error setting 3D tilt/heading:', err);
-            }
-        } else {
-            // 2D mode - flat view
+        // 2D mode - just reset tilt/heading once
+        if (!isNavigating || !is3DNavigationMode || !mapId) {
             try {
                 mapRef.current.setTilt(0);
                 mapRef.current.setHeading(0);
             } catch (err) {
                 console.error('Error resetting tilt/heading:', err);
             }
+            // Cancel any running animation and reset zoom tracking
+            if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current);
+                animationFrameRef.current = null;
+            }
+            hasZoomedIn.current = false; // Reset so next navigation will zoom in
+            return;
         }
-    }, [activeBooking?.status, is3DNavigationMode, isFollowMode, locationTracking.heading, mapId, isMapReady, driverLocation]);
+
+        // 3D Navigation mode - smooth animation loop
+        const animate = (currentTime: number) => {
+            if (!mapRef.current) return;
+
+            // Calculate deltaTime for frame-rate independent animation
+            const deltaTime = lastFrameTimeRef.current ? currentTime - lastFrameTimeRef.current : 16.67;
+            lastFrameTimeRef.current = currentTime;
+
+            // Normalize to 60fps (16.67ms per frame)
+            const normalizedDelta = deltaTime / 16.67;
+
+            // Interpolation factors (professional Grab/Uber style animation)
+            const positionFactor = 0.05 * normalizedDelta; // Smooth position (5% per frame)
+            const headingFactor = 0.03 * normalizedDelta; // Extra smooth heading rotation (3% per frame)
+
+            // Smoothly interpolate position towards target (uses ref, not state)
+            animatedPositionRef.current = interpolatePosition(
+                animatedPositionRef.current,
+                targetPositionRef.current,
+                Math.min(positionFactor, 1)
+            );
+
+            // Smoothly interpolate heading (uses ref, not state)
+            smoothHeadingRef.current = interpolateAngle(
+                smoothHeadingRef.current,
+                targetHeadingRef.current,
+                Math.min(headingFactor, 1)
+            );
+
+            try {
+                // Apply 3D tilt and smooth heading
+                mapRef.current.setTilt(NAVIGATION_3D_CONFIG.tilt);
+                mapRef.current.setHeading(smoothHeadingRef.current);
+
+                // Only pan to animated position if follow mode is ON (read from ref!)
+                if (isFollowModeRef.current) {
+                    mapRef.current.panTo(animatedPositionRef.current);
+                }
+            } catch (err) {
+                // Silently handle errors to keep animation running
+            }
+
+            // Continue animation loop
+            animationFrameRef.current = requestAnimationFrame(animate);
+        };
+
+        // Only zoom in ONCE when navigation starts (not on every state change)
+        if (!hasZoomedIn.current) {
+            console.log('🚗 Starting 3D Navigation Mode - Initial zoom');
+            try {
+                mapRef.current.setZoom(NAVIGATION_3D_CONFIG.zoom);
+                mapRef.current.panTo(targetPositionRef.current);
+                hasZoomedIn.current = true;
+            } catch (err) {
+                console.error('Error setting initial zoom:', err);
+            }
+        }
+
+        lastFrameTimeRef.current = 0;
+        animatedPositionRef.current = targetPositionRef.current;
+        animationFrameRef.current = requestAnimationFrame(animate);
+
+        // Cleanup on unmount or when conditions change
+        return () => {
+            if (animationFrameRef.current) {
+                cancelAnimationFrame(animationFrameRef.current);
+                animationFrameRef.current = null;
+            }
+        };
+    // IMPORTANT: isFollowMode removed from deps - read from ref instead to allow user gestures
+    }, [activeBooking?.status, is3DNavigationMode, mapId, isMapReady]);
 
     // Handle status change
     const handleStatusChange = async (newStatus: DriverStatus) => {
@@ -1034,13 +1190,20 @@ export default function DemoDriverPage() {
         mapRef.current.fitBounds(bounds, 80);
     }, [activeBooking, getLocationCoordinates]);
 
-    // Auto fit bounds only when status changes (not on every location update)
+    // Auto fit bounds only when status changes AND NOT in 3D navigation mode
+    // In 3D navigation mode, the camera follows the driver instead
     useEffect(() => {
         if (isLoaded && activeBooking) {
-            const timer = setTimeout(fitBounds, 500);
-            return () => clearTimeout(timer);
+            const isNavigating = ['driver_en_route', 'in_progress'].includes(activeBooking.status);
+
+            // Only fit bounds for non-navigating statuses (driver_assigned, etc.)
+            // For navigating statuses, the 3D animation loop handles camera follow
+            if (!isNavigating || !is3DNavigationMode) {
+                const timer = setTimeout(fitBounds, 500);
+                return () => clearTimeout(timer);
+            }
         }
-    }, [isLoaded, activeBooking?.status, activeBooking?.id, fitBounds]);
+    }, [isLoaded, activeBooking?.status, activeBooking?.id, fitBounds, is3DNavigationMode]);
 
     // Status config
     const statusConfig: Record<string, { color: string; text: string }> = {
