@@ -580,8 +580,9 @@ export default function DemoDriverPage() {
 
     // 3D Navigation Mode state
     const [is3DNavigationMode, setIs3DNavigationMode] = useState(true);
-    const smoothHeadingRef = useRef(0); // Smoothly interpolated heading for 3D camera (using ref to avoid re-renders)
-    const animationFrameRef = useRef<number | null>(null);
+    const [isFollowMode, setIsFollowMode] = useState(true); // Camera follows driver (like Grab - can be paused when user pans)
+    const smoothHeadingRef = useRef(0); // Smoothly interpolated heading for 3D camera
+    const lastPanTimeRef = useRef(0); // Track last camera update to throttle
 
     // Get directions when there's active booking (debounced, only on status change or significant location change)
     useEffect(() => {
@@ -718,7 +719,8 @@ export default function DemoDriverPage() {
         };
     }, [mapId]);
 
-    // Update map tilt and heading dynamically based on navigation mode (smooth animation)
+    // Update map tilt and heading dynamically based on navigation mode (Grab/Uber style)
+    // Only updates when GPS changes, not every frame - to allow smooth user interaction
     useEffect(() => {
         // Wait for map to be ready
         if (!mapRef.current || !isMapReady) return;
@@ -726,44 +728,31 @@ export default function DemoDriverPage() {
         const isNavigating = activeBooking && ['driver_en_route', 'in_progress'].includes(activeBooking.status);
 
         if (isNavigating && is3DNavigationMode && mapId) {
-            // 3D Navigation mode - animate smooth camera follow
+            // 3D Navigation mode
             const targetHeading = locationTracking.heading || 0;
 
-            const animate = () => {
-                if (!mapRef.current) return;
+            // Smooth interpolation for heading (prevents jerky rotation)
+            smoothHeadingRef.current = interpolateAngle(smoothHeadingRef.current, targetHeading, 0.3);
 
-                // Smooth interpolation (0.1 = smooth, higher = faster response)
-                smoothHeadingRef.current = interpolateAngle(smoothHeadingRef.current, targetHeading, 0.1);
+            try {
+                // Apply 3D tilt and heading
+                mapRef.current.setTilt(NAVIGATION_3D_CONFIG.tilt);
+                mapRef.current.setHeading(smoothHeadingRef.current);
 
-                try {
-                    // Apply 3D tilt and smooth heading
-                    mapRef.current.setTilt(NAVIGATION_3D_CONFIG.tilt);
-                    mapRef.current.setHeading(smoothHeadingRef.current);
-
-                    // Smooth camera follow driver position
-                    mapRef.current.panTo(driverLocation);
-                } catch (err) {
-                    console.error('Error setting 3D tilt/heading:', err);
+                // Only pan to driver if follow mode is ON (allows user to freely pan when OFF)
+                if (isFollowMode) {
+                    // Throttle panTo to max once per 500ms to prevent fighting with user gestures
+                    const now = Date.now();
+                    if (now - lastPanTimeRef.current > 500) {
+                        mapRef.current.panTo(driverLocation);
+                        lastPanTimeRef.current = now;
+                    }
                 }
-
-                // Continue animation if still navigating and 3D mode
-                animationFrameRef.current = requestAnimationFrame(animate);
-            };
-
-            // Start animation loop
-            animationFrameRef.current = requestAnimationFrame(animate);
-
-            // Cleanup
-            return () => {
-                if (animationFrameRef.current) {
-                    cancelAnimationFrame(animationFrameRef.current);
-                }
-            };
-        } else {
-            // 2D mode - flat view, stop animation
-            if (animationFrameRef.current) {
-                cancelAnimationFrame(animationFrameRef.current);
+            } catch (err) {
+                console.error('Error setting 3D tilt/heading:', err);
             }
+        } else {
+            // 2D mode - flat view
             try {
                 mapRef.current.setTilt(0);
                 mapRef.current.setHeading(0);
@@ -771,7 +760,7 @@ export default function DemoDriverPage() {
                 console.error('Error resetting tilt/heading:', err);
             }
         }
-    }, [activeBooking?.status, is3DNavigationMode, locationTracking.heading, mapId, isMapReady, driverLocation]);
+    }, [activeBooking?.status, is3DNavigationMode, isFollowMode, locationTracking.heading, mapId, isMapReady, driverLocation]);
 
     // Handle status change
     const handleStatusChange = async (newStatus: DriverStatus) => {
@@ -1144,6 +1133,7 @@ export default function DemoDriverPage() {
                         zoom={16}
                         options={mapOptions}
                         onLoad={onMapLoad}
+                        onDragStart={() => setIsFollowMode(false)} // Pause follow when user drags (like Grab/Uber)
                     >
                         {/* Driver Location with heading */}
                         <DriverMarker
@@ -1274,44 +1264,53 @@ export default function DemoDriverPage() {
                     </div>
                 )}
 
-                {/* ===== FLOATING ACTION BUTTONS ===== */}
-                <div className="absolute right-4 bottom-[50%] z-20 flex flex-col gap-2">
-                    {/* 3D Navigation Toggle - only show when navigating */}
-                    {activeBooking && ['driver_en_route', 'in_progress'].includes(activeBooking.status) && (
-                        <button
-                            onClick={() => setIs3DNavigationMode(prev => !prev)}
-                            className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg active:scale-95 border transition-all ${
-                                is3DNavigationMode
-                                    ? 'bg-[#00b14f] text-white border-[#00b14f]'
-                                    : 'bg-white text-gray-700 border-gray-200'
-                            }`}
-                            title={is3DNavigationMode ? 'ปิด 3D' : 'เปิด 3D'}
-                        >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" />
-                            </svg>
-                        </button>
-                    )}
+                {/* ===== FLOATING MAP CONTROLS (Grab/Uber Style) ===== */}
+                {/* Position: Right side, above bottom sheet */}
+                <div className="absolute right-3 z-20 flex flex-col gap-2" style={{ bottom: 'calc(240px + env(safe-area-inset-bottom))' }}>
 
-                    {/* Recenter button */}
+                    {/* GPS/Recenter button - Main button (like Grab's GPS button) */}
                     <button
-                        onClick={() => mapRef.current?.panTo(driverLocation)}
-                        className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-gray-700 shadow-lg active:scale-95 border border-gray-200"
+                        onClick={() => {
+                            setIsFollowMode(true);
+                            mapRef.current?.panTo(driverLocation);
+                        }}
+                        className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${
+                            isFollowMode
+                                ? 'bg-white/95 text-gray-600 shadow-md'
+                                : 'bg-[#00b14f] text-white shadow-lg' // Green when not following
+                        }`}
                     >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        {/* GPS/Crosshair icon */}
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                            <circle cx="12" cy="12" r="3" />
+                            <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
                         </svg>
                     </button>
 
-                    {/* Fit route button - only show when active booking */}
+                    {/* 3D Toggle - Only show when navigating */}
+                    {activeBooking && ['driver_en_route', 'in_progress'].includes(activeBooking.status) && (
+                        <button
+                            onClick={() => setIs3DNavigationMode(prev => !prev)}
+                            className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${
+                                is3DNavigationMode
+                                    ? 'bg-[#00b14f] text-white shadow-lg'
+                                    : 'bg-white/95 text-gray-600 shadow-md'
+                            }`}
+                        >
+                            {/* Simple 3D text */}
+                            <span className="text-xs font-bold">3D</span>
+                        </button>
+                    )}
+
+                    {/* Fit Route button - Only when has booking */}
                     {activeBooking && (
                         <button
                             onClick={fitBounds}
-                            className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-gray-700 shadow-lg active:scale-95 border border-gray-200"
+                            className="w-11 h-11 bg-white/95 rounded-xl flex items-center justify-center text-gray-600 shadow-md transition-all active:scale-95"
                         >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                            {/* Route overview icon */}
+                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" />
                             </svg>
                         </button>
                     )}
