@@ -145,8 +145,9 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
         router.push('/driver/login');
     };
 
-    // Skip layout for login, setup, and pending pages
-    if (pathname === '/driver/login' || pathname === '/driver/setup' || pathname === '/driver/pending') {
+    // Skip layout for login, setup, pending, and main dashboard pages
+    // Main dashboard (/driver) has its own full UI design
+    if (pathname === '/driver/login' || pathname === '/driver/setup' || pathname === '/driver/pending' || pathname === '/driver') {
         return <>{children}</>;
     }
 
