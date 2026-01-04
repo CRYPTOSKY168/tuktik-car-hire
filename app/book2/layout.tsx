@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { useLanguage } from '@/lib/contexts/LanguageContext';
 
 export default function Book2Layout({
     children,
@@ -9,15 +10,16 @@ export default function Book2Layout({
     children: React.ReactNode;
 }) {
     const pathname = usePathname();
+    const { t } = useLanguage();
 
     // Pages that should hide bottom nav
     // Hide on: login, booking tracking, and main booking page (has its own bottom sheet)
     const hideNav = pathname?.includes('/login') || pathname?.includes('/booking/') || pathname === '/book2';
 
     const navItems = [
-        { href: '/book2', icon: 'home', label: 'หน้าหลัก' },
-        { href: '/book2/history', icon: 'assignment', label: 'รายการ' },
-        { href: '/book2/profile', icon: 'person', label: 'โปรไฟล์' },
+        { href: '/book2', icon: 'home', label: t.book2.nav.home },
+        { href: '/book2/history', icon: 'assignment', label: t.book2.nav.history },
+        { href: '/book2/profile', icon: 'person', label: t.book2.nav.profile },
     ];
 
     return (

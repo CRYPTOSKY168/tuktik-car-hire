@@ -14,6 +14,7 @@ import {
     Autocomplete,
 } from '@react-google-maps/api';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { BookingService, DriverService, VehicleService, LocationService } from '@/lib/firebase/services';
 import { useDriverTracking } from '@/lib/hooks';
 import { Vehicle, Driver, Booking, BookingStatus } from '@/lib/types';
@@ -268,6 +269,7 @@ const REMATCH_CONFIG = {
 export default function Book2Page() {
     const router = useRouter();
     const { user, loading: authLoading } = useAuth();
+    const { t } = useLanguage();
 
     // Refs
     const mapRef = useRef<google.maps.Map | null>(null);
@@ -1163,12 +1165,12 @@ export default function Book2Page() {
     // Get status label
     const getStatusLabel = (s: string) => {
         const labels: Record<string, string> = {
-            'selecting': 'เลือกจุดหมาย',
-            'searching': 'กำลังหาคนขับ...',
-            'driver_assigned': 'พบคนขับแล้ว',
-            'driver_en_route': 'คนขับกำลังมา',
-            'in_progress': 'กำลังเดินทาง',
-            'completed': 'ถึงปลายทางแล้ว',
+            'selecting': t.book2.status.selecting,
+            'searching': t.book2.status.searching,
+            'driver_assigned': t.book2.status.driverAssigned,
+            'driver_en_route': t.book2.status.driverEnRoute,
+            'in_progress': t.book2.status.inProgress,
+            'completed': t.book2.status.completed,
         };
         return labels[s] || s;
     };
@@ -1187,7 +1189,7 @@ export default function Book2Page() {
             <div className="h-screen w-full bg-[#f5f8f7] flex items-center justify-center p-4">
                 <div className="text-center">
                     <span className="material-symbols-outlined text-6xl text-red-500">error</span>
-                    <p className="mt-4 text-lg font-bold">ไม่สามารถโหลดแผนที่ได้</p>
+                    <p className="mt-4 text-lg font-bold">{t.book2.cannotLoadMap}</p>
                 </div>
             </div>
         );
@@ -1274,17 +1276,18 @@ export default function Book2Page() {
                 </Link>
             </div>
 
-            {/* Search Card - Stitch Design */}
-            <div className="relative z-20 px-4 pt-16">
-                <div className="bg-white dark:bg-[#182b21] rounded-xl shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] p-4 border border-[#dae7e0] dark:border-[#2a4a38]">
+            {/* Search Card - Stitch Design (Hidden when minimized) */}
+            {!isBottomSheetMinimized && (
+            <div className="relative z-20 px-4 pt-16 transition-all duration-300">
+                <div className="bg-white dark:bg-[#182b21] rounded-2xl shadow-[0_4px_24px_-4px_rgba(0,0,0,0.08)] p-3 border border-[#dae7e0] dark:border-[#2a4a38]">
                     {/* Pickup Input Row */}
-                    <div className="flex items-center gap-3 relative h-12">
-                        <div className="flex flex-col items-center justify-center w-6 h-full">
-                            <span className="material-symbols-outlined text-[#00b250] text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>radio_button_checked</span>
+                    <div className="flex items-center gap-3 relative">
+                        <div className="flex flex-col items-center justify-center w-8">
+                            <div className="w-3 h-3 rounded-full bg-[#00b250] ring-4 ring-[#00b250]/20"></div>
                             {/* Dotted Line Connector */}
-                            <div className="w-0.5 flex-1 border-l-2 border-dashed border-gray-300 dark:border-gray-600 my-1"></div>
+                            <div className="w-0.5 h-6 border-l-2 border-dashed border-[#dae7e0] dark:border-[#2a4a38] my-1"></div>
                         </div>
-                        <div className="flex-1 border-b border-[#dae7e0] dark:border-[#2a4a38] h-full flex items-center">
+                        <div className="flex-1 flex items-center bg-[#f5f8f7] dark:bg-[#0f2318] rounded-xl px-4 h-14">
                             {isLoaded && status === 'selecting' ? (
                                 <Autocomplete
                                     onLoad={(autocomplete) => { pickupAutocompleteRef.current = autocomplete; }}
@@ -1294,18 +1297,18 @@ export default function Book2Page() {
                                 >
                                     <input
                                         type="text"
-                                        placeholder="เลือกจุดรับ"
+                                        placeholder={t.book2.pickupPlaceholder}
                                         value={pickup.name}
                                         onChange={(e) => setPickup({ ...pickup, name: e.target.value })}
-                                        className="w-full bg-transparent border-none focus:ring-0 p-0 text-base font-medium placeholder:text-[#5e8d73] placeholder:font-normal text-[#101814] dark:text-white"
+                                        className="w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-[15px] font-medium placeholder:text-[#5e8d73]/70 placeholder:font-normal text-[#101814] dark:text-white"
                                     />
                                 </Autocomplete>
                             ) : (
                                 <input
                                     type="text"
-                                    placeholder="เลือกจุดรับ"
+                                    placeholder={t.book2.pickupPlaceholder}
                                     value={pickup.name}
-                                    className="w-full bg-transparent border-none p-0 text-base font-medium text-[#101814] dark:text-white"
+                                    className="w-full bg-transparent border-none outline-none text-[15px] font-medium text-[#101814] dark:text-white"
                                     disabled
                                 />
                             )}
@@ -1315,24 +1318,24 @@ export default function Book2Page() {
                             <button
                                 onClick={getCurrentLocation}
                                 disabled={isGettingLocation}
-                                className="w-10 h-10 rounded-full bg-[#00b250]/10 hover:bg-[#00b250]/20 flex items-center justify-center transition-colors active:scale-95"
+                                className="w-12 h-12 rounded-xl bg-[#00b250]/10 hover:bg-[#00b250]/20 flex items-center justify-center transition-colors active:scale-95"
                                 title="ใช้ตำแหน่งปัจจุบัน"
                             >
                                 {isGettingLocation ? (
                                     <div className="w-5 h-5 border-2 border-[#00b250] border-t-transparent rounded-full animate-spin" />
                                 ) : (
-                                    <span className="material-symbols-outlined text-[#00b250]">my_location</span>
+                                    <span className="material-symbols-outlined text-[#00b250] text-[22px]">my_location</span>
                                 )}
                             </button>
                         )}
                     </div>
 
                     {/* Dropoff Input Row */}
-                    <div className="flex items-center gap-3 relative h-12">
-                        <div className="flex flex-col items-center justify-center w-6 h-full pt-1">
-                            <span className="material-symbols-outlined text-[#FFB300] text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
+                    <div className="flex items-center gap-3 relative">
+                        <div className="flex flex-col items-center justify-center w-8">
+                            <div className="w-3 h-3 rounded-sm bg-[#FFB300] ring-4 ring-[#FFB300]/20"></div>
                         </div>
-                        <div className="flex-1 h-full flex items-center">
+                        <div className="flex-1 flex items-center bg-[#f5f8f7] dark:bg-[#0f2318] rounded-xl px-4 h-14">
                             {isLoaded && status === 'selecting' ? (
                                 <Autocomplete
                                     onLoad={(autocomplete) => { dropoffAutocompleteRef.current = autocomplete; }}
@@ -1342,18 +1345,18 @@ export default function Book2Page() {
                                 >
                                     <input
                                         type="text"
-                                        placeholder="ไปไหน?"
+                                        placeholder={t.book2.dropoffPlaceholder}
                                         value={dropoff.name}
                                         onChange={(e) => setDropoff({ ...dropoff, name: e.target.value })}
-                                        className="w-full bg-transparent border-none focus:ring-0 p-0 text-base font-medium placeholder:text-[#5e8d73] placeholder:font-normal text-[#101814] dark:text-white"
+                                        className="w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-[15px] font-medium placeholder:text-[#5e8d73]/70 placeholder:font-normal text-[#101814] dark:text-white"
                                     />
                                 </Autocomplete>
                             ) : (
                                 <input
                                     type="text"
-                                    placeholder="ไปไหน?"
+                                    placeholder={t.book2.dropoffPlaceholder}
                                     value={dropoff.name}
-                                    className="w-full bg-transparent border-none p-0 text-base font-medium text-[#101814] dark:text-white"
+                                    className="w-full bg-transparent border-none outline-none text-[15px] font-medium text-[#101814] dark:text-white"
                                     disabled
                                 />
                             )}
@@ -1376,9 +1379,10 @@ export default function Book2Page() {
                     </div>
                 )}
             </div>
+            )}
 
-            {/* Floating GPS Button - Above Bottom Sheet */}
-            {status === 'selecting' && (
+            {/* Floating GPS Button - Above Bottom Sheet (Hidden when minimized) */}
+            {status === 'selecting' && !isBottomSheetMinimized && (
                 <div className="absolute z-20 right-4 bottom-[42%] flex flex-col gap-3">
                     <button
                         onClick={getCurrentLocation}
@@ -1418,7 +1422,7 @@ export default function Book2Page() {
                                     </div>
                                     <div>
                                         <p className="text-sm font-bold text-[#101814] dark:text-white">{selectedVehicle.name}</p>
-                                        <p className="text-xs text-[#5e8d73]">{selectedVehicle.seats} ที่นั่ง</p>
+                                        <p className="text-xs text-[#5e8d73]">{selectedVehicle.seats} {t.book2.seats}</p>
                                     </div>
                                 </div>
                                 <div className="text-right">
@@ -1435,7 +1439,7 @@ export default function Book2Page() {
                                 <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
                                     <span className="material-symbols-outlined text-[#5e8d73]">directions_car</span>
                                 </div>
-                                <p className="text-sm font-medium text-[#5e8d73]">แตะเพื่อเลือกรถและจอง</p>
+                                <p className="text-sm font-medium text-[#5e8d73]">{t.book2.tapToSelect}</p>
                             </div>
                         </div>
                     )}
@@ -1451,7 +1455,7 @@ export default function Book2Page() {
                                             <circle cx="50" cy="50" fill="none" r="42" stroke="#00b250" strokeDasharray="264" strokeDashoffset="66" strokeLinecap="round" strokeWidth="12" />
                                         </svg>
                                     </div>
-                                    <p className="text-sm font-bold text-[#101814] dark:text-white">กำลังหาคนขับ...</p>
+                                    <p className="text-sm font-bold text-[#101814] dark:text-white">{t.book2.status.searching}</p>
                                 </div>
                                 <p className="text-lg font-bold text-[#00b250]">฿{tripInfo?.price?.toLocaleString()}</p>
                             </div>
@@ -1473,7 +1477,7 @@ export default function Book2Page() {
                                     <div>
                                         <p className="text-sm font-bold text-[#101814] dark:text-white">{assignedDriver.name}</p>
                                         <p className="text-xs text-[#5e8d73]">
-                                            {status === 'driver_en_route' ? `${liveEta.toPickup || 3} นาที` : status === 'in_progress' ? 'กำลังเดินทาง' : 'รอรับงาน'}
+                                            {status === 'driver_en_route' ? `${liveEta.toPickup || 3} ${t.book2.minutes}` : status === 'in_progress' ? t.book2.onTrip : t.book2.waitingJob}
                                         </p>
                                     </div>
                                 </div>
@@ -1495,7 +1499,7 @@ export default function Book2Page() {
                                     <div className="size-10 rounded-full bg-[#00b250] flex items-center justify-center">
                                         <span className="material-symbols-outlined text-white text-[20px]">check</span>
                                     </div>
-                                    <p className="text-sm font-bold text-[#101814] dark:text-white">ถึงจุดหมายแล้ว!</p>
+                                    <p className="text-sm font-bold text-[#101814] dark:text-white">{t.book2.arrivedDestination}</p>
                                 </div>
                                 <p className="text-lg font-bold text-[#00b250]">฿{tripInfo?.price?.toLocaleString()}</p>
                             </div>
@@ -1516,12 +1520,12 @@ export default function Book2Page() {
                                     <span className="material-symbols-outlined text-[#00b250] text-2xl">local_taxi</span>
                                 </div>
                                 <h2 className="text-[#101814] dark:text-white text-2xl font-bold leading-tight mb-2">
-                                    {isRematching ? 'กำลังหาคนขับใหม่...' : 'กำลังหาคนขับให้คุณ...'}
+                                    {isRematching ? t.book2.searchingNewDriver : t.book2.searchingDriver}
                                 </h2>
                                 <p className="text-[#5e8d73] text-sm font-medium flex items-center gap-2">
-                                    <span>พยายามครั้งที่ {rematchAttempt + 1}/{REMATCH_CONFIG.MAX_ATTEMPTS}</span>
+                                    <span>{t.book2.attemptOf} {rematchAttempt + 1}/{REMATCH_CONFIG.MAX_ATTEMPTS}</span>
                                     <span className="w-1 h-1 rounded-full bg-[#5e8d73]"></span>
-                                    <span>รอไม่เกิน 3 นาที</span>
+                                    <span>{t.book2.waitMax}</span>
                                 </p>
                             </div>
 
@@ -1537,7 +1541,7 @@ export default function Book2Page() {
                                         <div className="w-2.5 h-2.5 rounded-full bg-[#00b250] ring-4 ring-[#00b250]/20"></div>
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-xs text-[#5e8d73] font-medium mb-0.5">รับที่ • Pickup</p>
+                                        <p className="text-xs text-[#5e8d73] font-medium mb-0.5">{t.book2.pickupLabel}</p>
                                         <p className="text-[#101814] dark:text-white font-semibold truncate text-base">{tripInfo?.pickup || pickup.name}</p>
                                     </div>
                                 </div>
@@ -1547,7 +1551,7 @@ export default function Book2Page() {
                                         <span className="material-symbols-outlined text-[#FFB300] text-[22px] leading-none" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-xs text-[#5e8d73] font-medium mb-0.5">ส่งที่ • Drop-off</p>
+                                        <p className="text-xs text-[#5e8d73] font-medium mb-0.5">{t.book2.dropoffLabel}</p>
                                         <p className="text-[#101814] dark:text-white font-semibold truncate text-base">{tripInfo?.dropoff || dropoff.name}</p>
                                     </div>
                                 </div>
@@ -1564,7 +1568,7 @@ export default function Book2Page() {
                                             <span className="text-[#101814] dark:text-white font-bold text-sm">{selectedVehicle.name}</span>
                                             <div className="flex items-center gap-1 text-xs text-[#5e8d73]">
                                                 <span className="material-symbols-outlined text-[14px]">payments</span>
-                                                <span>{paymentMethod === 'cash' ? 'เงินสด' : 'บัตรเครดิต'}</span>
+                                                <span>{paymentMethod === 'cash' ? t.book2.cash : t.book2.creditCard}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -1578,7 +1582,7 @@ export default function Book2Page() {
                                 className="w-full flex items-center justify-center h-12 rounded-xl border border-red-200 dark:border-red-900 bg-white dark:bg-transparent text-red-500 font-bold text-base hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shadow-sm mt-6"
                             >
                                 <span className="material-symbols-outlined mr-2 text-[20px]">close</span>
-                                ยกเลิกการจอง
+                                {t.book2.cancelBooking}
                             </button>
                         </div>
                     )}
@@ -1592,9 +1596,9 @@ export default function Book2Page() {
                                     <div className="absolute -right-4 -top-4 w-16 h-16 bg-[#00b250]/10 rounded-full blur-xl"></div>
                                     <div className="flex-1 flex flex-col">
                                         <h2 className="text-3xl font-bold text-[#101814] dark:text-white tracking-tight">
-                                            {liveEta.toPickup || 3} นาที
+                                            {liveEta.toPickup || 3} {t.book2.minutes}
                                         </h2>
-                                        <p className="text-sm font-medium text-[#5e8d73]">คนขับกำลังเดินทางมารับคุณ</p>
+                                        <p className="text-sm font-medium text-[#5e8d73]">{t.book2.driverComingToPickup}</p>
                                     </div>
                                     <div className="size-10 bg-green-50 dark:bg-[#00b250]/20 rounded-full flex items-center justify-center shrink-0">
                                         <span className="material-symbols-outlined text-[#00b250]" style={{ fontVariationSettings: "'FILL' 1" }}>access_time_filled</span>
@@ -1608,9 +1612,9 @@ export default function Book2Page() {
                                     <div className="absolute -right-4 -top-4 w-16 h-16 bg-cyan-500/10 rounded-full blur-xl"></div>
                                     <div className="flex-1 flex flex-col">
                                         <h2 className="text-3xl font-bold text-[#101814] dark:text-white tracking-tight">
-                                            {liveEta.toDropoff || tripInfo?.duration || '-'} นาที
+                                            {liveEta.toDropoff || tripInfo?.duration || '-'} {t.book2.minutes}
                                         </h2>
-                                        <p className="text-sm font-medium text-[#5e8d73]">ถึงปลายทางประมาณ</p>
+                                        <p className="text-sm font-medium text-[#5e8d73]">{t.book2.arrivalEstimate}</p>
                                     </div>
                                     <div className="size-10 bg-cyan-100 dark:bg-cyan-800/30 rounded-full flex items-center justify-center shrink-0">
                                         <span className="material-symbols-outlined text-cyan-600" style={{ fontVariationSettings: "'FILL' 1" }}>local_taxi</span>
@@ -1625,8 +1629,8 @@ export default function Book2Page() {
                                         <span className="material-symbols-outlined text-purple-600" style={{ fontVariationSettings: "'FILL' 1" }}>person_pin</span>
                                     </div>
                                     <div className="flex-1">
-                                        <h2 className="text-lg font-bold text-[#101814] dark:text-white">พบคนขับแล้ว!</h2>
-                                        <p className="text-sm text-[#5e8d73]">รอคนขับตอบรับ...</p>
+                                        <h2 className="text-lg font-bold text-[#101814] dark:text-white">{t.book2.driverFound}</h2>
+                                        <p className="text-sm text-[#5e8d73]">{t.book2.waitingDriverAccept}</p>
                                     </div>
                                 </div>
                             )}
@@ -1654,7 +1658,7 @@ export default function Book2Page() {
                                     <div className="flex items-center gap-1">
                                         <span className="material-symbols-outlined text-[#FFB300] text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
                                         <span className="text-sm font-semibold text-[#101814] dark:text-white">{assignedDriver.rating?.toFixed(1) || '4.9'}</span>
-                                        <span className="text-xs text-[#5e8d73]">({assignedDriver.totalTrips || 0} เที่ยว)</span>
+                                        <span className="text-xs text-[#5e8d73]">({assignedDriver.totalTrips || 0} {t.book2.trips})</span>
                                     </div>
                                 </div>
                                 <span className="text-xs font-bold text-[#00b250] bg-[#00b250]/10 px-2 py-0.5 rounded-full">TukTik Car</span>
@@ -1665,12 +1669,12 @@ export default function Book2Page() {
                                 <div className="flex flex-col">
                                     <span className="text-xs text-[#5e8d73] font-medium mb-0.5">{assignedDriver.vehicleModel}</span>
                                     <div className="flex items-center gap-2">
-                                        <span className="size-3 rounded-full bg-white border border-gray-300 shadow-sm" title="สีรถ"></span>
-                                        <span className="text-xs text-[#101814] dark:text-white">{assignedDriver.vehicleColor || 'สีขาว'}</span>
+                                        <span className="size-3 rounded-full bg-white border border-gray-300 shadow-sm" title={t.book2.vehicleColor}></span>
+                                        <span className="text-xs text-[#101814] dark:text-white">{assignedDriver.vehicleColor || t.book2.white}</span>
                                     </div>
                                 </div>
                                 <div className="border-2 border-gray-200 bg-white px-3 py-1 rounded-lg flex flex-col items-center justify-center min-w-[80px]">
-                                    <span className="text-[10px] leading-none text-gray-500 mb-0.5">ทะเบียน</span>
+                                    <span className="text-[10px] leading-none text-gray-500 mb-0.5">{t.book2.licensePlate}</span>
                                     <span className="text-lg font-bold leading-none text-gray-800 tracking-wide">{assignedDriver.vehiclePlate}</span>
                                 </div>
                             </div>
@@ -1682,14 +1686,14 @@ export default function Book2Page() {
                                     className="flex items-center justify-center gap-2 bg-[#00b250] hover:bg-[#008f40] active:scale-[0.98] transition-all text-white py-3.5 rounded-xl font-bold shadow-lg shadow-[#00b250]/30"
                                 >
                                     <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>call</span>
-                                    <span>โทร</span>
+                                    <span>{t.book2.call}</span>
                                 </a>
                                 <button
                                     onClick={() => setShowContactModal(true)}
                                     className="flex items-center justify-center gap-2 bg-white hover:bg-green-50 active:scale-[0.98] transition-all text-[#00b250] border border-[#00b250] py-3.5 rounded-xl font-bold"
                                 >
                                     <span className="material-symbols-outlined text-[20px]">chat_bubble</span>
-                                    <span>แชท</span>
+                                    <span>{t.book2.chat}</span>
                                 </button>
                             </div>
 
@@ -1697,14 +1701,14 @@ export default function Book2Page() {
                             <div className="flex items-center justify-between pt-1 pb-4">
                                 <button className="flex items-center gap-2 text-[#5e8d73] hover:text-[#00b250] transition-colors">
                                     <span className="material-symbols-outlined text-[18px]">ios_share</span>
-                                    <span className="text-sm font-medium">แชร์การเดินทาง</span>
+                                    <span className="text-sm font-medium">{t.book2.shareTrip}</span>
                                 </button>
                                 {['driver_assigned'].includes(status) && (
                                     <button
                                         onClick={() => setShowCancelModal(true)}
                                         className="flex items-center gap-1 text-red-500 hover:text-red-600 transition-colors opacity-80 hover:opacity-100"
                                     >
-                                        <span className="text-sm font-medium">ยกเลิก</span>
+                                        <span className="text-sm font-medium">{t.book2.cancel}</span>
                                     </button>
                                 )}
                             </div>
@@ -1716,12 +1720,12 @@ export default function Book2Page() {
                         <div className="flex flex-col px-5 pb-4 gap-4">
                             {/* Heading */}
                             <div className="flex justify-between items-center">
-                                <h2 className="text-lg font-bold text-[#101814] dark:text-white">เลือกรถและจอง</h2>
+                                <h2 className="text-lg font-bold text-[#101814] dark:text-white">{t.book2.selectVehicle}</h2>
                                 <button
                                     onClick={() => setShowVehiclePicker(true)}
                                     className="text-[#00b250] text-sm font-semibold"
                                 >
-                                    ดูทั้งหมด
+                                    {t.book2.viewAll}
                                 </button>
                             </div>
 
@@ -1747,7 +1751,7 @@ export default function Book2Page() {
                                         </div>
                                         <div>
                                             <p className="text-sm font-bold text-[#101814] dark:text-white leading-tight">{vehicle.name}</p>
-                                            <p className="text-xs text-[#5e8d73]">{vehicle.seats} ที่นั่ง</p>
+                                            <p className="text-xs text-[#5e8d73]">{vehicle.seats} {t.book2.seats}</p>
                                         </div>
                                         <div className="flex justify-between items-end mt-1">
                                             <p className="text-base font-bold text-[#101814] dark:text-white">฿{vehicle.price}</p>
@@ -1763,7 +1767,7 @@ export default function Book2Page() {
                                 disabled={!pickup.name || !dropoff.name || !selectedVehicle}
                                 className="w-full bg-[#00b250] text-white font-bold text-lg h-12 rounded-xl shadow-lg shadow-[#00b250]/30 mt-2 active:scale-[0.98] transition-transform flex items-center justify-center gap-2 disabled:opacity-50 disabled:shadow-none"
                             >
-                                <span>จอง {selectedVehicle?.name || 'รถ'}</span>
+                                <span>{t.book2.book} {selectedVehicle?.name || t.book2.vehicle}</span>
                                 <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
                             </button>
                         </div>
@@ -1775,8 +1779,8 @@ export default function Book2Page() {
                             <div className="w-20 h-20 rounded-full bg-[#00b250] flex items-center justify-center mx-auto mb-4">
                                 <span className="material-symbols-outlined text-white text-4xl">check</span>
                             </div>
-                            <h2 className="text-2xl font-bold text-[#101814] dark:text-white mb-2">ถึงจุดหมายแล้ว!</h2>
-                            <p className="text-[#5e8d73] mb-6">ขอบคุณที่ใช้บริการ</p>
+                            <h2 className="text-2xl font-bold text-[#101814] dark:text-white mb-2">{t.book2.arrivedDestination}</h2>
+                            <p className="text-[#5e8d73] mb-6">{t.book2.thankYou}</p>
                             {tripInfo && (
                                 <p className="text-3xl font-bold text-[#00b250] mb-6">฿{tripInfo.price.toLocaleString()}</p>
                             )}
@@ -1784,7 +1788,7 @@ export default function Book2Page() {
                                 onClick={() => setShowRatingModal(true)}
                                 className="w-full h-14 rounded-xl bg-[#00b250] text-white font-bold text-lg"
                             >
-                                ให้คะแนนคนขับ
+                                {t.book2.rateDriver}
                             </button>
                         </div>
                     )}
@@ -1797,7 +1801,7 @@ export default function Book2Page() {
                     <div className="w-full bg-white dark:bg-[#162e21] rounded-t-3xl max-h-[70vh] overflow-hidden">
                         <div className="sticky top-0 bg-white dark:bg-[#162e21] p-4 border-b border-[#dae7e0] dark:border-[#2a4a38]">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-bold text-[#101814] dark:text-white">เลือกประเภทรถ</h3>
+                                <h3 className="text-lg font-bold text-[#101814] dark:text-white">{t.book2.selectVehicleType}</h3>
                                 <button onClick={() => setShowVehiclePicker(false)}>
                                     <span className="material-symbols-outlined text-[#5e8d73]">close</span>
                                 </button>
@@ -1822,7 +1826,7 @@ export default function Book2Page() {
                                     </div>
                                     <div className="flex-1 text-left">
                                         <p className="font-bold text-[#101814] dark:text-white">{vehicle.name}</p>
-                                        <p className="text-sm text-[#5e8d73]">{vehicle.seats} ที่นั่ง</p>
+                                        <p className="text-sm text-[#5e8d73]">{vehicle.seats} {t.book2.seats}</p>
                                     </div>
                                     <span className="text-lg font-bold text-[#00b250]">฿{vehicle.price.toLocaleString()}</span>
                                 </button>
@@ -1838,7 +1842,7 @@ export default function Book2Page() {
                     <div className="w-full sm:max-w-md bg-white dark:bg-[#162e21] rounded-t-3xl sm:rounded-2xl max-h-[90vh] overflow-hidden">
                         <div className="sticky top-0 bg-white dark:bg-[#162e21] p-4 border-b border-[#dae7e0] dark:border-[#2a4a38]">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-bold text-[#101814] dark:text-white">ชำระเงิน</h3>
+                                <h3 className="text-lg font-bold text-[#101814] dark:text-white">{t.book2.payment}</h3>
                                 <button onClick={handlePaymentCancel}>
                                     <span className="material-symbols-outlined text-[#5e8d73]">close</span>
                                 </button>
@@ -1850,7 +1854,7 @@ export default function Book2Page() {
                             {tripInfo && (
                                 <div className="bg-[#f5f8f7] dark:bg-[#0f2318] rounded-xl p-4">
                                     <div className="flex justify-between items-center">
-                                        <span className="text-[#5e8d73]">ราคา</span>
+                                        <span className="text-[#5e8d73]">{t.book2.price}</span>
                                         <span className="text-2xl font-bold text-[#00b250]">฿{tripInfo.price.toLocaleString()}</span>
                                     </div>
                                 </div>
@@ -1868,7 +1872,7 @@ export default function Book2Page() {
                                         }`}
                                     >
                                         <span className="material-symbols-outlined text-2xl text-[#00b250]">payments</span>
-                                        <span className="flex-1 text-left font-medium text-[#101814] dark:text-white">เงินสด</span>
+                                        <span className="flex-1 text-left font-medium text-[#101814] dark:text-white">{t.book2.cash}</span>
                                         {paymentMethod === 'cash' && (
                                             <span className="material-symbols-outlined text-[#00b250]">check_circle</span>
                                         )}
@@ -1883,7 +1887,7 @@ export default function Book2Page() {
                                         }`}
                                     >
                                         <span className="material-symbols-outlined text-2xl text-blue-500">credit_card</span>
-                                        <span className="flex-1 text-left font-medium text-[#101814] dark:text-white">บัตรเครดิต/เดบิต</span>
+                                        <span className="flex-1 text-left font-medium text-[#101814] dark:text-white">{t.book2.creditDebit}</span>
                                         {paymentMethod === 'card' && (
                                             <span className="material-symbols-outlined text-[#00b250]">check_circle</span>
                                         )}
@@ -1901,10 +1905,10 @@ export default function Book2Page() {
                                         {isProcessingPayment ? (
                                             <>
                                                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                                <span>กำลังดำเนินการ...</span>
+                                                <span>{t.book2.processing}</span>
                                             </>
                                         ) : (
-                                            <span>ดำเนินการต่อ</span>
+                                            <span>{t.book2.proceed}</span>
                                         )}
                                     </button>
                                 </div>
@@ -1935,8 +1939,8 @@ export default function Book2Page() {
                             <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
                                 <span className="material-symbols-outlined text-red-500 text-3xl">warning</span>
                             </div>
-                            <h3 className="text-lg font-bold text-[#101814] dark:text-white mb-2">ยกเลิกการจอง?</h3>
-                            <p className="text-sm text-[#5e8d73] mb-6">คุณต้องการยกเลิกการจองนี้หรือไม่?</p>
+                            <h3 className="text-lg font-bold text-[#101814] dark:text-white mb-2">{t.book2.cancelBookingQuestion}</h3>
+                            <p className="text-sm text-[#5e8d73] mb-6">{t.book2.cancelBookingConfirm}</p>
                         </div>
                         <div className="flex gap-3">
                             <button
@@ -1944,7 +1948,7 @@ export default function Book2Page() {
                                 disabled={isCancellingBooking}
                                 className="flex-1 h-12 rounded-xl border-2 border-gray-300 text-gray-600 font-semibold"
                             >
-                                ไม่ใช่
+                                {t.book2.no}
                             </button>
                             <button
                                 onClick={confirmCancelBooking}
@@ -1954,7 +1958,7 @@ export default function Book2Page() {
                                 {isCancellingBooking ? (
                                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                                 ) : (
-                                    <span>ยกเลิก</span>
+                                    <span>{t.book2.cancel}</span>
                                 )}
                             </button>
                         </div>
@@ -1970,22 +1974,22 @@ export default function Book2Page() {
                             <div className="w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mx-auto mb-4">
                                 <span className="material-symbols-outlined text-yellow-500 text-3xl">warning</span>
                             </div>
-                            <h3 className="text-lg font-bold text-[#101814] dark:text-white mb-2">ไม่มีคนขับว่างในขณะนี้</h3>
-                            <p className="text-sm text-[#5e8d73]">การจองของคุณยังอยู่ในระบบ</p>
+                            <h3 className="text-lg font-bold text-[#101814] dark:text-white mb-2">{t.book2.noDriverAvailable}</h3>
+                            <p className="text-sm text-[#5e8d73]">{t.book2.bookingStillActive}</p>
                         </div>
                         <div className="bg-[#00b250]/5 rounded-xl p-4 mb-6">
-                            <p className="text-sm font-semibold text-[#00b250] mb-2">สิ่งที่จะเกิดขึ้น:</p>
+                            <p className="text-sm font-semibold text-[#00b250] mb-2">{t.book2.whatHappensNext}</p>
                             <ul className="text-sm text-[#5e8d73] space-y-1">
-                                <li>• ระบบจะหาคนขับให้อัตโนมัติ</li>
-                                <li>• แอดมินจะช่วยหาคนขับให้</li>
-                                <li>• คุณจะได้รับแจ้งเตือนทันที</li>
+                                <li>• {t.book2.systemWillFind}</li>
+                                <li>• {t.book2.adminWillHelp}</li>
+                                <li>• {t.book2.youWillBeNotified}</li>
                             </ul>
                         </div>
                         <button
                             onClick={() => setShowNoDriverModal(false)}
                             className="w-full h-14 rounded-xl bg-[#00b250] text-white font-bold"
                         >
-                            เข้าใจแล้ว
+                            {t.book2.understood}
                         </button>
                     </div>
                 </div>
@@ -1997,7 +2001,7 @@ export default function Book2Page() {
                     <div className="w-full bg-white dark:bg-[#162e21] rounded-t-3xl p-6" onClick={e => e.stopPropagation()}>
                         {/* Header */}
                         <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-lg font-bold text-[#101814] dark:text-white">ติดต่อคนขับ</h3>
+                            <h3 className="text-lg font-bold text-[#101814] dark:text-white">{t.book2.contactDriver}</h3>
                             <button
                                 onClick={() => setShowContactModal(false)}
                                 className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center"
@@ -2031,7 +2035,7 @@ export default function Book2Page() {
                                     <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>call</span>
                                 </div>
                                 <div>
-                                    <p className="font-bold">โทรหาคนขับ</p>
+                                    <p className="font-bold">{t.book2.callDriver}</p>
                                     <p className="text-sm text-white/80">{assignedDriver.phone}</p>
                                 </div>
                             </a>
@@ -2049,7 +2053,7 @@ export default function Book2Page() {
                                 </div>
                                 <div>
                                     <p className="font-bold">LINE @TukTik</p>
-                                    <p className="text-sm text-white/80">ติดต่อฝ่ายบริการลูกค้า</p>
+                                    <p className="text-sm text-white/80">{t.book2.contactSupport}</p>
                                 </div>
                             </a>
                         </div>
@@ -2075,8 +2079,8 @@ export default function Book2Page() {
                                 <span className="material-symbols-outlined text-[#00b250] text-[64px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
                             </div>
                             <div className="space-y-1">
-                                <h1 className="text-2xl font-bold text-[#101814] dark:text-white">ถึงจุดหมายแล้ว!</h1>
-                                <p className="text-[#5e8d73] text-sm">Hope you enjoyed your ride</p>
+                                <h1 className="text-2xl font-bold text-[#101814] dark:text-white">{t.book2.arrivedDestination}</h1>
+                                <p className="text-[#5e8d73] text-sm">{t.book2.hopeYouEnjoyed}</p>
                             </div>
                             {tripInfo && (
                                 <div className="text-[40px] font-bold text-[#00b250] tracking-tight">฿{tripInfo.price.toLocaleString()}</div>
@@ -2093,7 +2097,7 @@ export default function Book2Page() {
                                 <div className="flex items-start gap-4 relative z-10">
                                     <div className="w-6 h-6 rounded-full border-4 border-[#00b250] bg-white dark:bg-[#162e22] shrink-0 mt-0.5"></div>
                                     <div className="flex flex-col">
-                                        <span className="text-xs font-semibold text-[#5e8d73] uppercase tracking-wider">Pickup</span>
+                                        <span className="text-xs font-semibold text-[#5e8d73] uppercase tracking-wider">{t.book2.pickup}</span>
                                         <span className="text-sm font-medium text-[#101814] dark:text-white">{tripInfo?.pickup || pickup.name}</span>
                                     </div>
                                 </div>
@@ -2101,7 +2105,7 @@ export default function Book2Page() {
                                 <div className="flex items-start gap-4 relative z-10">
                                     <span className="material-symbols-outlined text-[#00b250] shrink-0 text-2xl -ml-[1px]" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
                                     <div className="flex flex-col">
-                                        <span className="text-xs font-semibold text-[#5e8d73] uppercase tracking-wider">Dropoff</span>
+                                        <span className="text-xs font-semibold text-[#5e8d73] uppercase tracking-wider">{t.book2.dropoff}</span>
                                         <span className="text-sm font-medium text-[#101814] dark:text-white">{tripInfo?.dropoff || dropoff.name}</span>
                                     </div>
                                 </div>
@@ -2111,17 +2115,17 @@ export default function Book2Page() {
                             <div className="flex items-center justify-between text-sm">
                                 <div className="flex items-center gap-6">
                                     <div className="flex flex-col">
-                                        <span className="text-xs text-[#5e8d73]">ระยะทาง</span>
+                                        <span className="text-xs text-[#5e8d73]">{t.book2.distance}</span>
                                         <span className="font-medium text-[#101814] dark:text-white">{tripInfo?.distance || '-'} km</span>
                                     </div>
                                     <div className="flex flex-col">
-                                        <span className="text-xs text-[#5e8d73]">เวลา</span>
-                                        <span className="font-medium text-[#101814] dark:text-white">{tripInfo?.duration || '-'} นาที</span>
+                                        <span className="text-xs text-[#5e8d73]">{t.book2.time}</span>
+                                        <span className="font-medium text-[#101814] dark:text-white">{tripInfo?.duration || '-'} {t.book2.minutes}</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 bg-[#f5f8f7] dark:bg-[#0f2318]/50 px-3 py-1.5 rounded-lg border border-[#dae7e0] dark:border-[#2a4a38]">
                                     <span className="material-symbols-outlined text-[#101814] dark:text-white text-base">payments</span>
-                                    <span className="font-medium text-xs text-[#101814] dark:text-white">{paymentMethod === 'cash' ? 'เงินสด' : 'บัตร'}</span>
+                                    <span className="font-medium text-xs text-[#101814] dark:text-white">{paymentMethod === 'cash' ? t.book2.cash : t.book2.card}</span>
                                 </div>
                             </div>
                         </div>
@@ -2151,7 +2155,7 @@ export default function Book2Page() {
 
                         {/* Rating Section */}
                         <div className="flex flex-col items-center space-y-4 mb-8">
-                            <h2 className="font-bold text-lg text-[#101814] dark:text-white">ให้คะแนนคนขับ</h2>
+                            <h2 className="font-bold text-lg text-[#101814] dark:text-white">{t.book2.rateDriver}</h2>
                             {/* Stars */}
                             <div className="flex gap-3">
                                 {[1, 2, 3, 4, 5].map(star => (
@@ -2173,7 +2177,7 @@ export default function Book2Page() {
                             </div>
                             {/* Feedback Chips */}
                             <div className="flex flex-wrap justify-center gap-2 w-full pt-2">
-                                {['ขับรถดี', 'รถสะอาด', 'บริการสุภาพ', 'ถึงเร็ว'].map(chip => (
+                                {[t.book2.goodDriving, t.book2.cleanCar, t.book2.politeService, t.book2.fastArrival].map(chip => (
                                     <button
                                         key={chip}
                                         onClick={() => setRatingComment(prev => prev ? `${prev}, ${chip}` : chip)}
@@ -2187,7 +2191,7 @@ export default function Book2Page() {
 
                         {/* Tipping Section */}
                         <div className="bg-white dark:bg-[#162e22] rounded-xl p-5 mb-6 border border-[#dae7e0] dark:border-[#2a4a38]">
-                            <h3 className="font-bold text-base mb-4 text-[#101814] dark:text-white">ให้ทิปคนขับ</h3>
+                            <h3 className="font-bold text-base mb-4 text-[#101814] dark:text-white">{t.book2.tipDriver}</h3>
                             <div className="grid grid-cols-4 gap-3 mb-4">
                                 {[0, 20, 50, 100].map(tip => (
                                     <button
@@ -2199,13 +2203,13 @@ export default function Book2Page() {
                                                 : 'border-[#dae7e0] dark:border-[#2a4a38] bg-[#f5f8f7] dark:bg-[#0f2318] text-[#101814] dark:text-gray-300 hover:border-[#00b250] hover:text-[#00b250]'
                                         }`}
                                     >
-                                        {tip === 0 ? 'ไม่ทิป' : `฿${tip}`}
+                                        {tip === 0 ? t.book2.noTip : `฿${tip}`}
                                     </button>
                                 ))}
                             </div>
                             <textarea
                                 className="w-full bg-[#f5f8f7] dark:bg-[#0f2318] border border-[#dae7e0] dark:border-[#2a4a38] rounded-lg p-3 text-sm focus:ring-1 focus:ring-[#00b250] focus:border-[#00b250] outline-none resize-none text-[#101814] dark:text-white placeholder-[#5e8d73]"
-                                placeholder="เขียนข้อเสนอแนะเพิ่มเติม (Optional)"
+                                placeholder={t.book2.feedbackPlaceholder}
                                 rows={2}
                                 value={ratingComment}
                                 onChange={(e) => setRatingComment(e.target.value)}
@@ -2224,17 +2228,17 @@ export default function Book2Page() {
                                 {isSubmittingRating ? (
                                     <>
                                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                        <span>กำลังส่ง...</span>
+                                        <span>{t.book2.submitting}</span>
                                     </>
                                 ) : (
-                                    <span>ส่งคะแนน</span>
+                                    <span>{t.book2.submitRating}</span>
                                 )}
                             </button>
                             <button
                                 onClick={() => { setShowRatingModal(false); resetTrip(); }}
                                 className="w-full text-[#5e8d73] hover:text-[#101814] dark:text-gray-400 dark:hover:text-white font-medium py-2 text-sm transition-colors"
                             >
-                                ข้าม
+                                {t.book2.skip}
                             </button>
                         </div>
                     </div>

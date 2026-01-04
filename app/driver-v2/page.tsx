@@ -85,6 +85,10 @@ export default function DriverV2Page() {
     const [driverLocation, setDriverLocation] = useState(BANGKOK_CENTER);
     const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
     const [routeInfo, setRouteInfo] = useState<{ duration: string; distance: string } | null>(null);
+    const [followMode, setFollowMode] = useState(true);
+    const [destinationCoords, setDestinationCoords] = useState<{ lat: number; lng: number } | null>(null);
+    const lastRouteCalcRef = useRef<number>(0);
+    const routeDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
     // Job Modal States
     const [showJobModal, setShowJobModal] = useState(false);
@@ -104,6 +108,10 @@ export default function DriverV2Page() {
     // Audio States
     const [audioUnlocked, setAudioUnlocked] = useState(false);
     const audioContextRef = useRef<AudioContext | null>(null);
+    const soundRepeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Refs for callbacks (prevent stale closure)
+    const handleRejectJobRef = useRef<(() => Promise<void>) | undefined>(undefined);
 
     // Stats
     const [todayStats, setTodayStats] = useState({ trips: 0, earnings: 0, weeklyEarnings: 0 });
@@ -148,8 +156,8 @@ export default function DriverV2Page() {
         }
     }, [latitude, longitude]);
 
-    // Play notification sound
-    const playNotificationSound = useCallback(() => {
+    // Play notification sound once
+    const playSoundOnce = useCallback(() => {
         if (!audioUnlocked || !audioContextRef.current) return;
         try {
             const ctx = audioContextRef.current;
@@ -170,10 +178,34 @@ export default function DriverV2Page() {
             playChime(now, 1046.50, 783.99);
             playChime(now + 0.5, 1046.50, 783.99);
             playChime(now + 1.0, 1318.51, 987.77);
+            // Vibrate on mobile
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
         } catch (err) {
             console.log('Audio error:', err);
         }
     }, [audioUnlocked]);
+
+    // Stop sound repeat
+    const stopSoundRepeat = useCallback(() => {
+        if (soundRepeatIntervalRef.current) {
+            clearInterval(soundRepeatIntervalRef.current);
+            soundRepeatIntervalRef.current = null;
+        }
+    }, []);
+
+    // Start sound repeat (every 3 seconds)
+    const startSoundRepeat = useCallback(() => {
+        stopSoundRepeat();
+        playSoundOnce();
+        soundRepeatIntervalRef.current = setInterval(() => {
+            playSoundOnce();
+        }, 3000);
+    }, [playSoundOnce, stopSoundRepeat]);
+
+    // Play notification sound (starts repeat)
+    const playNotificationSound = useCallback(() => {
+        startSoundRepeat();
+    }, [startSoundRepeat]);
 
     // Unlock audio
     const unlockAudio = useCallback(() => {
@@ -221,8 +253,7 @@ export default function DriverV2Page() {
             setNewJob(job);
             setShowJobModal(true);
             setCountdown(15);
-            playNotificationSound();
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+            playNotificationSound(); // This now starts sound repeat with vibration
         }
         previousBookingIds.current = new Set(newBookings.map(b => b.id));
     }, [playNotificationSound]);
@@ -333,15 +364,24 @@ export default function DriverV2Page() {
         };
     }, [router, checkForNewBookings]);
 
-    // Countdown Effect
+    // Countdown Effect - Auto-reject when countdown reaches 0
     useEffect(() => {
         if (showJobModal && countdown > 0) {
             countdownRef.current = setTimeout(() => setCountdown(c => c - 1), 1000);
             return () => { if (countdownRef.current) clearTimeout(countdownRef.current); };
         } else if (showJobModal && countdown === 0) {
-            handleRejectJob();
+            // Use ref to avoid stale closure
+            handleRejectJobRef.current?.();
         }
     }, [showJobModal, countdown]);
+
+    // Cleanup sound repeat on unmount or modal close
+    useEffect(() => {
+        if (!showJobModal) {
+            stopSoundRepeat();
+        }
+        return () => stopSoundRepeat();
+    }, [showJobModal, stopSoundRepeat]);
 
     // Toggle Online/Offline
     const toggleStatus = async () => {
@@ -367,6 +407,7 @@ export default function DriverV2Page() {
     // Accept Job
     const handleAcceptJob = async () => {
         if (!newJob || !driver?.id) return;
+        stopSoundRepeat(); // Stop sound when accepting
         setShowJobModal(false);
         try {
             await fetch('/api/driver/bookings', {
@@ -387,6 +428,7 @@ export default function DriverV2Page() {
     // Reject Job
     const handleRejectJob = async () => {
         if (!newJob || !driver?.id) return;
+        stopSoundRepeat(); // Stop sound when rejecting
         setShowJobModal(false);
         setNewJob(null);
         try {
@@ -403,6 +445,11 @@ export default function DriverV2Page() {
             console.error('Error rejecting job:', error);
         }
     };
+
+    // Update ref for auto-reject (prevent stale closure)
+    useEffect(() => {
+        handleRejectJobRef.current = handleRejectJob;
+    });
 
     // Update Booking Status
     const updateBookingStatus = async (bookingId: string, newStatus: string) => {
@@ -456,6 +503,27 @@ export default function DriverV2Page() {
         }
     };
 
+    // Open external navigation (Google Maps / Apple Maps)
+    const openNavigation = useCallback((destination: { lat: number; lng: number } | string) => {
+        let destStr: string;
+        if (typeof destination === 'string') {
+            destStr = encodeURIComponent(destination);
+        } else {
+            destStr = `${destination.lat},${destination.lng}`;
+        }
+
+        // Check if iOS (Apple Maps) or Android/Other (Google Maps)
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+        if (isIOS) {
+            // Apple Maps
+            window.open(`maps://maps.apple.com/?daddr=${destStr}&dirflg=d`, '_blank');
+        } else {
+            // Google Maps
+            window.open(`https://www.google.com/maps/dir/?api=1&destination=${destStr}&travelmode=driving`, '_blank');
+        }
+    }, []);
+
     // Get active booking
     const activeBooking = bookings.find(b =>
         ['driver_assigned', 'driver_en_route', 'in_progress'].includes(b.status)
@@ -469,20 +537,81 @@ export default function DriverV2Page() {
         return BANGKOK_CENTER;
     };
 
-    // Calculate directions
+    // Calculate destination based on booking status
     useEffect(() => {
-        if (!isLoaded || !activeBooking) {
+        if (!activeBooking) {
+            setDestinationCoords(null);
             setDirections(null);
+            setRouteInfo(null);
             return;
         }
-        const destination = activeBooking.status === 'driver_en_route'
+
+        const newDest = activeBooking.status === 'driver_en_route'
             ? (activeBooking.pickupCoordinates || getCoords(activeBooking.pickupLocation))
             : (activeBooking.dropoffCoordinates || getCoords(activeBooking.dropoffLocation));
+
+        // Only update if destination changed (status change)
+        if (!destinationCoords ||
+            destinationCoords.lat !== newDest.lat ||
+            destinationCoords.lng !== newDest.lng) {
+            setDestinationCoords(newDest);
+        }
+    }, [activeBooking?.status, activeBooking?.pickupCoordinates, activeBooking?.dropoffCoordinates]);
+
+    // Calculate directions with debounce (only when destination changes or every 30 seconds)
+    useEffect(() => {
+        if (!isLoaded || !destinationCoords || !driverLocation) {
+            return;
+        }
+
+        const now = Date.now();
+        const timeSinceLastCalc = now - lastRouteCalcRef.current;
+
+        // Calculate immediately if destination just changed, or debounce to every 30 seconds
+        const shouldCalcNow = timeSinceLastCalc > 30000;
+
+        const calculateRoute = () => {
+            const directionsService = new google.maps.DirectionsService();
+            directionsService.route({
+                origin: driverLocation,
+                destination: destinationCoords,
+                travelMode: google.maps.TravelMode.DRIVING,
+            }, (result, status) => {
+                if (status === 'OK' && result) {
+                    setDirections(result);
+                    const leg = result.routes[0]?.legs[0];
+                    if (leg) {
+                        setRouteInfo({
+                            duration: leg.duration?.text || '',
+                            distance: leg.distance?.text || '',
+                        });
+                    }
+                    lastRouteCalcRef.current = Date.now();
+                }
+            });
+        };
+
+        if (shouldCalcNow) {
+            calculateRoute();
+        } else {
+            // Debounce: wait until 30 seconds have passed
+            if (routeDebounceRef.current) clearTimeout(routeDebounceRef.current);
+            routeDebounceRef.current = setTimeout(calculateRoute, 30000 - timeSinceLastCalc);
+        }
+
+        return () => {
+            if (routeDebounceRef.current) clearTimeout(routeDebounceRef.current);
+        };
+    }, [isLoaded, destinationCoords]);
+
+    // Recalculate route immediately when destination changes
+    useEffect(() => {
+        if (!isLoaded || !destinationCoords || !driverLocation) return;
 
         const directionsService = new google.maps.DirectionsService();
         directionsService.route({
             origin: driverLocation,
-            destination,
+            destination: destinationCoords,
             travelMode: google.maps.TravelMode.DRIVING,
         }, (result, status) => {
             if (status === 'OK' && result) {
@@ -494,9 +623,17 @@ export default function DriverV2Page() {
                         distance: leg.distance?.text || '',
                     });
                 }
+                lastRouteCalcRef.current = Date.now();
             }
         });
-    }, [isLoaded, activeBooking, driverLocation]);
+    }, [isLoaded, destinationCoords]);
+
+    // Follow mode - pan map to driver location
+    useEffect(() => {
+        if (followMode && mapRef.current && driverLocation) {
+            mapRef.current.panTo(driverLocation);
+        }
+    }, [followMode, driverLocation]);
 
     // Loading
     if (loading) {
@@ -514,7 +651,7 @@ export default function DriverV2Page() {
     const isNavigating = activeBooking && ['driver_en_route', 'in_progress'].includes(activeBooking.status);
 
     return (
-        <div className="min-h-screen bg-[#f5f8f7] dark:bg-[#0f2318] flex flex-col pb-20">
+        <div className="h-full bg-[#f5f8f7] dark:bg-[#0f2318] flex flex-col overflow-hidden">
             {/* Audio Unlock Modal */}
             {!audioUnlocked && driver && (
                 <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
@@ -614,8 +751,20 @@ export default function DriverV2Page() {
             {/* Navigation Header (when active) */}
             {isNavigating && routeInfo && (
                 <div className="px-4 py-3 z-20">
-                    {/* LIVE GPS Badge */}
-                    <div className="flex justify-end mb-2">
+                    {/* LIVE GPS Badge + External Navigation Button */}
+                    <div className="flex justify-between items-center mb-2">
+                        <button
+                            onClick={() => {
+                                const dest = activeBooking?.status === 'driver_en_route'
+                                    ? (activeBooking.pickupCoordinates || activeBooking.pickupLocation)
+                                    : (activeBooking?.dropoffCoordinates || activeBooking?.dropoffLocation);
+                                if (dest) openNavigation(dest);
+                            }}
+                            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 active:scale-95 transition-transform"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">open_in_new</span>
+                            <span className="text-sm font-bold">เปิดแผนที่</span>
+                        </button>
                         <div className="bg-white/90 backdrop-blur px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2 border border-white/50">
                             <div className="w-2.5 h-2.5 bg-[#00b250] rounded-full animate-pulse" />
                             <span className="text-xs font-bold text-gray-700">LIVE GPS</span>
@@ -647,8 +796,8 @@ export default function DriverV2Page() {
                 {isLoaded ? (
                     <GoogleMap
                         mapContainerStyle={{ width: '100%', height: '100%' }}
-                        center={driverLocation}
-                        zoom={isNavigating ? 17 : 15}
+                        center={followMode ? driverLocation : undefined}
+                        zoom={isNavigating ? 16 : 15}
                         options={{
                             disableDefaultUI: true,
                             zoomControl: false,
@@ -657,18 +806,111 @@ export default function DriverV2Page() {
                             tilt: isNavigating ? 45 : 0,
                         }}
                         onLoad={(map) => { mapRef.current = map; }}
+                        onDragStart={() => setFollowMode(false)}
                     >
-                        {directions && <DirectionsRenderer directions={directions} options={{ suppressMarkers: true, polylineOptions: { strokeColor: '#3b82f6', strokeWeight: 6 } }} />}
-                        {/* Driver Marker */}
+                        {/* Route Line - Color based on status */}
+                        {directions && (
+                            <DirectionsRenderer
+                                directions={directions}
+                                options={{
+                                    suppressMarkers: true,
+                                    polylineOptions: {
+                                        strokeColor: activeBooking?.status === 'driver_en_route' ? '#3b82f6' : '#00b250',
+                                        strokeWeight: 5,
+                                        strokeOpacity: 0.7,
+                                    }
+                                }}
+                            />
+                        )}
+
+                        {/* Destination Marker - Grab Style Pin */}
+                        {destinationCoords && activeBooking && (
+                            <OverlayView position={destinationCoords} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}>
+                                <div className="relative" style={{ transform: 'translate(-50%, -100%)' }}>
+                                    {/* Smooth pulse rings */}
+                                    <div className="absolute left-1/2 bottom-0 -translate-x-1/2">
+                                        <div className={`w-12 h-12 rounded-full destination-pulse-1 ${
+                                            activeBooking.status === 'driver_en_route' ? 'bg-[#00b250]' : 'bg-red-500'
+                                        }`} style={{ transform: 'translate(-50%, 50%)' }} />
+                                        <div className={`w-12 h-12 rounded-full destination-pulse-2 ${
+                                            activeBooking.status === 'driver_en_route' ? 'bg-[#00b250]' : 'bg-red-500'
+                                        }`} style={{ transform: 'translate(-50%, 50%)', position: 'absolute', left: '50%', bottom: 0 }} />
+                                    </div>
+                                    {/* Pin SVG - Teardrop shape */}
+                                    <svg width="44" height="56" viewBox="0 0 44 56" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.35))' }}>
+                                        {/* Pin body - teardrop */}
+                                        <path
+                                            d="M22 0C10 0 0 10 0 22C0 34 22 56 22 56C22 56 44 34 44 22C44 10 34 0 22 0Z"
+                                            fill={activeBooking.status === 'driver_en_route' ? '#00b250' : '#ef4444'}
+                                        />
+                                        {/* Inner white circle */}
+                                        <circle cx="22" cy="20" r="12" fill="white" />
+                                        {/* Icon */}
+                                        {activeBooking.status === 'driver_en_route' ? (
+                                            // Person icon for pickup
+                                            <g fill={activeBooking.status === 'driver_en_route' ? '#00b250' : '#ef4444'}>
+                                                <circle cx="22" cy="16" r="4" />
+                                                <path d="M15 26C15 22.134 18.134 20 22 20C25.866 20 29 22.134 29 26" strokeWidth="0" />
+                                            </g>
+                                        ) : (
+                                            // Flag icon for dropoff
+                                            <path d="M17 12V28M17 12L27 17L17 22" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                                        )}
+                                    </svg>
+                                </div>
+                            </OverlayView>
+                        )}
+
+                        {/* Driver Marker (Car) */}
                         <OverlayView position={driverLocation} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}>
                             <div className="relative" style={{ transform: 'translate(-50%, -50%)' }}>
-                                {isOnline && (
+                                {/* Smooth pulse animation - show when navigating */}
+                                {isNavigating && (
+                                    <>
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="w-16 h-16 rounded-full bg-[#00b250] car-pulse-1" />
+                                        </div>
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="w-16 h-16 rounded-full bg-[#00b250] car-pulse-2" />
+                                        </div>
+                                    </>
+                                )}
+                                {/* GPS accuracy circle - show when online but not navigating */}
+                                {isOnline && !isNavigating && (
                                     <div className="absolute inset-0 flex items-center justify-center">
-                                        <div className="w-16 h-16 rounded-full bg-[#00b250]/20 animate-ping" />
+                                        <div className="w-16 h-16 rounded-full bg-[#00b250]/15 border border-[#00b250]/30" />
                                     </div>
                                 )}
-                                <div className="relative z-10 bg-white p-2 rounded-full shadow-lg border-2 border-white" style={{ transform: `rotate(${heading || 0}deg)` }}>
-                                    <span className="material-symbols-outlined text-[#00b250] text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>navigation</span>
+                                {/* Car marker - Black Sedan Top View */}
+                                <div
+                                    className="relative z-10"
+                                    style={{ transform: `rotate(${heading || 0}deg)` }}
+                                >
+                                    <svg width="32" height="56" viewBox="0 0 32 56" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))' }}>
+                                        {/* Car body */}
+                                        <rect x="4" y="8" width="24" height="44" rx="6" fill="#1a1a1a" />
+                                        {/* Hood */}
+                                        <path d="M6 14 Q6 8 16 6 Q26 8 26 14 L26 18 L6 18 Z" fill="#2a2a2a" />
+                                        {/* Trunk */}
+                                        <path d="M6 46 L6 42 L26 42 L26 46 Q26 50 16 52 Q6 50 6 46Z" fill="#2a2a2a" />
+                                        {/* Windshield */}
+                                        <path d="M8 18 L8 24 L24 24 L24 18 Q24 16 16 14 Q8 16 8 18Z" fill="#87CEEB" opacity="0.8" />
+                                        {/* Rear window */}
+                                        <rect x="8" y="36" width="16" height="6" rx="2" fill="#87CEEB" opacity="0.7" />
+                                        {/* Roof */}
+                                        <rect x="8" y="24" width="16" height="12" rx="2" fill="#0a0a0a" />
+                                        {/* Roof shine */}
+                                        <rect x="10" y="26" width="12" height="3" rx="1" fill="#3a3a3a" />
+                                        {/* Headlights */}
+                                        <circle cx="9" cy="10" r="2" fill="#FFE082" />
+                                        <circle cx="23" cy="10" r="2" fill="#FFE082" />
+                                        {/* Taillights */}
+                                        <rect x="7" y="48" width="4" height="2" rx="1" fill="#FF5252" />
+                                        <rect x="21" y="48" width="4" height="2" rx="1" fill="#FF5252" />
+                                        {/* Side mirrors */}
+                                        <ellipse cx="2" cy="20" rx="2" ry="3" fill="#1a1a1a" />
+                                        <ellipse cx="30" cy="20" rx="2" ry="3" fill="#1a1a1a" />
+                                    </svg>
                                 </div>
                             </div>
                         </OverlayView>
@@ -678,12 +920,61 @@ export default function DriverV2Page() {
                         <div className="w-8 h-8 border-4 border-[#00b250] border-t-transparent rounded-full animate-spin" />
                     </div>
                 )}
+
                 {/* Map Controls */}
                 <div className="absolute right-4 bottom-6 flex flex-col gap-3">
-                    <button className="w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-50 active:scale-95 transition-transform">
+                    {/* Follow Mode Toggle */}
+                    <button
+                        onClick={() => setFollowMode(!followMode)}
+                        className={`w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all active:scale-95 ${
+                            followMode
+                                ? 'bg-[#00b250] text-white'
+                                : 'bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                    >
+                        <span className="material-symbols-outlined">{followMode ? 'gps_fixed' : 'gps_not_fixed'}</span>
+                    </button>
+                    {/* Center on Route */}
+                    {directions && (
+                        <button
+                            onClick={() => {
+                                if (mapRef.current && directions) {
+                                    const bounds = new google.maps.LatLngBounds();
+                                    directions.routes[0]?.legs[0]?.steps.forEach(step => {
+                                        bounds.extend(step.start_location);
+                                        bounds.extend(step.end_location);
+                                    });
+                                    mapRef.current.fitBounds(bounds, { top: 100, bottom: 200, left: 50, right: 50 });
+                                    setFollowMode(false);
+                                }
+                            }}
+                            className="w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-50 active:scale-95 transition-transform"
+                        >
+                            <span className="material-symbols-outlined">route</span>
+                        </button>
+                    )}
+                    {/* My Location */}
+                    <button
+                        onClick={() => {
+                            if (mapRef.current) {
+                                mapRef.current.panTo(driverLocation);
+                                mapRef.current.setZoom(17);
+                                setFollowMode(true);
+                            }
+                        }}
+                        className="w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-50 active:scale-95 transition-transform"
+                    >
                         <span className="material-symbols-outlined">my_location</span>
                     </button>
                 </div>
+
+                {/* Follow Mode Indicator */}
+                {followMode && isNavigating && (
+                    <div className="absolute top-4 left-4 bg-[#00b250] text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-lg">
+                        <span className="material-symbols-outlined text-[16px]">gps_fixed</span>
+                        ติดตามรถ
+                    </div>
+                )}
             </div>
 
             {/* Bottom Action Sheet */}
@@ -702,14 +993,32 @@ export default function DriverV2Page() {
                                      activeBooking.status === 'driver_en_route' ? 'กำลังไปรับ' : 'กำลังเดินทาง'}
                                 </span>
                             </div>
-                            <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center text-2xl">
-                                    {activeBooking.firstName?.[0] || '👤'}
+                            <div className="flex items-center gap-3">
+                                {/* Customer Avatar */}
+                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-xl font-bold text-gray-500 shrink-0 border-2 border-white shadow-md">
+                                    {activeBooking.firstName?.[0]?.toUpperCase() || '?'}
                                 </div>
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-bold">{activeBooking.firstName} {activeBooking.lastName}</h3>
-                                    <p className="text-sm text-gray-500 truncate">{activeBooking.pickupLocation}</p>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="text-base font-bold text-gray-900 truncate">{activeBooking.firstName} {activeBooking.lastName}</h3>
+                                    <p className="text-sm text-gray-500 truncate max-w-[200px]">
+                                        {activeBooking.status === 'in_progress'
+                                            ? activeBooking.dropoffLocation
+                                            : activeBooking.pickupLocation}
+                                    </p>
                                 </div>
+                                {/* Navigation Button */}
+                                <button
+                                    onClick={() => {
+                                        const dest = activeBooking.status === 'driver_en_route'
+                                            ? (activeBooking.pickupCoordinates || activeBooking.pickupLocation)
+                                            : (activeBooking.dropoffCoordinates || activeBooking.dropoffLocation);
+                                        if (dest) openNavigation(dest);
+                                    }}
+                                    className="w-11 h-11 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center"
+                                >
+                                    <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>near_me</span>
+                                </button>
+                                {/* Call Button */}
                                 <a href={`tel:${activeBooking.phone}`} className="w-11 h-11 rounded-full bg-green-50 text-[#00b250] flex items-center justify-center">
                                     <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>call</span>
                                 </a>
@@ -911,10 +1220,35 @@ export default function DriverV2Page() {
                 </div>
             )}
 
-            {/* Scrollbar hide style */}
+            {/* Scrollbar hide style + Map animations */}
             <style jsx global>{`
                 .no-scrollbar::-webkit-scrollbar { display: none; }
                 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+                /* Smooth pulse animation for car marker */
+                @keyframes carPulse {
+                    0% { transform: scale(1); opacity: 0.4; }
+                    50% { transform: scale(1.8); opacity: 0; }
+                    100% { transform: scale(1); opacity: 0; }
+                }
+                .car-pulse-1 {
+                    animation: carPulse 2s ease-out infinite;
+                }
+                .car-pulse-2 {
+                    animation: carPulse 2s ease-out infinite 1s;
+                }
+
+                /* Smooth pulse animation for destination marker */
+                @keyframes destinationPulse {
+                    0% { transform: translate(-50%, 50%) scale(0.5); opacity: 0.6; }
+                    100% { transform: translate(-50%, 50%) scale(2.5); opacity: 0; }
+                }
+                .destination-pulse-1 {
+                    animation: destinationPulse 2s ease-out infinite;
+                }
+                .destination-pulse-2 {
+                    animation: destinationPulse 2s ease-out infinite 1s;
+                }
             `}</style>
         </div>
     );

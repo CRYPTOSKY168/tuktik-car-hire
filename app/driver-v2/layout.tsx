@@ -20,12 +20,14 @@ export default function DriverV2Layout({
     ];
 
     return (
-        <div className="min-h-screen bg-[#f5f8f7] dark:bg-[#0f2318]">
-            {children}
+        <div className="h-screen flex flex-col bg-[#f5f8f7] dark:bg-[#0f2318] overflow-hidden">
+            <div className="flex-1 overflow-hidden">
+                {children}
+            </div>
 
             {/* Bottom Navigation */}
             {!hideNav && (
-                <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-[#1a2e22] border-t border-gray-100 dark:border-gray-800 z-50 pb-safe">
+                <nav className="shrink-0 bg-white dark:bg-[#1a2e22] border-t border-gray-100 dark:border-gray-800 z-50 pb-safe">
                     <div className="flex justify-around items-center h-16 max-w-lg mx-auto">
                         {navItems.map((item) => {
                             const isActive = pathname === item.href ||

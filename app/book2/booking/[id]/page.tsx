@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { db } from '@/lib/firebase/config';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { BookingService } from '@/lib/firebase/services';
@@ -14,6 +15,7 @@ export default function BookingTrackingPage() {
     const params = useParams();
     const bookingId = params.id as string;
     const { user, loading: authLoading } = useAuth();
+    const { t } = useLanguage();
 
     const [booking, setBooking] = useState<Booking | null>(null);
     const [loading, setLoading] = useState(true);
@@ -30,13 +32,13 @@ export default function BookingTrackingPage() {
                 if (docSnap.exists()) {
                     setBooking({ id: docSnap.id, ...docSnap.data() } as Booking);
                 } else {
-                    setError('ไม่พบการจองนี้');
+                    setError(t.book2.bookingNotFound);
                 }
                 setLoading(false);
             },
             (error) => {
                 console.error('Error fetching booking:', error);
-                setError('เกิดข้อผิดพลาดในการโหลดข้อมูล');
+                setError(t.book2.errorLoadingData);
                 setLoading(false);
             }
         );
@@ -49,8 +51,8 @@ export default function BookingTrackingPage() {
         switch (status) {
             case BookingStatus.PENDING:
                 return {
-                    label: 'รอยืนยัน',
-                    description: 'กำลังรอการยืนยันจากระบบ',
+                    label: t.book2.trackingStatus.pending,
+                    description: t.book2.trackingStatus.pendingDesc,
                     icon: 'hourglass_empty',
                     color: 'text-[#FFB300]',
                     bgColor: 'bg-[#FFB300]/10',
@@ -58,8 +60,8 @@ export default function BookingTrackingPage() {
                 };
             case BookingStatus.CONFIRMED:
                 return {
-                    label: 'ยืนยันแล้ว',
-                    description: 'กำลังหาคนขับให้คุณ',
+                    label: t.book2.trackingStatus.confirmed,
+                    description: t.book2.trackingStatus.confirmedDesc,
                     icon: 'check_circle',
                     color: 'text-[#00b250]',
                     bgColor: 'bg-[#00b250]/10',
@@ -67,8 +69,8 @@ export default function BookingTrackingPage() {
                 };
             case BookingStatus.DRIVER_ASSIGNED:
                 return {
-                    label: 'พบคนขับแล้ว',
-                    description: 'คนขับกำลังเตรียมตัว',
+                    label: t.book2.trackingStatus.driverAssigned,
+                    description: t.book2.trackingStatus.driverAssignedDesc,
                     icon: 'person_pin',
                     color: 'text-blue-500',
                     bgColor: 'bg-blue-500/10',
@@ -76,8 +78,8 @@ export default function BookingTrackingPage() {
                 };
             case BookingStatus.DRIVER_EN_ROUTE:
                 return {
-                    label: 'คนขับกำลังมา',
-                    description: 'คนขับกำลังเดินทางมารับคุณ',
+                    label: t.book2.trackingStatus.driverEnRoute,
+                    description: t.book2.trackingStatus.driverEnRouteDesc,
                     icon: 'directions_car',
                     color: 'text-purple-500',
                     bgColor: 'bg-purple-500/10',
@@ -85,8 +87,8 @@ export default function BookingTrackingPage() {
                 };
             case BookingStatus.IN_PROGRESS:
                 return {
-                    label: 'กำลังเดินทาง',
-                    description: 'คุณกำลังเดินทางไปปลายทาง',
+                    label: t.book2.trackingStatus.inProgress,
+                    description: t.book2.trackingStatus.inProgressDesc,
                     icon: 'local_taxi',
                     color: 'text-cyan-500',
                     bgColor: 'bg-cyan-500/10',
@@ -94,8 +96,8 @@ export default function BookingTrackingPage() {
                 };
             case BookingStatus.COMPLETED:
                 return {
-                    label: 'เสร็จสิ้น',
-                    description: 'ถึงปลายทางแล้ว ขอบคุณที่ใช้บริการ',
+                    label: t.book2.trackingStatus.completed,
+                    description: t.book2.trackingStatus.completedDesc,
                     icon: 'celebration',
                     color: 'text-[#00b250]',
                     bgColor: 'bg-[#00b250]/10',
@@ -103,8 +105,8 @@ export default function BookingTrackingPage() {
                 };
             case BookingStatus.CANCELLED:
                 return {
-                    label: 'ยกเลิกแล้ว',
-                    description: 'การจองถูกยกเลิก',
+                    label: t.book2.trackingStatus.cancelled,
+                    description: t.book2.trackingStatus.cancelledDesc,
                     icon: 'cancel',
                     color: 'text-red-500',
                     bgColor: 'bg-red-500/10',
@@ -128,11 +130,11 @@ export default function BookingTrackingPage() {
 
         const cancellableStatuses = [BookingStatus.PENDING, BookingStatus.CONFIRMED];
         if (!cancellableStatuses.includes(booking.status as BookingStatus)) {
-            alert('ไม่สามารถยกเลิกได้ในขั้นตอนนี้');
+            alert(t.book2.cannotCancelNow);
             return;
         }
 
-        if (!confirm('ต้องการยกเลิกการจองนี้หรือไม่?')) return;
+        if (!confirm(t.book2.cancelBookingConfirm)) return;
 
         setIsCancelling(true);
         try {
@@ -140,7 +142,7 @@ export default function BookingTrackingPage() {
             router.push('/book2');
         } catch (error: any) {
             console.error('Error cancelling:', error);
-            alert(error.message || 'ไม่สามารถยกเลิกได้');
+            alert(error.message || t.book2.cannotCancel);
         } finally {
             setIsCancelling(false);
         }
@@ -160,9 +162,9 @@ export default function BookingTrackingPage() {
         return (
             <div className="min-h-screen bg-[#f5f8f7] dark:bg-[#0f2318] flex flex-col items-center justify-center p-4">
                 <span className="material-symbols-outlined text-6xl text-red-500 mb-4">error</span>
-                <p className="text-lg font-bold text-[#101814] dark:text-white mb-2">{error || 'ไม่พบการจอง'}</p>
+                <p className="text-lg font-bold text-[#101814] dark:text-white mb-2">{error || t.book2.bookingNotFound}</p>
                 <Link href="/book2" className="text-[#00b250] font-semibold">
-                    กลับหน้าหลัก
+                    {t.book2.backToHome}
                 </Link>
             </div>
         );
@@ -183,7 +185,7 @@ export default function BookingTrackingPage() {
                     >
                         <span className="material-symbols-outlined text-[#101814] dark:text-white">arrow_back</span>
                     </Link>
-                    <h1 className="text-lg font-bold flex-1 text-center text-[#101814] dark:text-white">สถานะการจอง</h1>
+                    <h1 className="text-lg font-bold flex-1 text-center text-[#101814] dark:text-white">{t.book2.bookingStatus}</h1>
                     <div className="size-10" />
                 </div>
             </header>
@@ -222,7 +224,7 @@ export default function BookingTrackingPage() {
 
                 {/* Trip Details */}
                 <div className="bg-white rounded-2xl border border-[#dae7e0] p-4 mb-4">
-                    <h3 className="text-sm font-semibold text-[#5e8d73] uppercase mb-3">รายละเอียดการเดินทาง</h3>
+                    <h3 className="text-sm font-semibold text-[#5e8d73] uppercase mb-3">{t.book2.tripDetails}</h3>
 
                     <div className="flex gap-3">
                         {/* Route Visual */}
@@ -235,11 +237,11 @@ export default function BookingTrackingPage() {
                         {/* Route Text */}
                         <div className="flex-1 flex flex-col gap-4">
                             <div>
-                                <p className="text-xs text-[#5e8d73]">รับที่</p>
+                                <p className="text-xs text-[#5e8d73]">{t.book2.pickupAt}</p>
                                 <p className="text-sm font-medium text-[#101814]">{booking.pickupLocation}</p>
                             </div>
                             <div>
-                                <p className="text-xs text-[#5e8d73]">ส่งที่</p>
+                                <p className="text-xs text-[#5e8d73]">{t.book2.dropoffAt}</p>
                                 <p className="text-sm font-medium text-[#101814]">{booking.dropoffLocation}</p>
                             </div>
                         </div>
@@ -247,11 +249,11 @@ export default function BookingTrackingPage() {
 
                     <div className="border-t border-[#dae7e0] mt-4 pt-4 flex justify-between items-center">
                         <div>
-                            <p className="text-xs text-[#5e8d73]">รถ</p>
+                            <p className="text-xs text-[#5e8d73]">{t.book2.vehicle}</p>
                             <p className="text-sm font-medium text-[#101814]">{booking.vehicleName}</p>
                         </div>
                         <div className="text-right">
-                            <p className="text-xs text-[#5e8d73]">ราคา</p>
+                            <p className="text-xs text-[#5e8d73]">{t.book2.price}</p>
                             <p className="text-lg font-bold text-[#00b250]">฿{booking.totalCost?.toLocaleString()}</p>
                         </div>
                     </div>
@@ -260,7 +262,7 @@ export default function BookingTrackingPage() {
                 {/* Driver Card (if assigned) */}
                 {booking.driver && (
                     <div className="bg-white rounded-2xl border border-[#dae7e0] p-4 mb-4">
-                        <h3 className="text-sm font-semibold text-[#5e8d73] uppercase mb-3">คนขับของคุณ</h3>
+                        <h3 className="text-sm font-semibold text-[#5e8d73] uppercase mb-3">{t.book2.yourDriver}</h3>
                         <div className="flex items-center gap-4">
                             <div className="size-14 rounded-full bg-[#00b250]/10 flex items-center justify-center">
                                 <span className="material-symbols-outlined text-[#00b250] text-3xl">person</span>
@@ -290,12 +292,12 @@ export default function BookingTrackingPage() {
                             {isCancelling ? (
                                 <>
                                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-500"></div>
-                                    <span>กำลังยกเลิก...</span>
+                                    <span>{t.book2.cancelling}</span>
                                 </>
                             ) : (
                                 <>
                                     <span className="material-symbols-outlined">cancel</span>
-                                    <span>ยกเลิกการจอง</span>
+                                    <span>{t.book2.cancelBooking}</span>
                                 </>
                             )}
                         </button>
@@ -306,7 +308,7 @@ export default function BookingTrackingPage() {
                             href="/book2"
                             className="w-full h-14 rounded-xl bg-[#00b250] text-white font-bold text-lg flex items-center justify-center gap-2 shadow-lg shadow-[#00b250]/30"
                         >
-                            <span>จองอีกครั้ง</span>
+                            <span>{t.book2.bookAgain}</span>
                             <span className="material-symbols-outlined">arrow_forward</span>
                         </Link>
                     )}
@@ -316,7 +318,7 @@ export default function BookingTrackingPage() {
                             href="/book2"
                             className="w-full h-14 rounded-xl bg-[#00b250] text-white font-bold text-lg flex items-center justify-center gap-2 shadow-lg shadow-[#00b250]/30"
                         >
-                            <span>จองใหม่</span>
+                            <span>{t.book2.bookNew}</span>
                             <span className="material-symbols-outlined">arrow_forward</span>
                         </Link>
                     )}
@@ -325,8 +327,8 @@ export default function BookingTrackingPage() {
                 {/* Contact Support */}
                 <div className="text-center mt-8">
                     <p className="text-sm text-[#5e8d73]">
-                        ต้องการความช่วยเหลือ?{' '}
-                        <button className="text-[#00b250] font-semibold">ติดต่อเรา</button>
+                        {t.book2.needHelp}{' '}
+                        <button className="text-[#00b250] font-semibold">{t.book2.contactUs}</button>
                     </p>
                 </div>
             </div>
