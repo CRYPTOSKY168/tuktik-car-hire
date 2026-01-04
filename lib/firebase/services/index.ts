@@ -11,3 +11,4 @@ export { NotificationService } from './NotificationService';
 export { VoucherService } from './VoucherService';
 export { SettingsService } from './SettingsService';
 export type { AppSettings } from './SettingsService';
+export { ConfigService } from './ConfigService';

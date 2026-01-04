@@ -1,7 +1,7 @@
 # TukTik Car Rental - Project Documentation
 
-> **Last Updated:** 2026-01-03
-> **Version:** 8.8 (Android App + Push Notifications)
+> **Last Updated:** 2026-01-04
+> **Version:** 8.9 (Passenger Rules APIs)
 > **Status:** Production
 > **Lines:** ~4200+
 
@@ -697,6 +697,107 @@ car-rental/
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
 | `/api/setup-admin` | POST | None | สร้าง admin คนแรก (ใช้ครั้งเดียว) |
+
+### Passenger Rules APIs (Cancellation, No-Show, Dispute)
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/booking/cancel` | POST | Bearer | ยกเลิกการจอง + คำนวณค่าธรรมเนียม |
+| `/api/booking/noshow` | POST | Bearer | คนขับแจ้ง No-Show |
+| `/api/booking/noshow/arrived` | POST | Bearer | คนขับแจ้งว่าถึงจุดรับแล้ว |
+| `/api/booking/dispute` | POST | Bearer | ลูกค้ายื่นข้อร้องเรียน |
+| `/api/booking/dispute` | GET | Bearer | ดูสถานะข้อร้องเรียน |
+
+#### POST /api/booking/cancel
+
+```typescript
+// Request
+{
+  bookingId: string,
+  reason: CancellationReason | string,  // 'changed_mind', 'driver_late', etc.
+  note?: string
+}
+
+// Response (Success)
+{
+  success: true,
+  message: 'ยกเลิกการจองเรียบร้อยแล้ว',
+  data: {
+    bookingId: string,
+    status: 'cancelled',
+    cancellationFee: number,       // 0 or lateCancellationFee
+    cancellationFeeStatus: 'waived' | 'pending',
+    feeReason: string
+  }
+}
+
+// Fee Calculation Logic:
+// - enableCancellationFee = false → ไม่เก็บค่าธรรมเนียม
+// - Within freeCancellationWindow (3 min) → ไม่เก็บค่าธรรมเนียม
+// - Driver late (enableDriverLateWaiver) → ไม่เก็บค่าธรรมเนียม
+// - Otherwise → เก็บ lateCancellationFee (฿50)
+```
+
+#### POST /api/booking/noshow
+
+```typescript
+// Step 1: คนขับถึงจุดรับ → POST /api/booking/noshow/arrived
+{
+  bookingId: string
+}
+// Response: { waitTimeMs: 300000, waitTimeMinutes: 5 }
+
+// Step 2: รอ 5 นาที แล้วแจ้ง No-Show → POST /api/booking/noshow
+{
+  bookingId: string,
+  note?: string
+}
+
+// Response (Success)
+{
+  success: true,
+  message: 'บันทึก No-Show เรียบร้อยแล้ว',
+  data: {
+    bookingId: string,
+    status: 'cancelled',
+    isNoShow: true,
+    noShowFee: number,      // ฿50
+    driverEarnings: number, // noShowFee * noShowFeeToDriverPercent%
+    waitedMinutes: number
+  }
+}
+```
+
+#### POST /api/booking/dispute
+
+```typescript
+// Request
+{
+  bookingId: string,
+  reason: string,      // 'wrong_charge', 'driver_misconduct', etc.
+  description: string, // รายละเอียด (10-1000 ตัวอักษร)
+  evidence?: string[]  // URLs รูปหลักฐาน (max 5)
+}
+
+// Valid Reasons:
+// 'wrong_charge', 'service_not_provided', 'driver_misconduct',
+// 'safety_concern', 'wrong_route', 'vehicle_issue', 'unfair_fee', 'other'
+
+// Response (Success)
+{
+  success: true,
+  message: 'ยื่นข้อร้องเรียนเรียบร้อยแล้ว',
+  data: {
+    disputeId: string,
+    bookingId: string,
+    status: 'pending',
+    referenceNumber: string,  // เช่น 'A1B2C3D4'
+    estimatedResponseTime: '24-48 ชั่วโมง'
+  }
+}
+
+// Dispute Window: ยื่นได้ภายใน 48 ชม. หลัง booking เสร็จสิ้น/ยกเลิก
+```
 
 ---
 
@@ -2429,6 +2530,214 @@ estimatedDuration?: number; // minutes
 
 ---
 
+## 👤 Passenger Rules (v8.9)
+
+> **Status:** Phase 1 Complete | **API:** Coming in Phase 3
+
+### Overview
+
+กฎสำหรับผู้โดยสาร (Passenger Rules) ครอบคลุม 3 ส่วนหลัก:
+1. **Cancellation Rules** - กฎการยกเลิก (ฟรี/มีค่าธรรมเนียม)
+2. **No-Show Rules** - กฎเมื่อลูกค้าไม่มารับรถ
+3. **Dispute System** - ระบบอุทธรณ์
+
+### PassengerConfig (System Settings)
+
+```typescript
+// lib/types/index.ts - PassengerConfig interface
+export interface PassengerConfig {
+    // Cancellation Rules
+    freeCancellationWindowMs: number;     // ยกเลิกฟรีภายในกี่ ms หลังได้คนขับ (default: 180000 = 3 นาที)
+    lateCancellationFee: number;          // ค่าธรรมเนียมยกเลิกหลังหมดเวลา (default: 50 บาท)
+    enableCancellationFee: boolean;       // เปิด/ปิดการเก็บค่ายกเลิก
+
+    // No-Show Rules
+    noShowWaitTimeMs: number;             // รอลูกค้ากี่ ms ก่อนแจ้ง no-show (default: 300000 = 5 นาที)
+    noShowFee: number;                    // ค่าธรรมเนียม no-show (default: 50 บาท)
+    enableNoShowFee: boolean;             // เปิด/ปิดการเก็บค่า no-show
+
+    // Fee Distribution
+    cancellationFeeToDriverPercent: number; // % ค่ายกเลิกที่ให้คนขับ (default: 100)
+    noShowFeeToDriverPercent: number;       // % ค่า no-show ที่ให้คนขับ (default: 100)
+
+    // Driver Late Waiver
+    driverLateThresholdMs: number;        // คนขับมาช้าเกินกี่ ms ลูกค้ายกเลิกฟรี (default: 300000 = 5 นาที)
+    enableDriverLateWaiver: boolean;      // เปิด/ปิดการยกเว้นค่าธรรมเนียมเมื่อคนขับมาช้า
+
+    // Booking Limits
+    maxActiveBookings: number;            // จอง active ได้สูงสุดกี่รายการ (default: 1)
+    maxCancellationsPerDay: number;       // ยกเลิกได้สูงสุดกี่ครั้ง/วัน (default: 3)
+    enableCancellationLimit: boolean;     // เปิด/ปิดการจำกัดจำนวนยกเลิก
+
+    // Dispute Rules
+    disputeWindowHours: number;           // ขอ dispute ได้ภายในกี่ชม. หลังเสร็จ trip (default: 48)
+    enableDispute: boolean;               // เปิด/ปิดระบบ dispute
+}
+```
+
+### Booking Fields (Cancellation/No-Show/Dispute)
+
+```typescript
+// lib/types/index.ts - Booking interface additions
+{
+    // Cancellation System
+    cancelledAt?: Timestamp | Date;                     // When booking was cancelled
+    cancelledBy?: 'customer' | 'driver' | 'admin' | 'system';
+    cancellationReason?: CancellationReason | string;
+    cancellationFee?: number;                           // Fee charged (THB)
+    cancellationFeeStatus?: 'pending' | 'charged' | 'waived' | 'refunded';
+    driverAssignedAt?: Timestamp | Date;                // When driver was assigned (for free cancel window)
+
+    // No-Show System
+    driverArrivedAt?: Timestamp | Date;                 // When driver arrived at pickup
+    noShowReportedAt?: Timestamp | Date;                // When no-show was reported
+    isNoShow?: boolean;
+    noShowFee?: number;
+
+    // Dispute System
+    hasDispute?: boolean;
+    disputeId?: string;
+    disputeStatus?: 'pending' | 'investigating' | 'resolved' | 'rejected';
+    disputeReason?: string;
+    disputeResolvedAt?: Timestamp | Date;
+}
+```
+
+### CancellationReason Enum
+
+```typescript
+export enum CancellationReason {
+    // Customer initiated
+    CHANGED_MIND = 'changed_mind',           // เปลี่ยนใจ
+    FOUND_ALTERNATIVE = 'found_alternative', // หาทางเลือกอื่น
+    DRIVER_TOO_FAR = 'driver_too_far',       // คนขับไกลเกินไป
+    DRIVER_LATE = 'driver_late',             // คนขับมาช้า
+    WRONG_LOCATION = 'wrong_location',       // ระบุที่ผิด
+    EMERGENCY = 'emergency',                 // เหตุฉุกเฉิน
+
+    // Driver initiated
+    CUSTOMER_NO_SHOW = 'customer_no_show',   // ลูกค้าไม่มา
+    CUSTOMER_UNREACHABLE = 'customer_unreachable', // ติดต่อลูกค้าไม่ได้
+    UNSAFE_PICKUP = 'unsafe_pickup',         // จุดรับไม่ปลอดภัย
+
+    // System/Admin
+    DRIVER_UNAVAILABLE = 'driver_unavailable', // ไม่มีคนขับว่าง
+    SYSTEM_ERROR = 'system_error',           // ระบบมีปัญหา
+    ADMIN_CANCELLED = 'admin_cancelled',     // Admin ยกเลิก
+    OTHER = 'other',
+}
+```
+
+### Cancellation Flow
+
+```
+┌───────────────────────────────────────────────────────────────────┐
+│                     CANCELLATION FLOW                             │
+├───────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  Customer requests cancel                                         │
+│         │                                                         │
+│         ▼                                                         │
+│  ┌─────────────────────────────────────────────┐                 │
+│  │ Check: Is within freeCancellationWindow?   │                 │
+│  │ (driverAssignedAt + freeCancellationWindowMs)│                │
+│  └──────────────────┬──────────────────────────┘                 │
+│                     │                                             │
+│         ┌───────────┴───────────┐                                │
+│         │                       │                                │
+│         ▼                       ▼                                │
+│  ┌─────────────┐         ┌─────────────────────────┐            │
+│  │ FREE CANCEL │         │ Check: Is driver late?  │            │
+│  │ No fee      │         │ (now > pickupTime +     │            │
+│  └─────────────┘         │  driverLateThresholdMs) │            │
+│                          └──────────┬──────────────┘            │
+│                                     │                            │
+│                          ┌──────────┴───────────┐               │
+│                          │                      │               │
+│                          ▼                      ▼               │
+│                   ┌─────────────┐        ┌─────────────┐        │
+│                   │ FREE CANCEL │        │ LATE FEE   │        │
+│                   │ Driver late │        │ Apply fee  │        │
+│                   └─────────────┘        └─────────────┘        │
+│                                                                   │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+### No-Show Flow
+
+```
+┌───────────────────────────────────────────────────────────────────┐
+│                       NO-SHOW FLOW                                │
+├───────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  Driver arrives at pickup                                         │
+│         │                                                         │
+│         ▼                                                         │
+│  ┌─────────────────────────────────────────────┐                 │
+│  │ Mark: driverArrivedAt = now                 │                 │
+│  │ Start waiting timer (noShowWaitTimeMs)      │                 │
+│  └──────────────────┬──────────────────────────┘                 │
+│                     │                                             │
+│                     ▼                                             │
+│  ┌─────────────────────────────────────────────┐                 │
+│  │ Wait for customer (5 minutes default)       │                 │
+│  │ • Try calling/messaging customer            │                 │
+│  │ • Customer can still show up                │                 │
+│  └──────────────────┬──────────────────────────┘                 │
+│                     │                                             │
+│         ┌───────────┴───────────┐                                │
+│         │                       │                                │
+│         ▼                       ▼                                │
+│  ┌─────────────┐         ┌─────────────────────────┐            │
+│  │ CUSTOMER    │         │ CUSTOMER NO-SHOW       │            │
+│  │ SHOWS UP    │         │ • isNoShow = true      │            │
+│  │ (Normal)    │         │ • noShowFee = fee      │            │
+│  └─────────────┘         │ • status = cancelled   │            │
+│                          │ • Driver earns fee %   │            │
+│                          └─────────────────────────┘            │
+│                                                                   │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+### usePassengerConfig() Hook
+
+```typescript
+import { usePassengerConfig } from '@/lib/contexts/ConfigContext';
+
+function MyComponent() {
+    const { passengerConfig, loading } = usePassengerConfig();
+
+    if (loading) return <Loading />;
+
+    // Access config values
+    const freeWindowMinutes = passengerConfig.freeCancellationWindowMs / 60000;
+    const canCancelFree = isWithinFreeWindow(booking.driverAssignedAt, freeWindowMinutes);
+}
+```
+
+### Default Values (Grab-inspired)
+
+| Config | Default | Description |
+|--------|---------|-------------|
+| freeCancellationWindowMs | 180000 (3 min) | ยกเลิกฟรีหลังได้คนขับ |
+| lateCancellationFee | ฿50 | ค่าธรรมเนียมยกเลิกหลังหมดเวลา |
+| noShowWaitTimeMs | 300000 (5 min) | รอลูกค้าก่อนแจ้ง no-show |
+| noShowFee | ฿50 | ค่าธรรมเนียม no-show |
+| cancellationFeeToDriverPercent | 100% | % ที่คนขับได้รับ |
+| driverLateThresholdMs | 300000 (5 min) | คนขับมาช้าเกินนี้ = ยกเลิกฟรี |
+| maxActiveBookings | 1 | จอง active ได้สูงสุด |
+| maxCancellationsPerDay | 3 | ยกเลิกได้สูงสุดต่อวัน |
+| disputeWindowHours | 48 | ชม. ที่ขอ dispute ได้ |
+
+### Implementation Phases
+
+- [x] **Phase 1**: Types & Config (PassengerConfig, Booking fields, ConfigService)
+- [x] **Phase 2**: Admin UI (System Settings → Passenger tab)
+- [x] **Phase 3**: Backend Logic (Cancel/No-Show/Dispute APIs) - `/api/booking/cancel`, `/api/booking/noshow`, `/api/booking/dispute`
+- [ ] **Phase 4**: Frontend Integration (Cancel button, No-show flow, Dispute modal)
+
+---
+
 ## ⭐ Rating System (v7.4)
 
 > **Status:** Complete | **API:** `/api/booking/rate`
@@ -3147,6 +3456,8 @@ const {
 | `test-booking-flow.js` | ทดสอบ Booking Flow + Options (stop-at-assign, cleanup) | `node scripts/test-booking-flow.js --stop-at-assign` |
 | `test-rating-flow.js` | ทดสอบ Rating System (Bayesian Average) | `node scripts/test-rating-flow.js --cleanup` |
 | `test-realtime-rating-auto.js` | ทดสอบ Real-time Rating Update | `node scripts/test-realtime-rating-auto.js` |
+| `test-passenger-config.js` | 🎫 ทดสอบ PassengerConfig types + defaults | `node scripts/test-passenger-config.js` |
+| `test-passenger-apis.js` | 🎫 ทดสอบ Cancel/NoShow/Dispute APIs (7 tests) | `node scripts/test-passenger-apis.js` |
 | `test-security-headers.js` | 🔒 ทดสอบ Security Headers (86% score) | `TEST_URL=https://... node scripts/test-security-headers.js` |
 | `test-safe-error.js` | 🔒 ทดสอบ Safe Error Handling (18 tests) | `node scripts/test-safe-error.js` |
 | `test-rate-limit.js` | 🔒 ทดสอบ Rate Limiting (13 tests) | `node scripts/test-rate-limit.js` |

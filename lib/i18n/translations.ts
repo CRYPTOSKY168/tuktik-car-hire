@@ -521,6 +521,7 @@ export const translations = {
         vehicles: 'Vehicles',
         locations: 'Locations',
         routes: 'Route Pricing',
+        systemSettings: 'System Settings',
         settings: 'Settings',
       },
       sidebar: {
@@ -1584,6 +1585,7 @@ export const translations = {
         vehicles: 'จัดการรถยนต์',
         locations: 'สถานที่',
         routes: 'ราคาเส้นทาง',
+        systemSettings: 'ตั้งค่าระบบ',
         settings: 'ตั้งค่า',
       },
       sidebar: {

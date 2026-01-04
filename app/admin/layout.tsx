@@ -108,6 +108,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     ];
 
     const secondaryMenuItems = [
+        { id: 'system-settings', label: t.admin.menu.systemSettings || 'System Settings', icon: 'tune', href: '/admin/system-settings' },
         { id: 'settings', label: t.admin.menu.settings, icon: 'settings', href: '/admin/settings' },
     ];
 

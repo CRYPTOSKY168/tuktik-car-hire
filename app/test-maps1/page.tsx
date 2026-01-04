@@ -15,6 +15,7 @@ import {
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { useBooking } from '@/lib/contexts/BookingContext';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { useConfig } from '@/lib/contexts/ConfigContext';
 import { BookingService, DriverService, VehicleService, LocationService } from '@/lib/firebase/services';
 import { useDriverTracking } from '@/lib/hooks';
 import { Vehicle, Driver, Booking, BookingStatus } from '@/lib/types';
@@ -207,6 +208,8 @@ export default function TestMaps1Page() {
     const { language } = useLanguage();
     const { locations } = useBooking();
     const { user } = useAuth();
+    const { config } = useConfig();
+    const bookingConfig = config.booking;
 
     // Refs
     const mapRef = useRef<google.maps.Map | null>(null);
@@ -264,6 +267,38 @@ export default function TestMaps1Page() {
     const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
     const [isCancellingBooking, setIsCancellingBooking] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
+    const [showCancelResultModal, setShowCancelResultModal] = useState(false);
+    const [cancelResult, setCancelResult] = useState<{
+        success: boolean;
+        cancellationFee: number;
+        feeReason: string;
+        feeStatus: 'waived' | 'pending' | 'charged';
+    } | null>(null);
+
+    // === Dispute Modal State ===
+    const [showDisputeModal, setShowDisputeModal] = useState(false);
+    const [disputeReason, setDisputeReason] = useState<string>('');
+    const [disputeDescription, setDisputeDescription] = useState('');
+    const [isSubmittingDispute, setIsSubmittingDispute] = useState(false);
+    const [showDisputeResultModal, setShowDisputeResultModal] = useState(false);
+    const [disputeResult, setDisputeResult] = useState<{
+        success: boolean;
+        disputeId: string;
+        referenceNumber: string;
+    } | null>(null);
+
+    // Dispute reason options
+    const disputeReasons = [
+        { code: 'wrong_charge', label: language === 'th' ? 'ถูกเรียกเก็บเงินผิด' : 'Wrong charge' },
+        { code: 'service_not_provided', label: language === 'th' ? 'ไม่ได้รับบริการ' : 'Service not provided' },
+        { code: 'driver_misconduct', label: language === 'th' ? 'คนขับประพฤติไม่เหมาะสม' : 'Driver misconduct' },
+        { code: 'safety_concern', label: language === 'th' ? 'ปัญหาด้านความปลอดภัย' : 'Safety concern' },
+        { code: 'wrong_route', label: language === 'th' ? 'ไปผิดเส้นทาง' : 'Wrong route' },
+        { code: 'vehicle_issue', label: language === 'th' ? 'ปัญหาเกี่ยวกับรถ' : 'Vehicle issue' },
+        { code: 'unfair_fee', label: language === 'th' ? 'ถูกเก็บค่าธรรมเนียมไม่เป็นธรรม' : 'Unfair fee' },
+        { code: 'other', label: language === 'th' ? 'อื่นๆ' : 'Other' },
+    ];
+
     const [connectionError, setConnectionError] = useState<string | null>(null);
 
     // === NEW: Auto Re-match State ===
@@ -276,13 +311,8 @@ export default function TestMaps1Page() {
     const searchStartTimeRef = useRef<number | null>(null);
     const driverResponseTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Timeout for driver to respond (accept/reject)
 
-    // Re-match configuration
-    const REMATCH_CONFIG = {
-        MAX_ATTEMPTS: 3,
-        DRIVER_RESPONSE_TIMEOUT: 20000, // 20 seconds
-        TOTAL_SEARCH_TIMEOUT: 180000,   // 3 minutes
-        DELAY_BETWEEN_MATCHES: 3000,    // 3 seconds
-    };
+    // Re-match configuration is now from ConfigContext (bookingConfig)
+    // Uses: bookingConfig.maxRematchAttempts, driverResponseTimeout, totalSearchTimeout, delayBetweenMatches
 
     // === NEW: Live Mode Map Features ===
     const [driverToPickupRoute, setDriverToPickupRoute] = useState<google.maps.DirectionsResult | null>(null);
@@ -340,6 +370,64 @@ export default function TestMaps1Page() {
         setSelectedTip(0);
         setCustomTip('');
         setShowRatingModal(false);
+    };
+
+    // Reset dispute form
+    const resetDisputeForm = () => {
+        setDisputeReason('');
+        setDisputeDescription('');
+        setShowDisputeModal(false);
+    };
+
+    // Handle dispute submission
+    const handleSubmitDispute = async () => {
+        if (!activeBooking) return;
+        if (!disputeReason) {
+            alert(language === 'th' ? 'กรุณาเลือกเหตุผล' : 'Please select a reason');
+            return;
+        }
+        if (disputeDescription.length < 10) {
+            alert(language === 'th' ? 'กรุณาระบุรายละเอียดอย่างน้อย 10 ตัวอักษร' : 'Please provide at least 10 characters');
+            return;
+        }
+
+        setIsSubmittingDispute(true);
+        try {
+            const token = await getAuthToken();
+            if (!token) throw new Error(language === 'th' ? 'กรุณาเข้าสู่ระบบใหม่' : 'Please login again');
+
+            const response = await fetch('/api/booking/dispute', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    bookingId: activeBooking.id,
+                    reason: disputeReason,
+                    description: disputeDescription,
+                }),
+            });
+
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error);
+
+            console.log('✅ Dispute submitted:', result.data);
+
+            // Store result and show success modal
+            setDisputeResult({
+                success: true,
+                disputeId: result.data.disputeId,
+                referenceNumber: result.data.referenceNumber,
+            });
+            setShowDisputeModal(false);
+            setShowDisputeResultModal(true);
+
+        } catch (error: any) {
+            alert(error.message || (language === 'th' ? 'ไม่สามารถยื่นข้อร้องเรียนได้' : 'Failed to submit dispute'));
+        } finally {
+            setIsSubmittingDispute(false);
+        }
     };
 
     // Get auth token for API calls
@@ -706,15 +794,15 @@ export default function TestMaps1Page() {
 
                         console.log(`📊 Page reload re-match check: eligible=${eligibleDriversCount}, attempts=${attempts}, rejected=${active.rejectedDrivers.length}`);
 
-                        if (eligibleDriversCount > 0 && attempts < REMATCH_CONFIG.MAX_ATTEMPTS) {
+                        if (eligibleDriversCount > 0 && attempts < bookingConfig.maxRematchAttempts) {
                             console.log('🔄 Detected pending re-match, triggering...');
                             setIsRematching(true);
                             setRematchAttempt(attempts);
                             setRejectedDrivers(active.rejectedDrivers);
                             setRematchMessage(
                                 language === 'th'
-                                    ? `กำลังหาคนขับใหม่... (${attempts}/${Math.min(REMATCH_CONFIG.MAX_ATTEMPTS, eligibleDriversCount + active.rejectedDrivers.length)})`
-                                    : `Finding another driver... (${attempts}/${Math.min(REMATCH_CONFIG.MAX_ATTEMPTS, eligibleDriversCount + active.rejectedDrivers.length)})`
+                                    ? `กำลังหาคนขับใหม่... (${attempts}/${Math.min(bookingConfig.maxRematchAttempts, eligibleDriversCount + active.rejectedDrivers.length)})`
+                                    : `Finding another driver... (${attempts}/${Math.min(bookingConfig.maxRematchAttempts, eligibleDriversCount + active.rejectedDrivers.length)})`
                             );
 
                             // Trigger re-match after a short delay
@@ -845,17 +933,17 @@ export default function TestMaps1Page() {
                         ).length;
 
                         const hasEligibleDrivers = eligibleDriversCount > 0;
-                        const withinAttemptLimit = attempts < REMATCH_CONFIG.MAX_ATTEMPTS;
-                        const withinTimeLimit = elapsedTime < REMATCH_CONFIG.TOTAL_SEARCH_TIMEOUT;
+                        const withinAttemptLimit = attempts < bookingConfig.maxRematchAttempts;
+                        const withinTimeLimit = elapsedTime < bookingConfig.totalSearchTimeout;
 
-                        console.log(`📊 Re-match check: eligible=${eligibleDriversCount}, attempts=${attempts}/${REMATCH_CONFIG.MAX_ATTEMPTS}, rejected=${currentRejectedDrivers.length}`);
+                        console.log(`📊 Re-match check: eligible=${eligibleDriversCount}, attempts=${attempts}/${bookingConfig.maxRematchAttempts}, rejected=${currentRejectedDrivers.length}`);
 
                         if (hasEligibleDrivers && withinAttemptLimit && withinTimeLimit) {
                             // Show friendly re-match message (don't say "rejected" - it's scary for customers)
                             setRematchMessage(
                                 language === 'th'
-                                    ? `กำลังจัดหาคนขับให้คุณ... (${attempts}/${Math.min(REMATCH_CONFIG.MAX_ATTEMPTS, eligibleDriversCount + currentRejectedDrivers.length)})`
-                                    : `Finding a driver for you... (${attempts}/${Math.min(REMATCH_CONFIG.MAX_ATTEMPTS, eligibleDriversCount + currentRejectedDrivers.length)})`
+                                    ? `กำลังจัดหาคนขับให้คุณ... (${attempts}/${Math.min(bookingConfig.maxRematchAttempts, eligibleDriversCount + currentRejectedDrivers.length)})`
+                                    : `Finding a driver for you... (${attempts}/${Math.min(bookingConfig.maxRematchAttempts, eligibleDriversCount + currentRejectedDrivers.length)})`
                             );
                             setIsRematching(true);
                             setAssignedDriver(null);
@@ -863,12 +951,12 @@ export default function TestMaps1Page() {
                             // Delay before re-matching - pass rejectedDrivers directly to avoid race condition
                             // Use bookingData.id instead of bookingId state (stale closure issue)
                             const currentBookingId = bookingData.id;
-                            console.log(`⏳ Will trigger re-match in ${REMATCH_CONFIG.DELAY_BETWEEN_MATCHES/1000}s for booking: ${currentBookingId}`);
+                            console.log(`⏳ Will trigger re-match in ${bookingConfig.delayBetweenMatches/1000}s for booking: ${currentBookingId}`);
 
                             rematchTimeoutRef.current = setTimeout(async () => {
                                 console.log(`🚀 Executing triggerRematch for booking: ${currentBookingId}`);
                                 await triggerRematch(currentBookingId, attempts, currentRejectedDrivers);
-                            }, REMATCH_CONFIG.DELAY_BETWEEN_MATCHES);
+                            }, bookingConfig.delayBetweenMatches);
                         } else {
                             // No more eligible drivers OR max attempts reached OR timeout
                             console.log(`🛑 Stopping re-match: hasEligibleDrivers=${hasEligibleDrivers}, withinAttemptLimit=${withinAttemptLimit}, withinTimeLimit=${withinTimeLimit}`);
@@ -907,7 +995,7 @@ export default function TestMaps1Page() {
 
                     // Start timeout when entering driver_assigned
                     if (bookingData.status === 'driver_assigned' && bookingData.driver?.driverId) {
-                        console.log(`⏱️ Starting driver response timeout (${REMATCH_CONFIG.DRIVER_RESPONSE_TIMEOUT / 1000}s) for driver: ${bookingData.driver.name}`);
+                        console.log(`⏱️ Starting driver response timeout (${bookingConfig.driverResponseTimeout / 1000}s) for driver: ${bookingData.driver.name}`);
 
                         const currentDriverId = bookingData.driver.driverId;
                         const currentBookingId = bookingData.id;
@@ -954,7 +1042,7 @@ export default function TestMaps1Page() {
                                     console.error('Error auto-rejecting driver:', error);
                                 }
                             }
-                        }, REMATCH_CONFIG.DRIVER_RESPONSE_TIMEOUT);
+                        }, bookingConfig.driverResponseTimeout);
                     }
 
                     // Clear timeout when driver accepts (status becomes driver_en_route)
@@ -1426,92 +1514,74 @@ export default function TestMaps1Page() {
         if (!activeBooking?.id) return;
 
         setIsCancellingBooking(true);
-        let refundProcessed = false;  // Track if refund was handled
 
         try {
-            // 0. If paid with card, refund via Stripe first
+            // 1. Get auth token
+            const token = await getAuthToken();
+            if (!token) {
+                throw new Error('Please login again');
+            }
+
+            // 2. Call Cancel Booking API (handles status, driver release, fee calculation)
+            const cancelResponse = await fetch('/api/booking/cancel', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    bookingId: activeBooking.id,
+                    reason: 'changed_mind',
+                    note: language === 'th' ? 'ผู้ใช้ยกเลิกการจอง' : 'User cancelled the booking',
+                }),
+            });
+
+            const cancelResult = await cancelResponse.json();
+
+            if (!cancelResult.success) {
+                throw new Error(cancelResult.error || 'Failed to cancel booking');
+            }
+
+            console.log('✅ Booking cancelled via API:', cancelResult.data);
+
+            // 3. If paid with card, process refund
             if (activeBooking.paymentMethod === 'card' &&
                 activeBooking.stripePaymentIntentId &&
                 activeBooking.paymentStatus === 'paid') {
                 console.log('💳 Processing refund for booking:', activeBooking.id);
                 try {
-                    const token = await getAuthToken();
-                    if (token) {
-                        const refundResponse = await fetch('/api/payment/refund', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`,
-                            },
-                            body: JSON.stringify({
-                                bookingId: activeBooking.id,  // API expects bookingId, not paymentIntentId
-                                reason: language === 'th' ? 'ผู้ใช้ยกเลิกการจอง' : 'User cancelled the booking',
-                            }),
-                        });
-                        const refundResult = await refundResponse.json();
-                        if (refundResult.success) {
-                            console.log('✅ Refund successful:', refundResult.data?.refundId);
-                            refundProcessed = true;  // Refund API already updated paymentStatus to 'refunded'
-                        } else {
-                            console.error('❌ Refund failed:', refundResult.error);
-                            // Continue with cancellation even if refund fails
-                            // Admin can process refund manually
-                        }
+                    const refundResponse = await fetch('/api/payment/refund', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                            bookingId: activeBooking.id,
+                            reason: language === 'th' ? 'ผู้ใช้ยกเลิกการจอง' : 'User cancelled the booking',
+                        }),
+                    });
+                    const refundResult = await refundResponse.json();
+                    if (refundResult.success) {
+                        console.log('✅ Refund successful:', refundResult.data?.refundId);
+                    } else {
+                        console.error('❌ Refund failed:', refundResult.error);
+                        // Admin can process refund manually
                     }
                 } catch (refundError) {
                     console.error('❌ Error processing refund:', refundError);
-                    // Continue with cancellation
                 }
             }
 
-            // 1. Update booking status to cancelled
-            await BookingService.updateBookingStatus(
-                activeBooking.id,
-                'cancelled',
-                language === 'th' ? 'ผู้ใช้ยกเลิกการจอง' : 'User cancelled the booking'
-            );
+            // 4. Store cancel result for modal
+            setCancelResult({
+                success: true,
+                cancellationFee: cancelResult.data?.cancellationFee || 0,
+                feeReason: cancelResult.data?.feeReason || '',
+                feeStatus: cancelResult.data?.cancellationFeeStatus || 'waived',
+            });
 
-            // 1.5 Update paymentStatus to 'cancelled' if not already handled by refund
-            // This handles cases:
-            // - Card + processing (payment started but not completed)
-            // - Card + awaiting_payment (booking created but payment not started)
-            // - Cash + pending (cash booking cancelled before completion)
-            // - Refund failed (need to mark as cancelled so admin knows)
-            if (!refundProcessed && db) {
-                try {
-                    const bookingRef = doc(db, 'bookings', activeBooking.id);
-                    await updateDoc(bookingRef, {
-                        paymentStatus: 'cancelled',
-                        updatedAt: Timestamp.now()
-                    });
-                    console.log('✅ Payment status updated to cancelled');
-                } catch (paymentStatusError) {
-                    console.error('❌ Failed to update payment status:', paymentStatusError);
-                    // Non-critical, continue
-                }
-            }
-
-            // 2. If driver was assigned, set driver status back to available (with retry)
-            if (activeBooking.driver?.driverId) {
-                try {
-                    await retryWithBackoff(
-                        () => DriverService.updateDriverStatus(activeBooking.driver!.driverId, 'available' as any),
-                        3,
-                        1000
-                    );
-                    console.log('✅ Driver status updated to available');
-                } catch (driverError) {
-                    console.error('❌ Failed to update driver status after retries:', driverError);
-                    // Show warning to user but continue
-                    setConnectionError(
-                        language === 'th'
-                            ? 'ไม่สามารถอัปเดตสถานะคนขับ กรุณาแจ้งแอดมิน'
-                            : 'Failed to update driver status. Please contact admin.'
-                    );
-                }
-            }
-
-            // 3. Reset state
+            // 5. Reset state
             setActiveBooking(null);
             setBookingId(null);
             setAssignedDriver(null);
@@ -1533,9 +1603,13 @@ export default function TestMaps1Page() {
                 clearTimeout(driverResponseTimeoutRef.current);
                 driverResponseTimeoutRef.current = null;
             }
-        } catch (error) {
+
+            // 6. Show result modal
+            setShowCancelResultModal(true);
+
+        } catch (error: any) {
             console.error('Error cancelling booking:', error);
-            alert(language === 'th' ? 'ไม่สามารถยกเลิกการจองได้' : 'Failed to cancel booking');
+            alert(error.message || (language === 'th' ? 'ไม่สามารถยกเลิกการจองได้' : 'Failed to cancel booking'));
         } finally {
             setIsCancellingBooking(false);
         }
@@ -2465,8 +2539,8 @@ export default function TestMaps1Page() {
                                         <p className={`text-sm ${isRematching ? 'text-amber-600' : 'text-gray-500'}`}>
                                             {isRematching
                                                 ? (language === 'th'
-                                                    ? `โปรดรอสักครู่... (${rematchAttempt}/${REMATCH_CONFIG.MAX_ATTEMPTS})`
-                                                    : `Please wait... (${rematchAttempt}/${REMATCH_CONFIG.MAX_ATTEMPTS})`)
+                                                    ? `โปรดรอสักครู่... (${rematchAttempt}/${bookingConfig.maxRematchAttempts})`
+                                                    : `Please wait... (${rematchAttempt}/${bookingConfig.maxRematchAttempts})`)
                                                 : (language === 'th' ? 'คนขับกำลังตอบรับงาน' : 'Driver is accepting the trip')}
                                         </p>
                                     </div>
@@ -2702,6 +2776,20 @@ export default function TestMaps1Page() {
                                         {language === 'th' ? 'ให้คะแนนคนขับ' : 'Rate Driver'}
                                     </button>
                                 </div>
+
+                                {/* Report Issue Button */}
+                                <button
+                                    onClick={() => {
+                                        resetDisputeForm();
+                                        setShowDisputeModal(true);
+                                    }}
+                                    className="w-full mt-3 h-10 text-gray-500 hover:text-red-500 rounded-xl font-medium flex items-center justify-center gap-2 transition-all"
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                    {language === 'th' ? 'แจ้งปัญหา' : 'Report Issue'}
+                                </button>
                             </div>
                         )}
                     </div>
@@ -2993,6 +3081,250 @@ export default function TestMaps1Page() {
                                 ) : (
                                     language === 'th' ? 'ยกเลิกเลย' : 'Yes, Cancel'
                                 )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Cancel Result Modal */}
+            {showCancelResultModal && cancelResult && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center">
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        onClick={() => setShowCancelResultModal(false)}
+                    />
+
+                    <div className="relative bg-white rounded-3xl mx-4 w-full max-w-sm overflow-hidden shadow-2xl animate-slide-up">
+                        {/* Icon */}
+                        <div className="pt-8 pb-4 flex justify-center">
+                            <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                                cancelResult.cancellationFee > 0 ? 'bg-amber-100' : 'bg-green-100'
+                            }`}>
+                                {cancelResult.cancellationFee > 0 ? (
+                                    <svg className="w-8 h-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                ) : (
+                                    <svg className="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="px-6 pb-6 text-center">
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">
+                                {language === 'th' ? 'ยกเลิกการจองสำเร็จ' : 'Booking Cancelled'}
+                            </h3>
+
+                            {cancelResult.cancellationFee > 0 ? (
+                                <>
+                                    <p className="text-gray-500 text-sm mb-4">
+                                        {language === 'th' ? cancelResult.feeReason : 'A cancellation fee applies'}
+                                    </p>
+                                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4">
+                                        <p className="text-amber-800 font-semibold text-lg">
+                                            {language === 'th' ? 'ค่าธรรมเนียมยกเลิก' : 'Cancellation Fee'}
+                                        </p>
+                                        <p className="text-amber-900 font-bold text-2xl">
+                                            ฿{cancelResult.cancellationFee.toLocaleString()}
+                                        </p>
+                                        <p className="text-amber-600 text-xs mt-1">
+                                            {cancelResult.feeStatus === 'pending'
+                                                ? (language === 'th' ? 'รอเรียกเก็บ' : 'Pending charge')
+                                                : (language === 'th' ? 'ถูกหักจากยอดคืนเงิน' : 'Deducted from refund')
+                                            }
+                                        </p>
+                                    </div>
+                                </>
+                            ) : (
+                                <p className="text-gray-500 text-sm mb-4">
+                                    {cancelResult.feeReason || (language === 'th' ? 'ไม่มีค่าธรรมเนียม' : 'No cancellation fee')}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Button */}
+                        <div className="px-6 pb-6">
+                            <button
+                                onClick={() => {
+                                    setShowCancelResultModal(false);
+                                    setCancelResult(null);
+                                }}
+                                className="w-full h-12 bg-[#00b14f] hover:bg-[#009a43] text-white rounded-2xl font-semibold transition-all active:scale-[0.98]"
+                            >
+                                {language === 'th' ? 'เข้าใจแล้ว' : 'Got it'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Dispute Modal */}
+            {showDisputeModal && (
+                <div className="fixed inset-0 z-[100]">
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        onClick={() => setShowDisputeModal(false)}
+                    />
+
+                    <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[90vh] flex flex-col animate-slide-up">
+                        {/* Handle */}
+                        <div className="flex justify-center py-3">
+                            <div className="w-10 h-1 bg-gray-300 rounded-full" />
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto px-5 pb-[max(24px,env(safe-area-inset-bottom))]">
+                            {/* Header */}
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-xl font-bold text-gray-900">
+                                    {language === 'th' ? 'แจ้งปัญหา' : 'Report Issue'}
+                                </h2>
+                                <button
+                                    onClick={() => setShowDisputeModal(false)}
+                                    className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center"
+                                >
+                                    <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            {/* Reason Selection */}
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    {language === 'th' ? 'เลือกปัญหา' : 'Select Issue'}
+                                </label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {disputeReasons.map((reason) => (
+                                        <button
+                                            key={reason.code}
+                                            onClick={() => setDisputeReason(reason.code)}
+                                            className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${
+                                                disputeReason === reason.code
+                                                    ? 'border-red-500 bg-red-50 text-red-700'
+                                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                            }`}
+                                        >
+                                            {reason.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Description */}
+                            <div className="mb-6">
+                                <label htmlFor="dispute-description" className="block text-sm font-medium text-gray-700 mb-2">
+                                    {language === 'th' ? 'รายละเอียดเพิ่มเติม' : 'Details'}
+                                </label>
+                                <textarea
+                                    id="dispute-description"
+                                    name="disputeDescription"
+                                    value={disputeDescription}
+                                    onChange={(e) => setDisputeDescription(e.target.value)}
+                                    placeholder={language === 'th' ? 'กรุณาอธิบายปัญหาของคุณอย่างละเอียด (อย่างน้อย 10 ตัวอักษร)' : 'Please describe your issue in detail (at least 10 characters)'}
+                                    rows={4}
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    {disputeDescription.length}/1000
+                                </p>
+                            </div>
+
+                            {/* Info Box */}
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                                <div className="flex items-start gap-2">
+                                    <svg className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <div>
+                                        <p className="text-amber-800 text-sm font-medium">
+                                            {language === 'th' ? 'หมายเหตุ' : 'Note'}
+                                        </p>
+                                        <p className="text-amber-700 text-sm">
+                                            {language === 'th'
+                                                ? 'เราจะตรวจสอบและติดต่อกลับภายใน 24-48 ชั่วโมง'
+                                                : 'We will review and respond within 24-48 hours'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Submit Button */}
+                            <button
+                                onClick={handleSubmitDispute}
+                                disabled={isSubmittingDispute || !disputeReason || disputeDescription.length < 10}
+                                className="w-full h-14 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isSubmittingDispute ? (
+                                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                    <>
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                        </svg>
+                                        {language === 'th' ? 'ยื่นข้อร้องเรียน' : 'Submit Dispute'}
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Dispute Result Modal */}
+            {showDisputeResultModal && disputeResult && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center">
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        onClick={() => setShowDisputeResultModal(false)}
+                    />
+
+                    <div className="relative bg-white rounded-3xl mx-4 w-full max-w-sm overflow-hidden shadow-2xl animate-slide-up">
+                        {/* Icon */}
+                        <div className="pt-8 pb-4 flex justify-center">
+                            <div className="w-16 h-16 rounded-full flex items-center justify-center bg-green-100">
+                                <svg className="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="px-6 pb-6 text-center">
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">
+                                {language === 'th' ? 'ยื่นข้อร้องเรียนสำเร็จ' : 'Dispute Submitted'}
+                            </h3>
+                            <p className="text-gray-500 text-sm mb-4">
+                                {language === 'th' ? 'เราได้รับข้อร้องเรียนของคุณแล้ว' : 'We have received your dispute'}
+                            </p>
+
+                            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 mb-4">
+                                <p className="text-gray-600 text-sm">
+                                    {language === 'th' ? 'หมายเลขอ้างอิง' : 'Reference Number'}
+                                </p>
+                                <p className="text-gray-900 font-bold text-xl tracking-wider">
+                                    {disputeResult.referenceNumber}
+                                </p>
+                                <p className="text-gray-500 text-xs mt-2">
+                                    {language === 'th' ? 'ตอบกลับภายใน 24-48 ชั่วโมง' : 'Response within 24-48 hours'}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Button */}
+                        <div className="px-6 pb-6">
+                            <button
+                                onClick={() => {
+                                    setShowDisputeResultModal(false);
+                                    setDisputeResult(null);
+                                    resetDisputeForm();
+                                }}
+                                className="w-full h-12 bg-[#00b14f] hover:bg-[#009a43] text-white rounded-2xl font-semibold transition-all active:scale-[0.98]"
+                            >
+                                {language === 'th' ? 'เข้าใจแล้ว' : 'Got it'}
                             </button>
                         </div>
                     </div>

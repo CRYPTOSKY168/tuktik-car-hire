@@ -15,6 +15,7 @@ import {
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { useBooking } from '@/lib/contexts/BookingContext';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { useConfig } from '@/lib/contexts/ConfigContext';
 import { BookingService, DriverService, VehicleService, LocationService } from '@/lib/firebase/services';
 import { useDriverTracking } from '@/lib/hooks';
 import { Vehicle, Driver, Booking, BookingStatus } from '@/lib/types';
@@ -207,6 +208,8 @@ export default function TestMaps1Page() {
     const { language } = useLanguage();
     const { locations } = useBooking();
     const { user } = useAuth();
+    const { config } = useConfig();
+    const bookingConfig = config.booking;
 
     // Refs
     const mapRef = useRef<google.maps.Map | null>(null);
@@ -276,13 +279,8 @@ export default function TestMaps1Page() {
     const searchStartTimeRef = useRef<number | null>(null);
     const driverResponseTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Timeout for driver to respond (accept/reject)
 
-    // Re-match configuration
-    const REMATCH_CONFIG = {
-        MAX_ATTEMPTS: 3,
-        DRIVER_RESPONSE_TIMEOUT: 20000, // 20 seconds
-        TOTAL_SEARCH_TIMEOUT: 180000,   // 3 minutes
-        DELAY_BETWEEN_MATCHES: 3000,    // 3 seconds
-    };
+    // Re-match configuration is now from ConfigContext (bookingConfig)
+    // Uses: bookingConfig.maxRematchAttempts, driverResponseTimeout, totalSearchTimeout, delayBetweenMatches
 
     // === NEW: Live Mode Map Features ===
     const [driverToPickupRoute, setDriverToPickupRoute] = useState<google.maps.DirectionsResult | null>(null);
@@ -706,15 +704,15 @@ export default function TestMaps1Page() {
 
                         console.log(`📊 Page reload re-match check: eligible=${eligibleDriversCount}, attempts=${attempts}, rejected=${active.rejectedDrivers.length}`);
 
-                        if (eligibleDriversCount > 0 && attempts < REMATCH_CONFIG.MAX_ATTEMPTS) {
+                        if (eligibleDriversCount > 0 && attempts < bookingConfig.maxRematchAttempts) {
                             console.log('🔄 Detected pending re-match, triggering...');
                             setIsRematching(true);
                             setRematchAttempt(attempts);
                             setRejectedDrivers(active.rejectedDrivers);
                             setRematchMessage(
                                 language === 'th'
-                                    ? `กำลังหาคนขับใหม่... (${attempts}/${Math.min(REMATCH_CONFIG.MAX_ATTEMPTS, eligibleDriversCount + active.rejectedDrivers.length)})`
-                                    : `Finding another driver... (${attempts}/${Math.min(REMATCH_CONFIG.MAX_ATTEMPTS, eligibleDriversCount + active.rejectedDrivers.length)})`
+                                    ? `กำลังหาคนขับใหม่... (${attempts}/${Math.min(bookingConfig.maxRematchAttempts, eligibleDriversCount + active.rejectedDrivers.length)})`
+                                    : `Finding another driver... (${attempts}/${Math.min(bookingConfig.maxRematchAttempts, eligibleDriversCount + active.rejectedDrivers.length)})`
                             );
 
                             // Trigger re-match after a short delay
@@ -845,17 +843,17 @@ export default function TestMaps1Page() {
                         ).length;
 
                         const hasEligibleDrivers = eligibleDriversCount > 0;
-                        const withinAttemptLimit = attempts < REMATCH_CONFIG.MAX_ATTEMPTS;
-                        const withinTimeLimit = elapsedTime < REMATCH_CONFIG.TOTAL_SEARCH_TIMEOUT;
+                        const withinAttemptLimit = attempts < bookingConfig.maxRematchAttempts;
+                        const withinTimeLimit = elapsedTime < bookingConfig.totalSearchTimeout;
 
-                        console.log(`📊 Re-match check: eligible=${eligibleDriversCount}, attempts=${attempts}/${REMATCH_CONFIG.MAX_ATTEMPTS}, rejected=${currentRejectedDrivers.length}`);
+                        console.log(`📊 Re-match check: eligible=${eligibleDriversCount}, attempts=${attempts}/${bookingConfig.maxRematchAttempts}, rejected=${currentRejectedDrivers.length}`);
 
                         if (hasEligibleDrivers && withinAttemptLimit && withinTimeLimit) {
                             // Show friendly re-match message (don't say "rejected" - it's scary for customers)
                             setRematchMessage(
                                 language === 'th'
-                                    ? `กำลังจัดหาคนขับให้คุณ... (${attempts}/${Math.min(REMATCH_CONFIG.MAX_ATTEMPTS, eligibleDriversCount + currentRejectedDrivers.length)})`
-                                    : `Finding a driver for you... (${attempts}/${Math.min(REMATCH_CONFIG.MAX_ATTEMPTS, eligibleDriversCount + currentRejectedDrivers.length)})`
+                                    ? `กำลังจัดหาคนขับให้คุณ... (${attempts}/${Math.min(bookingConfig.maxRematchAttempts, eligibleDriversCount + currentRejectedDrivers.length)})`
+                                    : `Finding a driver for you... (${attempts}/${Math.min(bookingConfig.maxRematchAttempts, eligibleDriversCount + currentRejectedDrivers.length)})`
                             );
                             setIsRematching(true);
                             setAssignedDriver(null);
@@ -863,12 +861,12 @@ export default function TestMaps1Page() {
                             // Delay before re-matching - pass rejectedDrivers directly to avoid race condition
                             // Use bookingData.id instead of bookingId state (stale closure issue)
                             const currentBookingId = bookingData.id;
-                            console.log(`⏳ Will trigger re-match in ${REMATCH_CONFIG.DELAY_BETWEEN_MATCHES/1000}s for booking: ${currentBookingId}`);
+                            console.log(`⏳ Will trigger re-match in ${bookingConfig.delayBetweenMatches/1000}s for booking: ${currentBookingId}`);
 
                             rematchTimeoutRef.current = setTimeout(async () => {
                                 console.log(`🚀 Executing triggerRematch for booking: ${currentBookingId}`);
                                 await triggerRematch(currentBookingId, attempts, currentRejectedDrivers);
-                            }, REMATCH_CONFIG.DELAY_BETWEEN_MATCHES);
+                            }, bookingConfig.delayBetweenMatches);
                         } else {
                             // No more eligible drivers OR max attempts reached OR timeout
                             console.log(`🛑 Stopping re-match: hasEligibleDrivers=${hasEligibleDrivers}, withinAttemptLimit=${withinAttemptLimit}, withinTimeLimit=${withinTimeLimit}`);
@@ -907,7 +905,7 @@ export default function TestMaps1Page() {
 
                     // Start timeout when entering driver_assigned
                     if (bookingData.status === 'driver_assigned' && bookingData.driver?.driverId) {
-                        console.log(`⏱️ Starting driver response timeout (${REMATCH_CONFIG.DRIVER_RESPONSE_TIMEOUT / 1000}s) for driver: ${bookingData.driver.name}`);
+                        console.log(`⏱️ Starting driver response timeout (${bookingConfig.driverResponseTimeout / 1000}s) for driver: ${bookingData.driver.name}`);
 
                         const currentDriverId = bookingData.driver.driverId;
                         const currentBookingId = bookingData.id;
@@ -954,7 +952,7 @@ export default function TestMaps1Page() {
                                     console.error('Error auto-rejecting driver:', error);
                                 }
                             }
-                        }, REMATCH_CONFIG.DRIVER_RESPONSE_TIMEOUT);
+                        }, bookingConfig.driverResponseTimeout);
                     }
 
                     // Clear timeout when driver accepts (status becomes driver_en_route)
@@ -2446,8 +2444,8 @@ export default function TestMaps1Page() {
                                         <p className={`text-sm ${isRematching ? 'text-amber-600' : 'text-gray-500'}`}>
                                             {isRematching
                                                 ? (language === 'th'
-                                                    ? `โปรดรอสักครู่... (${rematchAttempt}/${REMATCH_CONFIG.MAX_ATTEMPTS})`
-                                                    : `Please wait... (${rematchAttempt}/${REMATCH_CONFIG.MAX_ATTEMPTS})`)
+                                                    ? `โปรดรอสักครู่... (${rematchAttempt}/${bookingConfig.maxRematchAttempts})`
+                                                    : `Please wait... (${rematchAttempt}/${bookingConfig.maxRematchAttempts})`)
                                                 : (language === 'th' ? 'คนขับกำลังตอบรับงาน' : 'Driver is accepting the trip')}
                                         </p>
                                     </div>

@@ -73,7 +73,39 @@ export default function DriverV2HistoryPage() {
             setLoading(true);
 
             try {
-                // Calculate date filter
+                // Simple query without composite index requirement
+                // We fetch all trips for this driver and filter dates on client side
+                const q = query(
+                    collection(db!, 'bookings'),
+                    where('driver.driverId', '==', driverId),
+                    limit(100)
+                );
+
+                const snapshot = await getDocs(q);
+                let allTrips: TripData[] = [];
+
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    allTrips.push({
+                        id: docSnap.id,
+                        pickupLocation: data.pickupLocation || 'Unknown',
+                        dropoffLocation: data.dropoffLocation || 'Unknown',
+                        totalCost: data.totalCost || 0,
+                        status: data.status,
+                        createdAt: data.createdAt,
+                        pickupCoordinates: data.pickupCoordinates,
+                        dropoffCoordinates: data.dropoffCoordinates,
+                    });
+                });
+
+                // Sort by createdAt descending (newest first)
+                allTrips.sort((a, b) => {
+                    const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt || 0);
+                    const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt || 0);
+                    return dateB.getTime() - dateA.getTime();
+                });
+
+                // Apply date filter on client side
                 const now = new Date();
                 let startDate: Date | null = null;
 
@@ -92,49 +124,23 @@ export default function DriverV2HistoryPage() {
                         break;
                 }
 
-                // Query bookings
-                let q;
-                if (startDate) {
-                    q = query(
-                        collection(db!, 'bookings'),
-                        where('driver.driverId', '==', driverId),
-                        where('createdAt', '>=', startDate),
-                        orderBy('createdAt', 'desc'),
-                        limit(50)
-                    );
-                } else {
-                    q = query(
-                        collection(db!, 'bookings'),
-                        where('driver.driverId', '==', driverId),
-                        orderBy('createdAt', 'desc'),
-                        limit(50)
-                    );
-                }
+                // Filter trips by date
+                const filteredTrips = startDate
+                    ? allTrips.filter((trip) => {
+                        const tripDate = trip.createdAt?.toDate?.() || new Date(trip.createdAt || 0);
+                        return tripDate >= startDate!;
+                    })
+                    : allTrips;
 
-                const snapshot = await getDocs(q);
-                const tripsData: TripData[] = [];
+                // Calculate earnings for completed trips only
                 let earnings = 0;
-
-                snapshot.forEach((docSnap) => {
-                    const data = docSnap.data();
-                    tripsData.push({
-                        id: docSnap.id,
-                        pickupLocation: data.pickupLocation || 'Unknown',
-                        dropoffLocation: data.dropoffLocation || 'Unknown',
-                        totalCost: data.totalCost || 0,
-                        status: data.status,
-                        createdAt: data.createdAt,
-                        pickupCoordinates: data.pickupCoordinates,
-                        dropoffCoordinates: data.dropoffCoordinates,
-                    });
-
-                    // Calculate earnings for completed trips only
-                    if (data.status === BookingStatus.COMPLETED) {
-                        earnings += data.totalCost || 0;
+                filteredTrips.forEach((trip) => {
+                    if (trip.status === BookingStatus.COMPLETED) {
+                        earnings += trip.totalCost || 0;
                     }
                 });
 
-                setTrips(tripsData);
+                setTrips(filteredTrips);
                 setTotalEarnings(earnings);
             } catch (error) {
                 console.error('Error fetching trips:', error);

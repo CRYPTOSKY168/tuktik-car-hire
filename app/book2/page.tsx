@@ -15,6 +15,7 @@ import {
 } from '@react-google-maps/api';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
+import { useConfig } from '@/lib/contexts/ConfigContext';
 import { BookingService, DriverService, VehicleService, LocationService } from '@/lib/firebase/services';
 import { useDriverTracking } from '@/lib/hooks';
 import { Vehicle, Driver, Booking, BookingStatus } from '@/lib/types';
@@ -258,18 +259,16 @@ function StripePaymentForm({
     );
 }
 
-// Re-match configuration
-const REMATCH_CONFIG = {
-    MAX_ATTEMPTS: 3,
-    DRIVER_RESPONSE_TIMEOUT: 20000,
-    TOTAL_SEARCH_TIMEOUT: 180000,
-    DELAY_BETWEEN_MATCHES: 3000,
-};
-
 export default function Book2Page() {
     const router = useRouter();
     const { user, loading: authLoading } = useAuth();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
+    const { config } = useConfig();
+
+    // Get config values with fallbacks
+    const bookingConfig = config.booking;
+    const pricingConfig = config.pricing;
+    const paymentConfig = config.payment;
 
     // Refs
     const mapRef = useRef<google.maps.Map | null>(null);
@@ -350,6 +349,38 @@ export default function Book2Page() {
     const [selectedTip, setSelectedTip] = useState(0);
     const [isSubmittingRating, setIsSubmittingRating] = useState(false);
 
+    // === Cancel Result Modal State ===
+    const [showCancelResultModal, setShowCancelResultModal] = useState(false);
+    const [cancelResult, setCancelResult] = useState<{
+        success: boolean;
+        cancellationFee: number;
+        feeReason: string;
+    } | null>(null);
+
+    // === Dispute Modal State ===
+    const [showDisputeModal, setShowDisputeModal] = useState(false);
+    const [disputeReason, setDisputeReason] = useState<string>('');
+    const [disputeDescription, setDisputeDescription] = useState('');
+    const [isSubmittingDispute, setIsSubmittingDispute] = useState(false);
+    const [showDisputeResultModal, setShowDisputeResultModal] = useState(false);
+    const [disputeResult, setDisputeResult] = useState<{
+        success: boolean;
+        disputeId: string;
+        referenceNumber: string;
+    } | null>(null);
+
+    // Dispute reason options
+    const disputeReasons = [
+        { code: 'wrong_charge', label: language === 'th' ? 'ถูกเรียกเก็บเงินผิด' : 'Wrong charge' },
+        { code: 'service_not_provided', label: language === 'th' ? 'ไม่ได้รับบริการ' : 'Service not provided' },
+        { code: 'driver_misconduct', label: language === 'th' ? 'คนขับประพฤติไม่เหมาะสม' : 'Driver misconduct' },
+        { code: 'safety_concern', label: language === 'th' ? 'ปัญหาด้านความปลอดภัย' : 'Safety concern' },
+        { code: 'wrong_route', label: language === 'th' ? 'ไปผิดเส้นทาง' : 'Wrong route' },
+        { code: 'vehicle_issue', label: language === 'th' ? 'ปัญหาเกี่ยวกับรถ' : 'Vehicle issue' },
+        { code: 'unfair_fee', label: language === 'th' ? 'ถูกเก็บค่าธรรมเนียมไม่เป็นธรรม' : 'Unfair fee' },
+        { code: 'other', label: language === 'th' ? 'อื่นๆ' : 'Other' },
+    ];
+
     // Bottom sheet minimized state
     const [isBottomSheetMinimized, setIsBottomSheetMinimized] = useState(false);
 
@@ -391,6 +422,15 @@ export default function Book2Page() {
 
         return () => unsubscribe();
     }, []);
+
+    // Set default payment method based on enabled options
+    useEffect(() => {
+        if (!paymentConfig.enableCash && paymentConfig.enableCard) {
+            setPaymentMethod('card');
+        } else if (paymentConfig.enableCash) {
+            setPaymentMethod('cash');
+        }
+    }, [paymentConfig.enableCash, paymentConfig.enableCard]);
 
     // Check for existing active booking
     useEffect(() => {
@@ -488,14 +528,14 @@ export default function Book2Page() {
                         d.userId !== user?.uid && !currentRejectedDrivers.includes(d.id)
                     ).length;
 
-                    if (eligibleDriversCount > 0 && attempts < REMATCH_CONFIG.MAX_ATTEMPTS) {
-                        setRematchMessage(`กำลังหาคนขับใหม่... (${attempts}/${REMATCH_CONFIG.MAX_ATTEMPTS})`);
+                    if (eligibleDriversCount > 0 && attempts < bookingConfig.maxRematchAttempts) {
+                        setRematchMessage(`กำลังหาคนขับใหม่... (${attempts}/${bookingConfig.maxRematchAttempts})`);
                         setIsRematching(true);
                         setAssignedDriver(null);
 
                         rematchTimeoutRef.current = setTimeout(async () => {
                             await triggerRematch(bookingData.id, attempts, currentRejectedDrivers);
-                        }, REMATCH_CONFIG.DELAY_BETWEEN_MATCHES);
+                        }, bookingConfig.delayBetweenMatches);
                     } else {
                         setIsRematching(false);
                         setShowNoDriverModal(true);
@@ -540,7 +580,7 @@ export default function Book2Page() {
                             const driverRef = doc(db, 'drivers', bookingData.driver!.driverId);
                             await updateDoc(driverRef, { status: 'available', updatedAt: Timestamp.now() }).catch(() => {});
                         }
-                    }, REMATCH_CONFIG.DRIVER_RESPONSE_TIMEOUT);
+                    }, bookingConfig.driverResponseTimeout);
                 }
 
                 if (bookingData.status === 'driver_en_route' && driverResponseTimeoutRef.current) {
@@ -788,7 +828,7 @@ export default function Book2Page() {
                 const leg = route.legs[0];
                 const durationMin = Math.round((leg?.duration?.value || 0) / 60);
                 const distanceKm = Math.round((totalDistance / 1000) * 10) / 10;
-                const price = selectedVehicle?.price || Math.round(distanceKm * 15 + 50);
+                const price = selectedVehicle?.price || Math.round(distanceKm * pricingConfig.perKmRate + pricingConfig.baseFare);
 
                 setTripInfo({
                     distance: distanceKm,
@@ -1078,33 +1118,115 @@ export default function Book2Page() {
         setShowPaymentModal(false);
     };
 
-    // Cancel booking
+    // Cancel booking - ใช้ Cancel API พร้อมคำนวณค่าธรรมเนียม
     const confirmCancelBooking = async () => {
         if (!activeBooking?.id) return;
 
         // Bug 5.3 fix: Validate booking status before cancelling
-        const cancellableStatuses = ['pending', 'confirmed', 'driver_assigned'];
+        const cancellableStatuses = ['pending', 'confirmed', 'driver_assigned', 'driver_en_route'];
         if (!cancellableStatuses.includes(activeBooking.status)) {
-            alert('ไม่สามารถยกเลิกได้ในขั้นตอนนี้ (คนขับกำลังเดินทางหรือกำลังเดินทางอยู่)');
+            alert(language === 'th'
+                ? 'ไม่สามารถยกเลิกได้ในขั้นตอนนี้ (กำลังเดินทางอยู่)'
+                : 'Cannot cancel at this stage (trip in progress)');
             setShowCancelModal(false);
             return;
         }
 
         setIsCancellingBooking(true);
         try {
-            await BookingService.updateBookingStatus(activeBooking.id, 'cancelled', 'ผู้ใช้ยกเลิกการจอง');
-
-            if (activeBooking.driver?.driverId) {
-                await DriverService.updateDriverStatus(activeBooking.driver.driverId, 'available' as any).catch(() => {});
+            const token = await getAuthToken();
+            if (!token) {
+                throw new Error(language === 'th' ? 'กรุณาเข้าสู่ระบบใหม่' : 'Please login again');
             }
 
-            resetTrip();
+            const response = await fetch('/api/booking/cancel', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    bookingId: activeBooking.id,
+                    reason: 'changed_mind',
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.error || 'Cancel failed');
+            }
+
+            // Show Cancel Result Modal
+            setCancelResult({
+                success: true,
+                cancellationFee: result.data.cancellationFee || 0,
+                feeReason: result.data.feeReason || '',
+            });
             setShowCancelModal(false);
-        } catch (error) {
+            setShowCancelResultModal(true);
+
+            // Reset trip after showing result
+            setTimeout(() => {
+                resetTrip();
+            }, 500);
+
+        } catch (error: any) {
             console.error('Error cancelling booking:', error);
-            alert('เกิดข้อผิดพลาดในการยกเลิก กรุณาลองใหม่');
+            alert(error.message || (language === 'th' ? 'เกิดข้อผิดพลาดในการยกเลิก กรุณาลองใหม่' : 'Error cancelling. Please try again.'));
         } finally {
             setIsCancellingBooking(false);
+        }
+    };
+
+    // Submit dispute - ยื่นข้อร้องเรียน
+    const submitDispute = async () => {
+        if (!activeBooking?.id || !disputeReason || disputeDescription.length < 10) return;
+
+        setIsSubmittingDispute(true);
+        try {
+            const token = await getAuthToken();
+            if (!token) {
+                throw new Error(language === 'th' ? 'กรุณาเข้าสู่ระบบใหม่' : 'Please login again');
+            }
+
+            const response = await fetch('/api/booking/dispute', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    bookingId: activeBooking.id,
+                    reason: disputeReason,
+                    description: disputeDescription,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.error || 'Dispute submission failed');
+            }
+
+            // Close dispute modal and show result
+            setShowDisputeModal(false);
+            setDisputeResult({
+                success: true,
+                disputeId: result.data.disputeId,
+                referenceNumber: result.data.referenceNumber,
+            });
+            setShowDisputeResultModal(true);
+
+            // Reset dispute form
+            setDisputeReason('');
+            setDisputeDescription('');
+
+        } catch (error: any) {
+            console.error('Error submitting dispute:', error);
+            alert(error.message || (language === 'th' ? 'เกิดข้อผิดพลาดในการยื่นข้อร้องเรียน' : 'Error submitting dispute'));
+        } finally {
+            setIsSubmittingDispute(false);
         }
     };
 
@@ -1523,7 +1645,7 @@ export default function Book2Page() {
                                     {isRematching ? t.book2.searchingNewDriver : t.book2.searchingDriver}
                                 </h2>
                                 <p className="text-[#5e8d73] text-sm font-medium flex items-center gap-2">
-                                    <span>{t.book2.attemptOf} {rematchAttempt + 1}/{REMATCH_CONFIG.MAX_ATTEMPTS}</span>
+                                    <span>{t.book2.attemptOf} {rematchAttempt + 1}/{bookingConfig.maxRematchAttempts}</span>
                                     <span className="w-1 h-1 rounded-full bg-[#5e8d73]"></span>
                                     <span>{t.book2.waitMax}</span>
                                 </p>
@@ -1786,9 +1908,17 @@ export default function Book2Page() {
                             )}
                             <button
                                 onClick={() => setShowRatingModal(true)}
-                                className="w-full h-14 rounded-xl bg-[#00b250] text-white font-bold text-lg"
+                                className="w-full h-14 rounded-xl bg-[#00b250] text-white font-bold text-lg mb-3"
                             >
                                 {t.book2.rateDriver}
+                            </button>
+                            {/* Report Issue Button */}
+                            <button
+                                onClick={() => setShowDisputeModal(true)}
+                                className="w-full h-12 rounded-xl border-2 border-gray-300 text-gray-600 dark:text-gray-400 font-semibold flex items-center justify-center gap-2"
+                            >
+                                <span className="material-symbols-outlined text-xl">report_problem</span>
+                                <span>{language === 'th' ? 'แจ้งปัญหา' : 'Report Issue'}</span>
                             </button>
                         </div>
                     )}
@@ -1860,57 +1990,77 @@ export default function Book2Page() {
                                 </div>
                             )}
 
-                            {/* Payment methods */}
+                            {/* Payment methods - show based on settings */}
                             {!clientSecret && (
                                 <div className="space-y-3">
-                                    <button
-                                        onClick={() => setPaymentMethod('cash')}
-                                        className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 ${
-                                            paymentMethod === 'cash'
-                                                ? 'border-[#00b250] bg-[#00b250]/5'
-                                                : 'border-[#dae7e0] dark:border-[#2a4a38]'
-                                        }`}
-                                    >
-                                        <span className="material-symbols-outlined text-2xl text-[#00b250]">payments</span>
-                                        <span className="flex-1 text-left font-medium text-[#101814] dark:text-white">{t.book2.cash}</span>
-                                        {paymentMethod === 'cash' && (
-                                            <span className="material-symbols-outlined text-[#00b250]">check_circle</span>
-                                        )}
-                                    </button>
+                                    {/* Cash option - show only if enabled */}
+                                    {paymentConfig.enableCash && (
+                                        <button
+                                            onClick={() => setPaymentMethod('cash')}
+                                            className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 ${
+                                                paymentMethod === 'cash'
+                                                    ? 'border-[#00b250] bg-[#00b250]/5'
+                                                    : 'border-[#dae7e0] dark:border-[#2a4a38]'
+                                            }`}
+                                        >
+                                            <span className="material-symbols-outlined text-2xl text-[#00b250]">payments</span>
+                                            <span className="flex-1 text-left font-medium text-[#101814] dark:text-white">{t.book2.cash}</span>
+                                            {paymentMethod === 'cash' && (
+                                                <span className="material-symbols-outlined text-[#00b250]">check_circle</span>
+                                            )}
+                                        </button>
+                                    )}
 
-                                    <button
-                                        onClick={() => setPaymentMethod('card')}
-                                        className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 ${
-                                            paymentMethod === 'card'
-                                                ? 'border-[#00b250] bg-[#00b250]/5'
-                                                : 'border-[#dae7e0] dark:border-[#2a4a38]'
-                                        }`}
-                                    >
-                                        <span className="material-symbols-outlined text-2xl text-blue-500">credit_card</span>
-                                        <span className="flex-1 text-left font-medium text-[#101814] dark:text-white">{t.book2.creditDebit}</span>
-                                        {paymentMethod === 'card' && (
-                                            <span className="material-symbols-outlined text-[#00b250]">check_circle</span>
-                                        )}
-                                    </button>
+                                    {/* Card option - show only if enabled */}
+                                    {paymentConfig.enableCard && (
+                                        <button
+                                            onClick={() => setPaymentMethod('card')}
+                                            className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 ${
+                                                paymentMethod === 'card'
+                                                    ? 'border-[#00b250] bg-[#00b250]/5'
+                                                    : 'border-[#dae7e0] dark:border-[#2a4a38]'
+                                            }`}
+                                        >
+                                            <span className="material-symbols-outlined text-2xl text-blue-500">credit_card</span>
+                                            <span className="flex-1 text-left font-medium text-[#101814] dark:text-white">{t.book2.creditDebit}</span>
+                                            {paymentMethod === 'card' && (
+                                                <span className="material-symbols-outlined text-[#00b250]">check_circle</span>
+                                            )}
+                                        </button>
+                                    )}
+
+                                    {/* Show message if no payment methods are enabled */}
+                                    {!paymentConfig.enableCash && !paymentConfig.enableCard && (
+                                        <div className="p-4 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800">
+                                            <p className="text-yellow-700 dark:text-yellow-300 text-sm">
+                                                {language === 'th'
+                                                    ? 'ขณะนี้ไม่มีวิธีชำระเงินที่เปิดใช้งาน กรุณาติดต่อผู้ดูแลระบบ'
+                                                    : 'No payment methods are currently available. Please contact support.'}
+                                            </p>
+                                        </div>
+                                    )}
 
                                     {paymentError && (
                                         <p className="text-red-500 text-sm">{paymentError}</p>
                                     )}
 
-                                    <button
-                                        onClick={handlePaymentProceed}
-                                        disabled={isProcessingPayment}
-                                        className="w-full h-14 rounded-xl bg-[#00b250] text-white font-bold text-lg disabled:opacity-50 flex items-center justify-center gap-2"
-                                    >
-                                        {isProcessingPayment ? (
-                                            <>
-                                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                                <span>{t.book2.processing}</span>
-                                            </>
-                                        ) : (
-                                            <span>{t.book2.proceed}</span>
-                                        )}
-                                    </button>
+                                    {/* Proceed button - only show if at least one payment method is enabled */}
+                                    {(paymentConfig.enableCash || paymentConfig.enableCard) && (
+                                        <button
+                                            onClick={handlePaymentProceed}
+                                            disabled={isProcessingPayment}
+                                            className="w-full h-14 rounded-xl bg-[#00b250] text-white font-bold text-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                                        >
+                                            {isProcessingPayment ? (
+                                                <>
+                                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                                    <span>{t.book2.processing}</span>
+                                                </>
+                                            ) : (
+                                                <span>{t.book2.proceed}</span>
+                                            )}
+                                        </button>
+                                    )}
                                 </div>
                             )}
 
@@ -1962,6 +2112,184 @@ export default function Book2Page() {
                                 )}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Cancel Result Modal - แสดงผลหลังยกเลิก */}
+            {showCancelResultModal && cancelResult && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-end">
+                    <div className="w-full bg-white dark:bg-[#162e21] rounded-t-3xl p-6">
+                        <div className="text-center mb-6">
+                            <div className={`w-16 h-16 rounded-full ${cancelResult.cancellationFee > 0 ? 'bg-yellow-100' : 'bg-green-100'} flex items-center justify-center mx-auto mb-4`}>
+                                <span className={`material-symbols-outlined ${cancelResult.cancellationFee > 0 ? 'text-yellow-500' : 'text-green-500'} text-3xl`}>
+                                    {cancelResult.cancellationFee > 0 ? 'paid' : 'check_circle'}
+                                </span>
+                            </div>
+                            <h3 className="text-lg font-bold text-[#101814] dark:text-white mb-2">
+                                {language === 'th' ? 'ยกเลิกการจองแล้ว' : 'Booking Cancelled'}
+                            </h3>
+                            <p className="text-sm text-[#5e8d73]">
+                                {cancelResult.feeReason || (language === 'th' ? 'การจองของคุณถูกยกเลิกเรียบร้อยแล้ว' : 'Your booking has been cancelled')}
+                            </p>
+                        </div>
+
+                        {/* Fee Info */}
+                        <div className={`rounded-xl p-4 mb-6 ${cancelResult.cancellationFee > 0 ? 'bg-yellow-50 dark:bg-yellow-900/20' : 'bg-green-50 dark:bg-green-900/20'}`}>
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-[#5e8d73]">
+                                    {language === 'th' ? 'ค่าธรรมเนียมยกเลิก' : 'Cancellation Fee'}
+                                </span>
+                                <span className={`text-lg font-bold ${cancelResult.cancellationFee > 0 ? 'text-yellow-600' : 'text-green-600'}`}>
+                                    {cancelResult.cancellationFee > 0 ? `฿${cancelResult.cancellationFee}` : (language === 'th' ? 'ฟรี' : 'Free')}
+                                </span>
+                            </div>
+                            {cancelResult.cancellationFee > 0 && (
+                                <p className="text-xs text-[#5e8d73] mt-2">
+                                    {language === 'th'
+                                        ? 'ค่าธรรมเนียมนี้จะถูกเรียกเก็บจากวิธีการชำระเงินของคุณ'
+                                        : 'This fee will be charged to your payment method'}
+                                </p>
+                            )}
+                        </div>
+
+                        <button
+                            onClick={() => {
+                                setShowCancelResultModal(false);
+                                setCancelResult(null);
+                            }}
+                            className="w-full h-14 rounded-xl bg-[#00b250] text-white font-bold"
+                        >
+                            {language === 'th' ? 'ตกลง' : 'OK'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Dispute Modal - แจ้งปัญหา */}
+            {showDisputeModal && activeBooking && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-end">
+                    <div className="w-full bg-white dark:bg-[#162e21] rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto">
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-lg font-bold text-[#101814] dark:text-white">
+                                {language === 'th' ? 'แจ้งปัญหา' : 'Report Issue'}
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setShowDisputeModal(false);
+                                    setDisputeReason('');
+                                    setDisputeDescription('');
+                                }}
+                                className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center"
+                            >
+                                <span className="material-symbols-outlined text-[#5e8d73]">close</span>
+                            </button>
+                        </div>
+
+                        {/* Reason Selection */}
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-[#5e8d73] mb-2">
+                                {language === 'th' ? 'เหตุผล' : 'Reason'}
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {disputeReasons.map((reason) => (
+                                    <button
+                                        key={reason.code}
+                                        onClick={() => setDisputeReason(reason.code)}
+                                        className={`p-3 rounded-xl text-sm text-left transition-all ${
+                                            disputeReason === reason.code
+                                                ? 'bg-[#00b250] text-white'
+                                                : 'bg-gray-100 dark:bg-black/20 text-[#101814] dark:text-white'
+                                        }`}
+                                    >
+                                        {reason.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Description */}
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-[#5e8d73] mb-2">
+                                {language === 'th' ? 'รายละเอียดเพิ่มเติม' : 'Additional Details'}
+                            </label>
+                            <textarea
+                                value={disputeDescription}
+                                onChange={(e) => setDisputeDescription(e.target.value)}
+                                placeholder={language === 'th' ? 'กรุณาอธิบายปัญหาของคุณ (อย่างน้อย 10 ตัวอักษร)...' : 'Please describe your issue (min 10 characters)...'}
+                                className="w-full h-32 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-black/20 text-[#101814] dark:text-white resize-none focus:outline-none focus:ring-2 focus:ring-[#00b250]"
+                            />
+                            <p className="text-xs text-[#5e8d73] mt-1">
+                                {disputeDescription.length}/1000 {language === 'th' ? 'ตัวอักษร' : 'characters'}
+                            </p>
+                        </div>
+
+                        {/* Submit Button */}
+                        <button
+                            onClick={submitDispute}
+                            disabled={isSubmittingDispute || !disputeReason || disputeDescription.length < 10}
+                            className="w-full h-14 rounded-xl bg-[#00b250] text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            {isSubmittingDispute ? (
+                                <>
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                    <span>{language === 'th' ? 'กำลังส่ง...' : 'Submitting...'}</span>
+                                </>
+                            ) : (
+                                <span>{language === 'th' ? 'ยื่นข้อร้องเรียน' : 'Submit Dispute'}</span>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Dispute Result Modal - ผลการยื่นข้อร้องเรียน */}
+            {showDisputeResultModal && disputeResult && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-end">
+                    <div className="w-full bg-white dark:bg-[#162e21] rounded-t-3xl p-6">
+                        <div className="text-center mb-6">
+                            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+                                <span className="material-symbols-outlined text-green-500 text-3xl">check_circle</span>
+                            </div>
+                            <h3 className="text-lg font-bold text-[#101814] dark:text-white mb-2">
+                                {language === 'th' ? 'ยื่นข้อร้องเรียนสำเร็จ' : 'Dispute Submitted'}
+                            </h3>
+                            <p className="text-sm text-[#5e8d73]">
+                                {language === 'th'
+                                    ? 'เราได้รับข้อร้องเรียนของคุณแล้ว'
+                                    : 'We have received your dispute'}
+                            </p>
+                        </div>
+
+                        {/* Reference Number */}
+                        <div className="bg-[#00b250]/5 rounded-xl p-4 mb-6">
+                            <div className="text-center">
+                                <p className="text-sm text-[#5e8d73] mb-1">
+                                    {language === 'th' ? 'หมายเลขอ้างอิง' : 'Reference Number'}
+                                </p>
+                                <p className="text-2xl font-bold text-[#00b250]">
+                                    {disputeResult.referenceNumber}
+                                </p>
+                            </div>
+                            <div className="mt-4 pt-4 border-t border-[#00b250]/20">
+                                <p className="text-sm text-[#5e8d73] text-center">
+                                    {language === 'th'
+                                        ? 'เราจะตอบกลับภายใน 24-48 ชั่วโมง'
+                                        : 'We will respond within 24-48 hours'}
+                                </p>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => {
+                                setShowDisputeResultModal(false);
+                                setDisputeResult(null);
+                            }}
+                            className="w-full h-14 rounded-xl bg-[#00b250] text-white font-bold"
+                        >
+                            {language === 'th' ? 'ตกลง' : 'OK'}
+                        </button>
                     </div>
                 </div>
             )}

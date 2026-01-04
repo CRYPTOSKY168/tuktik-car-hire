@@ -7,6 +7,7 @@ import { AuthProvider } from "@/lib/contexts/AuthContext";
 import { CurrencyProvider } from '@/lib/contexts/CurrencyContext';
 import { NotificationProvider } from '@/lib/contexts/NotificationContext';
 import { ToastProvider } from '@/components/ui/Toast';
+import { ConfigProvider } from '@/lib/contexts/ConfigContext';
 import ConditionalLayout from "@/components/layout/ConditionalLayout";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
 import NotificationPermissionPrompt from "@/components/notifications/NotificationPermissionPrompt";
@@ -121,11 +122,12 @@ export default function RootLayout({
       </head>
       <body className={`${fontSans.className} antialiased bg-background-light`} suppressHydrationWarning>
         <AuthProvider>
-          <LanguageProvider>
-            <CurrencyProvider>
-              <BookingProvider>
-                <NotificationProvider>
-                  <ToastProvider>
+          <ConfigProvider>
+            <LanguageProvider>
+              <CurrencyProvider>
+                <BookingProvider>
+                  <NotificationProvider>
+                    <ToastProvider>
                     <ConditionalLayout>
                       {children}
                     </ConditionalLayout>
@@ -137,10 +139,11 @@ export default function RootLayout({
                     {/* Capacitor Native Push Notifications */}
                     <CapacitorInit />
                   </ToastProvider>
-                </NotificationProvider>
-              </BookingProvider>
-            </CurrencyProvider>
-          </LanguageProvider>
+                  </NotificationProvider>
+                </BookingProvider>
+              </CurrencyProvider>
+            </LanguageProvider>
+          </ConfigProvider>
         </AuthProvider>
       </body>
     </html>

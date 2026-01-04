@@ -116,6 +116,21 @@ export default function DriverV2Page() {
     // Stats
     const [todayStats, setTodayStats] = useState({ trips: 0, earnings: 0, weeklyEarnings: 0 });
 
+    // === No-Show States ===
+    const [driverArrivedAt, setDriverArrivedAt] = useState<Date | null>(null);
+    const [noShowWaitTime, setNoShowWaitTime] = useState(300000); // Default 5 minutes (from config)
+    const [noShowCountdown, setNoShowCountdown] = useState<number | null>(null);
+    const [showArrivedConfirmModal, setShowArrivedConfirmModal] = useState(false);
+    const [showNoShowConfirmModal, setShowNoShowConfirmModal] = useState(false);
+    const [showNoShowResultModal, setShowNoShowResultModal] = useState(false);
+    const [noShowResult, setNoShowResult] = useState<{
+        noShowFee: number;
+        driverEarnings: number;
+    } | null>(null);
+    const [isReportingNoShow, setIsReportingNoShow] = useState(false);
+    const [isMarkingArrived, setIsMarkingArrived] = useState(false);
+    const noShowTimerRef = useRef<NodeJS.Timeout | null>(null);
+
     // Load Google Maps
     const { isLoaded } = useLoadScript({
         googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
@@ -501,6 +516,107 @@ export default function DriverV2Page() {
             setRatingReasons([]);
             setRatingComment('');
         }
+    };
+
+    // === No-Show Functions ===
+
+    // Mark arrived at pickup location
+    const markArrivedAtPickup = async () => {
+        const activeB = bookings.find(b => b.status === 'driver_en_route');
+        if (!activeB) return;
+
+        setIsMarkingArrived(true);
+        try {
+            const response = await fetch('/api/booking/noshow/arrived', {
+                method: 'POST',
+                headers: await getAuthHeaders(),
+                body: JSON.stringify({ bookingId: activeB.id }),
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                // Set arrived time and wait time
+                setDriverArrivedAt(new Date());
+                setNoShowWaitTime(result.data.waitTimeMs || 300000);
+                setNoShowCountdown(Math.ceil((result.data.waitTimeMs || 300000) / 1000));
+                setShowArrivedConfirmModal(false);
+            } else {
+                alert(result.error || 'เกิดข้อผิดพลาด');
+            }
+        } catch (error) {
+            console.error('Error marking arrived:', error);
+            alert('เกิดข้อผิดพลาด กรุณาลองใหม่');
+        } finally {
+            setIsMarkingArrived(false);
+        }
+    };
+
+    // Report customer no-show
+    const reportNoShow = async () => {
+        const activeB = bookings.find(b => b.status === 'driver_en_route');
+        if (!activeB) return;
+
+        setIsReportingNoShow(true);
+        try {
+            const response = await fetch('/api/booking/noshow', {
+                method: 'POST',
+                headers: await getAuthHeaders(),
+                body: JSON.stringify({
+                    bookingId: activeB.id,
+                    note: 'ลูกค้าไม่มารับบริการ',
+                }),
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                setShowNoShowConfirmModal(false);
+                setNoShowResult({
+                    noShowFee: result.data.noShowFee || 0,
+                    driverEarnings: result.data.driverEarnings || 0,
+                });
+                setShowNoShowResultModal(true);
+                // Reset no-show states
+                setDriverArrivedAt(null);
+                setNoShowCountdown(null);
+                if (noShowTimerRef.current) {
+                    clearInterval(noShowTimerRef.current);
+                    noShowTimerRef.current = null;
+                }
+            } else {
+                alert(result.error || 'เกิดข้อผิดพลาด');
+            }
+        } catch (error) {
+            console.error('Error reporting no-show:', error);
+            alert('เกิดข้อผิดพลาด กรุณาลองใหม่');
+        } finally {
+            setIsReportingNoShow(false);
+        }
+    };
+
+    // No-Show countdown timer
+    useEffect(() => {
+        if (noShowCountdown === null || noShowCountdown <= 0) return;
+
+        noShowTimerRef.current = setInterval(() => {
+            setNoShowCountdown(prev => {
+                if (prev === null || prev <= 1) {
+                    if (noShowTimerRef.current) clearInterval(noShowTimerRef.current);
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => {
+            if (noShowTimerRef.current) clearInterval(noShowTimerRef.current);
+        };
+    }, [noShowCountdown]);
+
+    // Format countdown display
+    const formatCountdown = (seconds: number): string => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
     // Open external navigation (Google Maps / Apple Maps)
@@ -1023,6 +1139,47 @@ export default function DriverV2Page() {
                                     <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>call</span>
                                 </a>
                             </div>
+                            {/* No-Show Timer (when arrived at pickup) */}
+                            {activeBooking.status === 'driver_en_route' && driverArrivedAt && noShowCountdown !== null && (
+                                <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-3 mb-3">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <span className="material-symbols-outlined text-yellow-600">timer</span>
+                                            <div>
+                                                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">รอลูกค้า</p>
+                                                <p className="text-xs text-yellow-600">ถึงจุดรับแล้ว</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-2xl font-bold text-yellow-600">{formatCountdown(noShowCountdown)}</p>
+                                            <p className="text-xs text-yellow-600">{noShowCountdown === 0 ? 'หมดเวลารอ' : 'เหลือ'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Arrived at Pickup Button (only when driver_en_route and not yet arrived) */}
+                            {activeBooking.status === 'driver_en_route' && !driverArrivedAt && (
+                                <button
+                                    onClick={() => setShowArrivedConfirmModal(true)}
+                                    className="w-full h-12 mb-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-full font-bold shadow-lg shadow-yellow-500/30 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                                >
+                                    <span className="material-symbols-outlined">pin_drop</span>
+                                    <span>แจ้งว่าถึงจุดรับแล้ว</span>
+                                </button>
+                            )}
+
+                            {/* Customer No-Show Button (only when arrived and timer done) */}
+                            {activeBooking.status === 'driver_en_route' && driverArrivedAt && noShowCountdown === 0 && (
+                                <button
+                                    onClick={() => setShowNoShowConfirmModal(true)}
+                                    className="w-full h-12 mb-3 bg-red-500 hover:bg-red-600 text-white rounded-full font-bold shadow-lg shadow-red-500/30 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                                >
+                                    <span className="material-symbols-outlined">person_off</span>
+                                    <span>ลูกค้าไม่มา (No-Show)</span>
+                                </button>
+                            )}
+
                             {/* Action Button */}
                             <button
                                 onClick={() => {
@@ -1035,7 +1192,7 @@ export default function DriverV2Page() {
                                 <span className="material-symbols-outlined">arrow_forward</span>
                                 <span>
                                     {activeBooking.status === 'driver_assigned' ? 'รับงาน' :
-                                     activeBooking.status === 'driver_en_route' ? 'ถึงจุดรับแล้ว' : 'ถึงปลายทาง'}
+                                     activeBooking.status === 'driver_en_route' ? 'เริ่มเดินทาง' : 'ถึงปลายทาง'}
                                 </span>
                             </button>
                         </>
@@ -1216,6 +1373,147 @@ export default function DriverV2Page() {
                         <button onClick={() => { setShowRatingModal(false); setCompletedBooking(null); }} className="w-full py-3 text-gray-500 font-medium mt-2">
                             ข้าม
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Arrived at Pickup Confirm Modal */}
+            {showArrivedConfirmModal && (
+                <div className="fixed inset-0 z-[60]">
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]" onClick={() => setShowArrivedConfirmModal(false)} />
+                    <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-[#12231a] rounded-t-[32px] shadow-[0_-8px_30px_rgba(0,0,0,0.2)] pb-safe">
+                        <div className="w-full flex justify-center pt-3 pb-1">
+                            <div className="h-1.5 w-12 rounded-full bg-gray-200 dark:bg-gray-700" />
+                        </div>
+                        <div className="px-5 pt-2 pb-8 flex flex-col gap-5">
+                            <div className="text-center">
+                                <div className="w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mx-auto mb-4">
+                                    <span className="material-symbols-outlined text-yellow-600 text-3xl">pin_drop</span>
+                                </div>
+                                <h2 className="text-xl font-bold mb-2">ยืนยันถึงจุดรับ?</h2>
+                                <p className="text-gray-500 text-sm">
+                                    กดยืนยันเพื่อเริ่มจับเวลารอลูกค้า<br />
+                                    ระบบจะจับเวลา 5 นาที หากลูกค้าไม่มา
+                                </p>
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowArrivedConfirmModal(false)}
+                                    className="flex-1 h-14 rounded-full border-2 border-gray-300 text-gray-600 font-bold text-lg"
+                                >
+                                    ยกเลิก
+                                </button>
+                                <button
+                                    onClick={markArrivedAtPickup}
+                                    disabled={isMarkingArrived}
+                                    className="flex-1 h-14 rounded-full bg-yellow-500 text-white font-bold text-lg shadow-lg shadow-yellow-500/30 flex items-center justify-center gap-2"
+                                >
+                                    {isMarkingArrived ? (
+                                        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                        <>
+                                            <span className="material-symbols-outlined">check</span>
+                                            <span>ยืนยัน</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* No-Show Confirm Modal */}
+            {showNoShowConfirmModal && (
+                <div className="fixed inset-0 z-[60]">
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]" onClick={() => setShowNoShowConfirmModal(false)} />
+                    <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-[#12231a] rounded-t-[32px] shadow-[0_-8px_30px_rgba(0,0,0,0.2)] pb-safe">
+                        <div className="w-full flex justify-center pt-3 pb-1">
+                            <div className="h-1.5 w-12 rounded-full bg-gray-200 dark:bg-gray-700" />
+                        </div>
+                        <div className="px-5 pt-2 pb-8 flex flex-col gap-5">
+                            <div className="text-center">
+                                <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                                    <span className="material-symbols-outlined text-red-600 text-3xl">person_off</span>
+                                </div>
+                                <h2 className="text-xl font-bold mb-2">ยืนยัน No-Show?</h2>
+                                <p className="text-gray-500 text-sm">
+                                    คุณแน่ใจหรือไม่ว่าลูกค้าไม่มารับบริการ?<br />
+                                    การดำเนินการนี้ไม่สามารถยกเลิกได้
+                                </p>
+                            </div>
+                            <div className="bg-green-50 rounded-xl p-4">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-600">ค่าธรรมเนียม No-Show</span>
+                                    <span className="text-lg font-bold text-[#00b250]">฿50</span>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">คุณจะได้รับค่าธรรมเนียมนี้ 100%</p>
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowNoShowConfirmModal(false)}
+                                    className="flex-1 h-14 rounded-full border-2 border-gray-300 text-gray-600 font-bold text-lg"
+                                >
+                                    ยกเลิก
+                                </button>
+                                <button
+                                    onClick={reportNoShow}
+                                    disabled={isReportingNoShow}
+                                    className="flex-1 h-14 rounded-full bg-red-500 text-white font-bold text-lg shadow-lg shadow-red-500/30 flex items-center justify-center gap-2"
+                                >
+                                    {isReportingNoShow ? (
+                                        <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                        <>
+                                            <span className="material-symbols-outlined">check</span>
+                                            <span>ยืนยัน</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* No-Show Result Modal */}
+            {showNoShowResultModal && noShowResult && (
+                <div className="fixed inset-0 z-[60]">
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]" />
+                    <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-[#12231a] rounded-t-[32px] shadow-[0_-8px_30px_rgba(0,0,0,0.2)] pb-safe">
+                        <div className="w-full flex justify-center pt-3 pb-1">
+                            <div className="h-1.5 w-12 rounded-full bg-gray-200 dark:bg-gray-700" />
+                        </div>
+                        <div className="px-5 pt-2 pb-8 flex flex-col gap-5">
+                            <div className="text-center">
+                                <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+                                    <span className="material-symbols-outlined text-green-600 text-3xl">check_circle</span>
+                                </div>
+                                <h2 className="text-xl font-bold mb-2">บันทึก No-Show สำเร็จ</h2>
+                                <p className="text-gray-500 text-sm">
+                                    ลูกค้าไม่มารับบริการ - การจองถูกยกเลิก
+                                </p>
+                            </div>
+                            <div className="bg-green-50 rounded-xl p-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-600">ค่าธรรมเนียม No-Show</span>
+                                    <span className="text-lg font-bold text-[#00b250]">฿{noShowResult.noShowFee}</span>
+                                </div>
+                                <div className="border-t border-green-200 pt-3 flex items-center justify-between">
+                                    <span className="text-sm font-medium text-gray-800">รายได้ของคุณ</span>
+                                    <span className="text-xl font-bold text-[#00b250]">฿{noShowResult.driverEarnings}</span>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setShowNoShowResultModal(false);
+                                    setNoShowResult(null);
+                                }}
+                                className="w-full h-14 rounded-full bg-[#00b250] text-white font-bold text-lg shadow-lg shadow-green-500/30"
+                            >
+                                ตกลง
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

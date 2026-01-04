@@ -79,6 +79,26 @@ export enum RatingReasonCode {
     OTHER = 'other',
 }
 
+// Cancellation reason codes (Passenger Rules)
+export enum CancellationReason {
+    // Customer initiated
+    CHANGED_MIND = 'changed_mind',           // เปลี่ยนใจ
+    FOUND_ALTERNATIVE = 'found_alternative', // หาทางเลือกอื่น
+    DRIVER_TOO_FAR = 'driver_too_far',       // คนขับไกลเกินไป
+    DRIVER_LATE = 'driver_late',             // คนขับมาช้า
+    WRONG_LOCATION = 'wrong_location',       // ระบุที่ผิด
+    EMERGENCY = 'emergency',                 // เหตุฉุกเฉิน
+    // Driver initiated
+    CUSTOMER_NO_SHOW = 'customer_no_show',   // ลูกค้าไม่มา
+    CUSTOMER_UNREACHABLE = 'customer_unreachable', // ติดต่อลูกค้าไม่ได้
+    UNSAFE_PICKUP = 'unsafe_pickup',         // จุดรับไม่ปลอดภัย
+    // System/Admin
+    DRIVER_UNAVAILABLE = 'driver_unavailable', // ไม่มีคนขับว่าง
+    SYSTEM_ERROR = 'system_error',           // ระบบมีปัญหา
+    ADMIN_CANCELLED = 'admin_cancelled',     // Admin ยกเลิก
+    OTHER = 'other',
+}
+
 // ============ INTERFACES ============
 
 // Location coordinates interface for tracking
@@ -180,6 +200,27 @@ export interface Booking {
     matchAttempts?: number;             // Number of driver match attempts
     searchStartedAt?: Timestamp | Date; // When driver search started
     lastMatchAttemptAt?: Timestamp | Date; // When last match was attempted
+
+    // Cancellation System (Passenger Rules)
+    cancelledAt?: Timestamp | Date;                     // When booking was cancelled
+    cancelledBy?: 'customer' | 'driver' | 'admin' | 'system';
+    cancellationReason?: CancellationReason | string;
+    cancellationFee?: number;                           // Fee charged (THB)
+    cancellationFeeStatus?: 'pending' | 'charged' | 'waived' | 'refunded';
+    driverAssignedAt?: Timestamp | Date;                // When driver was assigned (for free cancel window)
+
+    // No-Show System
+    driverArrivedAt?: Timestamp | Date;                 // When driver arrived at pickup
+    noShowReportedAt?: Timestamp | Date;                // When no-show was reported
+    isNoShow?: boolean;
+    noShowFee?: number;
+
+    // Dispute System
+    hasDispute?: boolean;
+    disputeId?: string;
+    disputeStatus?: 'pending' | 'investigating' | 'resolved' | 'rejected';
+    disputeReason?: string;
+    disputeResolvedAt?: Timestamp | Date;
 
     createdAt: Timestamp | Date | string;
     updatedAt?: Timestamp | Date;
@@ -437,3 +478,168 @@ export interface DataTableProps<T> {
     loading?: boolean;
     emptyMessage?: string;
 }
+
+// ============ SYSTEM CONFIG TYPES ============
+
+export interface BookingConfig {
+    maxRematchAttempts: number;           // จำนวนครั้งที่หาคนขับใหม่ (default: 3)
+    driverResponseTimeout: number;        // ms - เวลารอคนขับกดรับงาน (default: 20000)
+    totalSearchTimeout: number;           // ms - เวลารวมในการหาคนขับ (default: 180000)
+    delayBetweenMatches: number;          // ms - รอก่อนหาคนขับคนใหม่ (default: 3000)
+    cancellableStatuses: string[];        // สถานะที่ยกเลิกได้
+}
+
+export interface PricingConfig {
+    baseFare: number;                     // ค่าโดยสารขั้นต่ำ (default: 50)
+    perKmRate: number;                    // ราคาต่อ กม. (default: 15)
+    platformFeePercent: number;           // ค่า commission % (default: 0)
+    minBookingAmount: number;             // ยอดจองขั้นต่ำ (default: 0)
+}
+
+export interface PaymentConfig {
+    enableCash: boolean;                  // เปิด/ปิดจ่ายเงินสด
+    enableCard: boolean;                  // เปิด/ปิดจ่ายบัตร
+    autoRefundOnCancel: boolean;          // คืนเงินอัตโนมัติเมื่อยกเลิก
+}
+
+export interface RatingConfig {
+    maxTipAmount: number;                 // ทิปสูงสุดต่อเที่ยว (default: 10000)
+    maxCommentLength: number;             // ความยาว comment สูงสุด (default: 500)
+    bayesianPriorMean: number;            // ค่าเริ่มต้น rating (default: 4.0)
+    bayesianMinReviews: number;           // จำนวน review ขั้นต่ำ (default: 5)
+    lowRatingThreshold: number;           // ต้องให้เหตุผลถ้าต่ำกว่านี้ (default: 3)
+}
+
+export interface RateLimitConfig {
+    standardApiLimit: number;             // req/min สำหรับ API ทั่วไป (default: 10)
+    authApiLimit: number;                 // req/min สำหรับ login (default: 5)
+    paymentApiLimit: number;              // req/min สำหรับ payment (default: 10)
+    driverLocationApiLimit: number;       // req/min สำหรับ GPS updates (default: 60)
+    sensitiveApiLimit: number;            // req/min สำหรับ sensitive ops (default: 3)
+}
+
+export interface DriverConfig {
+    allowSelfBooking: boolean;            // คนขับจองตัวเองได้ไหม (default: false)
+    allowMultipleJobs: boolean;           // รับหลายงานพร้อมกัน (default: false)
+    autoResumeDelayMs: number;            // delay ก่อน resume status (default: 10000)
+}
+
+export interface MapConfig {
+    defaultCenterLat: number;             // ศูนย์กลางแผนที่ lat (default: 13.7563 - กทม.)
+    defaultCenterLng: number;             // ศูนย์กลางแผนที่ lng (default: 100.5018)
+    defaultZoom: number;                  // zoom level (default: 12)
+    gpsTimeoutMs: number;                 // GPS timeout (default: 15000)
+}
+
+// Passenger Rules Configuration (Cancellation, No-Show, Dispute)
+export interface PassengerConfig {
+    // Cancellation Rules
+    freeCancellationWindowMs: number;     // ยกเลิกฟรีภายในกี่ ms หลังได้คนขับ (default: 180000 = 3 นาที)
+    lateCancellationFee: number;          // ค่าธรรมเนียมยกเลิกหลังหมดเวลา (default: 50 บาท)
+    enableCancellationFee: boolean;       // เปิด/ปิดการเก็บค่ายกเลิก
+
+    // No-Show Rules
+    noShowWaitTimeMs: number;             // รอลูกค้ากี่ ms ก่อนแจ้ง no-show (default: 300000 = 5 นาที)
+    noShowFee: number;                    // ค่าธรรมเนียม no-show (default: 50 บาท)
+    enableNoShowFee: boolean;             // เปิด/ปิดการเก็บค่า no-show
+
+    // Fee Distribution
+    cancellationFeeToDriverPercent: number; // % ค่ายกเลิกที่ให้คนขับ (default: 100)
+    noShowFeeToDriverPercent: number;       // % ค่า no-show ที่ให้คนขับ (default: 100)
+
+    // Driver Late Waiver
+    driverLateThresholdMs: number;        // คนขับมาช้าเกินกี่ ms ลูกค้ายกเลิกฟรี (default: 300000 = 5 นาที)
+    enableDriverLateWaiver: boolean;      // เปิด/ปิดการยกเว้นค่าธรรมเนียมเมื่อคนขับมาช้า
+
+    // Booking Limits
+    maxActiveBookings: number;            // จอง active ได้สูงสุดกี่รายการ (default: 1)
+    maxCancellationsPerDay: number;       // ยกเลิกได้สูงสุดกี่ครั้ง/วัน (default: 3)
+    enableCancellationLimit: boolean;     // เปิด/ปิดการจำกัดจำนวนยกเลิก
+
+    // Dispute Rules
+    disputeWindowHours: number;           // ขอ dispute ได้ภายในกี่ชม. หลังเสร็จ trip (default: 48)
+    enableDispute: boolean;               // เปิด/ปิดระบบ dispute
+}
+
+export interface SystemConfig {
+    booking: BookingConfig;
+    pricing: PricingConfig;
+    payment: PaymentConfig;
+    rating: RatingConfig;
+    rateLimit: RateLimitConfig;
+    driver: DriverConfig;
+    map: MapConfig;
+    passenger: PassengerConfig;  // Passenger Rules (Cancellation, No-Show, Dispute)
+    updatedAt?: Timestamp | Date;
+    updatedBy?: string;
+}
+
+// Default system configuration
+export const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
+    booking: {
+        maxRematchAttempts: 3,
+        driverResponseTimeout: 20000,
+        totalSearchTimeout: 180000,
+        delayBetweenMatches: 3000,
+        cancellableStatuses: ['pending', 'confirmed', 'driver_assigned'],
+    },
+    pricing: {
+        baseFare: 50,
+        perKmRate: 15,
+        platformFeePercent: 0,
+        minBookingAmount: 0,
+    },
+    payment: {
+        enableCash: true,
+        enableCard: true,
+        autoRefundOnCancel: true,
+    },
+    rating: {
+        maxTipAmount: 10000,
+        maxCommentLength: 500,
+        bayesianPriorMean: 4.0,
+        bayesianMinReviews: 5,
+        lowRatingThreshold: 3,
+    },
+    rateLimit: {
+        standardApiLimit: 10,
+        authApiLimit: 5,
+        paymentApiLimit: 10,
+        driverLocationApiLimit: 60,
+        sensitiveApiLimit: 3,
+    },
+    driver: {
+        allowSelfBooking: false,
+        allowMultipleJobs: false,
+        autoResumeDelayMs: 10000,
+    },
+    map: {
+        defaultCenterLat: 13.7563,
+        defaultCenterLng: 100.5018,
+        defaultZoom: 12,
+        gpsTimeoutMs: 15000,
+    },
+    passenger: {
+        // Cancellation Rules
+        freeCancellationWindowMs: 180000,     // 3 นาที หลังได้คนขับ
+        lateCancellationFee: 50,              // 50 บาท
+        enableCancellationFee: true,
+        // No-Show Rules
+        noShowWaitTimeMs: 300000,             // 5 นาที รอลูกค้า
+        noShowFee: 50,                        // 50 บาท
+        enableNoShowFee: true,
+        // Fee Distribution
+        cancellationFeeToDriverPercent: 100,  // 100% ให้คนขับ
+        noShowFeeToDriverPercent: 100,        // 100% ให้คนขับ
+        // Driver Late Waiver
+        driverLateThresholdMs: 300000,        // 5 นาที คนขับมาช้า
+        enableDriverLateWaiver: true,
+        // Booking Limits
+        maxActiveBookings: 1,                 // จองได้ 1 รายการ
+        maxCancellationsPerDay: 3,            // ยกเลิกได้ 3 ครั้ง/วัน
+        enableCancellationLimit: true,
+        // Dispute Rules
+        disputeWindowHours: 48,               // 48 ชม. หลังเสร็จ trip
+        enableDispute: true,
+    },
+};

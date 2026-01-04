@@ -63,6 +63,9 @@ interface Booking {
     createdAt: any;
     pickupCoordinates?: { lat: number; lng: number };
     dropoffCoordinates?: { lat: number; lng: number };
+    driverArrivedAt?: any; // Timestamp when driver marked arrival
+    isNoShow?: boolean;
+    noShowFee?: number;
 }
 
 // Bangkok Center Default
@@ -228,6 +231,20 @@ export default function DemoDriverPage() {
     const [showAudioUnlockModal, setShowAudioUnlockModal] = useState(false);
     const [audioUnlocked, setAudioUnlocked] = useState(false);
     const audioContextRef = useRef<AudioContext | null>(null);
+
+    // No-Show states
+    const [isMarkingArrived, setIsMarkingArrived] = useState(false);
+    const [waitTimeRemaining, setWaitTimeRemaining] = useState<number | null>(null);
+    const [noShowWaitTime, setNoShowWaitTime] = useState<number>(300000); // Default 5 minutes
+    const [isReportingNoShow, setIsReportingNoShow] = useState(false);
+    const [showNoShowConfirmModal, setShowNoShowConfirmModal] = useState(false);
+    const [showNoShowResultModal, setShowNoShowResultModal] = useState(false);
+    const [noShowResult, setNoShowResult] = useState<{
+        success: boolean;
+        noShowFee: number;
+        driverEarnings: number;
+    } | null>(null);
+    const waitTimeIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     // Load Google Maps
     const { isLoaded, loadError } = useLoadScript({
@@ -819,6 +836,160 @@ export default function DemoDriverPage() {
     // Keep ref in sync with function
     handleRejectJobRef.current = handleRejectJob;
 
+    // === No-Show Handlers ===
+
+    // Handle driver marking arrival at pickup
+    const handleDriverArrived = async () => {
+        const activeBooking = bookings.find(b =>
+            ['driver_assigned', 'driver_en_route', 'in_progress'].includes(b.status)
+        );
+        if (!activeBooking || !driver) return;
+
+        setIsMarkingArrived(true);
+        try {
+            const token = await getAuthToken();
+            if (!token) throw new Error('กรุณาเข้าสู่ระบบใหม่');
+
+            const response = await fetch('/api/booking/noshow/arrived', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    bookingId: activeBooking.id,
+                }),
+            });
+
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error);
+
+            console.log('✅ Driver marked as arrived:', result.data);
+
+            // Update wait time from server response
+            if (result.data?.waitTimeMs) {
+                setNoShowWaitTime(result.data.waitTimeMs);
+                setWaitTimeRemaining(result.data.waitTimeMs);
+            }
+
+            // Update booking locally to reflect driverArrivedAt
+            setBookings(prev => prev.map(b =>
+                b.id === activeBooking.id
+                    ? { ...b, driverArrivedAt: new Date() }
+                    : b
+            ));
+
+        } catch (error: any) {
+            alert(error.message || 'ไม่สามารถบันทึกการถึงจุดรับได้');
+        } finally {
+            setIsMarkingArrived(false);
+        }
+    };
+
+    // Handle no-show report
+    const handleNoShow = async () => {
+        const activeBooking = bookings.find(b =>
+            ['driver_assigned', 'driver_en_route', 'in_progress'].includes(b.status)
+        );
+        if (!activeBooking || !driver) return;
+
+        setIsReportingNoShow(true);
+        setShowNoShowConfirmModal(false);
+        try {
+            const token = await getAuthToken();
+            if (!token) throw new Error('กรุณาเข้าสู่ระบบใหม่');
+
+            const response = await fetch('/api/booking/noshow', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    bookingId: activeBooking.id,
+                    note: 'ลูกค้าไม่มารับรถ',
+                }),
+            });
+
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error);
+
+            console.log('✅ No-show reported:', result.data);
+
+            // Store result for modal
+            setNoShowResult({
+                success: true,
+                noShowFee: result.data?.noShowFee || 0,
+                driverEarnings: result.data?.driverEarnings || 0,
+            });
+
+            // Clear wait time
+            setWaitTimeRemaining(null);
+            if (waitTimeIntervalRef.current) {
+                clearInterval(waitTimeIntervalRef.current);
+                waitTimeIntervalRef.current = null;
+            }
+
+            // Show result modal
+            setShowNoShowResultModal(true);
+
+        } catch (error: any) {
+            alert(error.message || 'ไม่สามารถแจ้ง No-Show ได้');
+        } finally {
+            setIsReportingNoShow(false);
+        }
+    };
+
+    // Wait time countdown effect
+    useEffect(() => {
+        const activeBooking = bookings.find(b =>
+            ['driver_en_route'].includes(b.status)
+        );
+
+        // If booking has driverArrivedAt, start countdown
+        if (activeBooking?.driverArrivedAt && !waitTimeIntervalRef.current) {
+            const arrivedAt = activeBooking.driverArrivedAt?.toDate?.()?.getTime() ||
+                activeBooking.driverArrivedAt?.seconds * 1000 ||
+                new Date(activeBooking.driverArrivedAt).getTime();
+
+            const remaining = noShowWaitTime - (Date.now() - arrivedAt);
+            setWaitTimeRemaining(Math.max(0, remaining));
+
+            // Start countdown interval
+            waitTimeIntervalRef.current = setInterval(() => {
+                const elapsed = Date.now() - arrivedAt;
+                const remaining = noShowWaitTime - elapsed;
+                if (remaining <= 0) {
+                    setWaitTimeRemaining(0);
+                    if (waitTimeIntervalRef.current) {
+                        clearInterval(waitTimeIntervalRef.current);
+                        waitTimeIntervalRef.current = null;
+                    }
+                } else {
+                    setWaitTimeRemaining(remaining);
+                }
+            }, 1000);
+        }
+
+        // Cleanup on unmount or when status changes
+        return () => {
+            if (waitTimeIntervalRef.current) {
+                clearInterval(waitTimeIntervalRef.current);
+                waitTimeIntervalRef.current = null;
+            }
+        };
+    }, [bookings, noShowWaitTime]);
+
+    // Reset wait time when booking changes
+    useEffect(() => {
+        const activeBooking = bookings.find(b =>
+            ['driver_en_route'].includes(b.status)
+        );
+        if (!activeBooking?.driverArrivedAt) {
+            setWaitTimeRemaining(null);
+        }
+    }, [bookings]);
+
     // Auto-close modal when booking status changes (e.g., from script or admin)
     useEffect(() => {
         if (showNewJobModal && newJobAlert) {
@@ -1326,23 +1497,100 @@ export default function DemoDriverPage() {
                                 </div>
                             </div>
 
-                            {/* Action Button - Grab Green */}
-                            <button
-                                onClick={() => handleBookingAction(activeBooking.id, 'in_progress')}
-                                disabled={updatingStatus === activeBooking.id}
-                                className="w-full h-14 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg disabled:opacity-50"
-                            >
-                                {updatingStatus === activeBooking.id ? (
-                                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                ) : (
-                                    <>
-                                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            {/* Action Buttons - With No-Show Feature */}
+                            {!activeBooking.driverArrivedAt ? (
+                                // Not arrived yet - show Mark Arrived + Start Trip buttons
+                                <div className="space-y-3">
+                                    <button
+                                        onClick={handleDriverArrived}
+                                        disabled={isMarkingArrived}
+                                        className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-50"
+                                    >
+                                        {isMarkingArrived ? (
+                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        ) : (
+                                            <>
+                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                </svg>
+                                                แจ้งว่าถึงจุดรับแล้ว
+                                            </>
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={() => handleBookingAction(activeBooking.id, 'in_progress')}
+                                        disabled={updatingStatus === activeBooking.id}
+                                        className="w-full h-14 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg disabled:opacity-50"
+                                    >
+                                        {updatingStatus === activeBooking.id ? (
+                                            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        ) : (
+                                            <>
+                                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                </svg>
+                                                ลูกค้าขึ้นรถแล้ว - เริ่มเดินทาง
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            ) : (
+                                // Driver arrived - show wait time countdown + No-Show button
+                                <div className="space-y-3">
+                                    {/* Wait Time Countdown */}
+                                    {waitTimeRemaining !== null && waitTimeRemaining > 0 && (
+                                        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <p className="text-amber-800 font-semibold">รอลูกค้า</p>
+                                                    <p className="text-amber-600 text-sm">กรุณารออีก {Math.ceil(waitTimeRemaining / 60000)} นาที</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-3xl font-bold text-amber-600">
+                                                        {Math.floor(waitTimeRemaining / 60000)}:{String(Math.floor((waitTimeRemaining % 60000) / 1000)).padStart(2, '0')}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Start Trip Button */}
+                                    <button
+                                        onClick={() => handleBookingAction(activeBooking.id, 'in_progress')}
+                                        disabled={updatingStatus === activeBooking.id}
+                                        className="w-full h-14 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-lg disabled:opacity-50"
+                                    >
+                                        {updatingStatus === activeBooking.id ? (
+                                            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        ) : (
+                                            <>
+                                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                </svg>
+                                                ลูกค้าขึ้นรถแล้ว - เริ่มเดินทาง
+                                            </>
+                                        )}
+                                    </button>
+
+                                    {/* No-Show Button */}
+                                    <button
+                                        onClick={() => setShowNoShowConfirmModal(true)}
+                                        disabled={waitTimeRemaining !== null && waitTimeRemaining > 0}
+                                        className={`w-full h-12 rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-all ${
+                                            waitTimeRemaining !== null && waitTimeRemaining > 0
+                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                : 'bg-red-500 hover:bg-red-600 text-white'
+                                        }`}
+                                    >
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                                         </svg>
-                                        ถึงจุดรับแล้ว
-                                    </>
-                                )}
-                            </button>
+                                        {waitTimeRemaining !== null && waitTimeRemaining > 0
+                                            ? `รออีก ${Math.ceil(waitTimeRemaining / 60000)} นาที`
+                                            : 'ลูกค้าไม่มา (No-Show)'}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -1859,6 +2107,128 @@ export default function DemoDriverPage() {
                                     ปฏิเสธ
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* === NO-SHOW CONFIRMATION MODAL === */}
+                {showNoShowConfirmModal && (
+                    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="w-full max-w-sm bg-white rounded-3xl animate-scale-up shadow-2xl p-6">
+                            {/* Warning Icon */}
+                            <div className="flex justify-center mb-4">
+                                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                                    <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            {/* Title */}
+                            <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+                                ยืนยันว่าลูกค้าไม่มา?
+                            </h3>
+                            <p className="text-gray-500 text-center mb-6">
+                                เมื่อยืนยันแล้ว การจองนี้จะถูกยกเลิก และคุณจะได้รับค่าธรรมเนียม No-Show
+                            </p>
+
+                            {/* Info Box */}
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                                <p className="text-amber-800 text-sm">
+                                    <span className="font-semibold">สิ่งที่จะเกิดขึ้น:</span>
+                                </p>
+                                <ul className="text-amber-700 text-sm mt-2 space-y-1">
+                                    <li className="flex items-start gap-2">
+                                        <span>•</span>
+                                        <span>การจองจะถูกยกเลิกอัตโนมัติ</span>
+                                    </li>
+                                    <li className="flex items-start gap-2">
+                                        <span>•</span>
+                                        <span>คุณจะได้รับค่าธรรมเนียม No-Show</span>
+                                    </li>
+                                    <li className="flex items-start gap-2">
+                                        <span>•</span>
+                                        <span>ลูกค้าจะได้รับการแจ้งเตือน</span>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            {/* Buttons */}
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowNoShowConfirmModal(false)}
+                                    disabled={isReportingNoShow}
+                                    className="flex-1 h-12 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors disabled:opacity-50"
+                                >
+                                    ยกเลิก
+                                </button>
+                                <button
+                                    onClick={handleNoShow}
+                                    disabled={isReportingNoShow}
+                                    className="flex-1 h-12 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                                >
+                                    {isReportingNoShow ? (
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    ) : (
+                                        <>
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            ยืนยัน
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* === NO-SHOW RESULT MODAL === */}
+                {showNoShowResultModal && noShowResult && (
+                    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="w-full max-w-sm bg-white rounded-3xl animate-scale-up shadow-2xl p-6">
+                            {/* Success Icon */}
+                            <div className="flex justify-center mb-4">
+                                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                                    <svg className="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            {/* Title */}
+                            <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+                                บันทึก No-Show เรียบร้อย
+                            </h3>
+                            <p className="text-gray-500 text-center mb-6">
+                                การจองถูกยกเลิกแล้ว คุณได้รับค่าธรรมเนียม
+                            </p>
+
+                            {/* Earnings Card */}
+                            <div className="bg-[#00b14f]/5 border border-[#00b14f]/20 rounded-2xl p-4 mb-6">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-gray-600">ค่าธรรมเนียม No-Show</span>
+                                    <span className="text-gray-900 font-semibold">฿{noShowResult.noShowFee.toLocaleString()}</span>
+                                </div>
+                                <div className="flex items-center justify-between pt-3 border-t border-[#00b14f]/20">
+                                    <span className="text-[#00b14f] font-semibold">รายได้ของคุณ</span>
+                                    <span className="text-[#00b14f] font-bold text-2xl">฿{noShowResult.driverEarnings.toLocaleString()}</span>
+                                </div>
+                            </div>
+
+                            {/* Close Button */}
+                            <button
+                                onClick={() => {
+                                    setShowNoShowResultModal(false);
+                                    setNoShowResult(null);
+                                }}
+                                className="w-full h-12 bg-[#00b14f] hover:bg-[#00a045] text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors"
+                            >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                เข้าใจแล้ว
+                            </button>
                         </div>
                     </div>
                 )}
