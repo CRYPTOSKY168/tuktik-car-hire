@@ -88,6 +88,19 @@ npm run lint         # Run ESLint
 9. Test ก่อน deploy ทุกครั้ง (npm run build)
 10. ใช้ Services จาก lib/firebase/services/ แทน direct Firestore calls
 11. ⭐ เขียน Auto Test Script ทดสอบ flow ก่อนส่งงานทุกครั้ง (ดู Testing Scripts section)
+12. ⭐⭐ ทุกกฎ/ค่าคงที่/limit ต้องตั้งค่าผ่าน Admin ได้ (ห้าม hardcode ใน code!)
+    - ใช้ค่าจาก `useConfig()` หรือ Firestore `settings/system_config`
+    - Admin ตั้งค่าได้ที่ `/admin/system-settings`
+    - ถ้าต้องเพิ่มกฎใหม่ → เพิ่มใน PassengerConfig หรือ SystemConfig
+13. ⭐⭐⭐ เมื่อทำ Feature ใหม่ → ต้องสร้าง Admin Config + เชื่อม Frontend ให้สมบูรณ์!
+    - เพิ่ม field ใน `lib/types/index.ts` (SystemConfig หรือ PassengerConfig)
+    - เพิ่ม UI ตั้งค่าใน `/admin/system-settings/page.tsx`
+    - **Frontend ต้องใช้ค่าจาก config จริง** (ใช้ `useConfig()` hook)
+    - **API ต้องอ่านค่าจาก Firestore config** (ไม่ใช่ hardcode)
+    - ตัวอย่าง: ถ้าทำ "จำกัดจำนวนจอง"
+      → Admin: toggle เปิด/ปิด + input ตั้งค่าจำนวน
+      → Frontend: แสดง/ซ่อน UI ตาม config
+      → API: เช็ค limit ตาม config
 ```
 
 ### ❌ MUST NOT (ห้ามทำ)
@@ -101,6 +114,7 @@ npm run lint         # Run ESLint
 6. อย่า refactor โค้ดที่ไม่เกี่ยวข้องกับ task
 7. อย่าใช้ FieldValue.serverTimestamp() ใน array
 8. อย่าเปลี่ยน API response format ที่มีอยู่
+9. ⭐ อย่า hardcode กฎ/limit/ค่าคงที่ ใน code (ต้องใช้ config จาก Admin Settings)
 ```
 
 ### ⚠️ Prototype/Demo vs Production (สำคัญมาก!)

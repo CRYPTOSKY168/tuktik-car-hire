@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { ConfigService } from '@/lib/firebase/services';
 import { SystemConfig, DEFAULT_SYSTEM_CONFIG } from '@/lib/types';
+import { auth } from '@/lib/firebase/config';
+import { onAuthStateChanged } from 'firebase/auth';
 
 interface ConfigContextType {
     config: SystemConfig;
@@ -22,9 +24,32 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     const [config, setConfig] = useState<SystemConfig>(DEFAULT_SYSTEM_CONFIG);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-    // Initial load and subscribe to real-time updates
+    // Listen for auth state changes
     useEffect(() => {
+        if (!auth) {
+            setLoading(false);
+            return;
+        }
+
+        const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+            setIsAuthenticated(!!user);
+            if (!user) {
+                // Not logged in - use default config, no error
+                setConfig(DEFAULT_SYSTEM_CONFIG);
+                setLoading(false);
+                setError(null);
+            }
+        });
+
+        return () => unsubscribeAuth();
+    }, []);
+
+    // Subscribe to config only when authenticated
+    useEffect(() => {
+        if (!isAuthenticated) return;
+
         let unsubscribe: (() => void) | null = null;
 
         const setupSubscription = async () => {
@@ -49,7 +74,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
                 unsubscribe();
             }
         };
-    }, []);
+    }, [isAuthenticated]);
 
     // Manual refresh function
     const refreshConfig = async () => {

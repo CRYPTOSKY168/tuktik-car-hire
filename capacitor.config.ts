@@ -6,7 +6,8 @@ const config: CapacitorConfig = {
   webDir: 'out', // สำหรับ static export (ถ้าใช้)
   server: {
     // ใช้ WebView URL เพื่อรองรับ API routes ของ Next.js
-    url: 'https://car-rental-phi-lime.vercel.app',
+    // เปิดหน้า /book2 โดยตรง
+    url: 'https://car-rental-phi-lime.vercel.app/book2',
     cleartext: true, // สำหรับ development
   },
   plugins: {

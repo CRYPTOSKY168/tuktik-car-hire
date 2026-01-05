@@ -494,6 +494,64 @@ export default function AdminSystemSettingsPage() {
                                 helpText="ถ้าให้คะแนนต่ำกว่านี้ ต้องระบุเหตุผล"
                             />
                         </div>
+
+                        {/* Tipping Section */}
+                        <div className="pt-6 border-t border-gray-100">
+                            <h3 className="text-md font-semibold text-gray-800 mb-4">ระบบทิป</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <ToggleSwitch
+                                    label="เปิดระบบทิป"
+                                    checked={config.rating.enableTipping}
+                                    onChange={(v) => setConfig({ ...config, rating: { ...config.rating, enableTipping: v } })}
+                                    description="อนุญาตให้ลูกค้าให้ทิปคนขับหลังเสร็จงาน"
+                                    icon="volunteer_activism"
+                                    iconBg="bg-green-100 text-green-600"
+                                />
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        ตัวเลือกทิป (บาท)
+                                    </label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {(config.rating.tipOptions || [0, 20, 50, 100]).map((tip, index) => (
+                                            <div key={index} className="flex items-center gap-1">
+                                                <input
+                                                    type="number"
+                                                    value={tip}
+                                                    onChange={(e) => {
+                                                        const newOptions = [...(config.rating.tipOptions || [0, 20, 50, 100])];
+                                                        newOptions[index] = parseInt(e.target.value) || 0;
+                                                        setConfig({ ...config, rating: { ...config.rating, tipOptions: newOptions } });
+                                                    }}
+                                                    className="w-20 px-2 py-1 border border-gray-200 rounded-lg text-sm"
+                                                    min={0}
+                                                />
+                                                {index > 0 && (
+                                                    <button
+                                                        onClick={() => {
+                                                            const newOptions = (config.rating.tipOptions || [0, 20, 50, 100]).filter((_, i) => i !== index);
+                                                            setConfig({ ...config, rating: { ...config.rating, tipOptions: newOptions } });
+                                                        }}
+                                                        className="text-red-500 hover:text-red-700"
+                                                    >
+                                                        <span className="material-symbols-outlined text-sm">close</span>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ))}
+                                        <button
+                                            onClick={() => {
+                                                const newOptions = [...(config.rating.tipOptions || [0, 20, 50, 100]), 0];
+                                                setConfig({ ...config, rating: { ...config.rating, tipOptions: newOptions } });
+                                            }}
+                                            className="px-2 py-1 bg-blue-50 text-blue-600 rounded-lg text-sm hover:bg-blue-100"
+                                        >
+                                            + เพิ่ม
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">ตัวเลือกแรก (0) = ไม่ให้ทิป</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
 

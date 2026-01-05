@@ -44,6 +44,15 @@ function checkRateLimit(userId: string): boolean {
  */
 export async function POST(request: NextRequest) {
     try {
+        // 0. Check if adminDb is available
+        if (!adminDb) {
+            console.error('adminDb is not initialized');
+            return NextResponse.json(
+                { success: false, error: 'ระบบไม่พร้อมใช้งาน กรุณาลองใหม่' },
+                { status: 503 }
+            );
+        }
+
         // 1. Verify authentication
         const authHeader = request.headers.get('authorization');
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -142,26 +151,38 @@ export async function POST(request: NextRequest) {
             console.error('Error fetching config, using defaults:', e);
         }
 
-        // 8. Check daily cancellation limit
+        // 8. Check daily cancellation limit (ตั้งค่าได้ที่ Admin > System Settings > ผู้โดยสาร)
         if (passengerConfig.enableCancellationLimit) {
-            const todayStart = new Date();
-            todayStart.setHours(0, 0, 0, 0);
+            try {
+                const todayStart = new Date();
+                todayStart.setHours(0, 0, 0, 0);
 
-            const cancellationsToday = await adminDb.collection('bookings')
-                .where('userId', '==', userId)
-                .where('status', '==', 'cancelled')
-                .where('cancelledBy', '==', 'customer')
-                .where('cancelledAt', '>=', Timestamp.fromDate(todayStart))
-                .get();
+                // Query cancelled bookings for this user
+                const cancelledBookings = await adminDb.collection('bookings')
+                    .where('userId', '==', userId)
+                    .where('status', '==', 'cancelled')
+                    .get();
 
-            if (cancellationsToday.size >= passengerConfig.maxCancellationsPerDay) {
-                return NextResponse.json(
-                    {
-                        success: false,
-                        error: `คุณยกเลิกได้สูงสุด ${passengerConfig.maxCancellationsPerDay} ครั้งต่อวัน`
-                    },
-                    { status: 400 }
-                );
+                // Filter by cancelledBy = customer and today's date
+                const cancellationsToday = cancelledBookings.docs.filter(doc => {
+                    const data = doc.data();
+                    if (data.cancelledBy !== 'customer') return false;
+                    const cancelledAt = data.cancelledAt?.toDate?.() || new Date(0);
+                    return cancelledAt >= todayStart;
+                });
+
+                if (cancellationsToday.length >= passengerConfig.maxCancellationsPerDay) {
+                    return NextResponse.json(
+                        {
+                            success: false,
+                            error: `คุณยกเลิกได้สูงสุด ${passengerConfig.maxCancellationsPerDay} ครั้งต่อวัน`
+                        },
+                        { status: 400 }
+                    );
+                }
+            } catch (limitError) {
+                // If checking limit fails, allow the cancellation to proceed
+                console.error('Error checking daily limit, proceeding:', limitError);
             }
         }
 
@@ -225,40 +246,48 @@ export async function POST(request: NextRequest) {
 
         await bookingRef.update(updateData);
 
-        // 12. If driver was assigned, release the driver
+        // 12. If driver was assigned, release the driver (non-blocking)
         if (booking.driver?.driverId) {
-            const driverRef = adminDb.collection('drivers').doc(booking.driver.driverId);
-            await driverRef.update({
-                status: 'available',
-                updatedAt: Timestamp.now(),
-            });
+            try {
+                const driverRef = adminDb.collection('drivers').doc(booking.driver.driverId);
+                await driverRef.update({
+                    status: 'available',
+                    updatedAt: Timestamp.now(),
+                });
 
-            // Notify driver
-            await adminDb.collection('notifications').add({
-                userId: booking.driver.driverId,
-                type: 'booking',
-                title: 'งานถูกยกเลิก',
-                message: `ลูกค้ายกเลิกการจอง: ${booking.pickupLocation} → ${booking.dropoffLocation}`,
-                data: { bookingId, reason },
+                // Notify driver
+                await adminDb.collection('notifications').add({
+                    userId: booking.driver.driverId,
+                    type: 'booking',
+                    title: 'งานถูกยกเลิก',
+                    message: `ลูกค้ายกเลิกการจอง: ${booking.pickupLocation} → ${booking.dropoffLocation}`,
+                    data: { bookingId, reason },
+                    isRead: false,
+                    createdAt: Timestamp.now(),
+                });
+            } catch (driverError) {
+                console.error('Error releasing driver (non-blocking):', driverError);
+            }
+        }
+
+        // 13. Create admin notification (non-blocking)
+        try {
+            await adminDb.collection('admin_notifications').add({
+                type: 'booking_cancelled',
+                title: 'การจองถูกยกเลิก',
+                message: `${booking.firstName || 'ลูกค้า'} ยกเลิกการจอง - ${booking.pickupLocation} → ${booking.dropoffLocation}`,
+                data: {
+                    bookingId,
+                    reason,
+                    cancellationFee,
+                    feeStatus: cancellationFeeStatus,
+                },
                 isRead: false,
                 createdAt: Timestamp.now(),
             });
+        } catch (notificationError) {
+            console.error('Error creating notification (non-blocking):', notificationError);
         }
-
-        // 13. Create admin notification
-        await adminDb.collection('admin_notifications').add({
-            type: 'booking_cancelled',
-            title: 'การจองถูกยกเลิก',
-            message: `${booking.firstName || 'ลูกค้า'} ยกเลิกการจอง - ${booking.pickupLocation} → ${booking.dropoffLocation}`,
-            data: {
-                bookingId,
-                reason,
-                cancellationFee,
-                feeStatus: cancellationFeeStatus,
-            },
-            isRead: false,
-            createdAt: Timestamp.now(),
-        });
 
         // 14. Return success response
         return NextResponse.json({
@@ -275,8 +304,21 @@ export async function POST(request: NextRequest) {
 
     } catch (error: any) {
         console.error('Cancel booking error:', error);
+        console.error('Error message:', error?.message);
+        console.error('Error code:', error?.code);
+
+        // Return more specific error message for debugging
+        let errorMessage = 'เกิดข้อผิดพลาดในการยกเลิก';
+        if (error?.code === 'failed-precondition') {
+            errorMessage = 'กรุณาลองใหม่อีกครั้ง (ข้อมูลไม่สมบูรณ์)';
+        } else if (error?.code === 'permission-denied') {
+            errorMessage = 'คุณไม่มีสิทธิ์ยกเลิกการจองนี้';
+        } else if (error?.message?.includes('index')) {
+            errorMessage = 'ระบบกำลังปรับปรุง กรุณาลองใหม่';
+        }
+
         return NextResponse.json(
-            { success: false, error: 'เกิดข้อผิดพลาดในการยกเลิก กรุณาลองใหม่' },
+            { success: false, error: errorMessage },
             { status: 500 }
         );
     }

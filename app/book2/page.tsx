@@ -17,11 +17,36 @@ import { useAuth } from '@/lib/contexts/AuthContext';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
 import { useConfig } from '@/lib/contexts/ConfigContext';
 import { BookingService, DriverService, VehicleService, LocationService } from '@/lib/firebase/services';
+import { FirestoreService } from '@/lib/firebase/firestore';
 import { useDriverTracking } from '@/lib/hooks';
 import { Vehicle, Driver, Booking, BookingStatus } from '@/lib/types';
 import { Vehicle as BookingVehicle } from '@/lib/contexts/BookingContext';
-import { db } from '@/lib/firebase/config';
+import { db, auth } from '@/lib/firebase/config';
 import { doc, onSnapshot, updateDoc, Timestamp, arrayUnion } from 'firebase/firestore';
+import {
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    signInWithPopup,
+    GoogleAuthProvider,
+    RecaptchaVerifier,
+    signInWithPhoneNumber,
+    ConfirmationResult,
+    updateProfile,
+} from 'firebase/auth';
+import { countryCodes } from '@/lib/constants/countryCodes';
+import { isCapacitor } from '@/lib/capacitor/pushNotifications';
+import {
+    initCapacitorAuth,
+    capacitorSendPhoneVerification,
+    capacitorConfirmPhoneVerification,
+    capacitorSignInWithGoogle
+} from '@/lib/capacitor/phoneAuth';
+
+declare global {
+    interface Window {
+        recaptchaVerifier: any;
+    }
+}
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
@@ -269,6 +294,8 @@ export default function Book2Page() {
     const bookingConfig = config.booking;
     const pricingConfig = config.pricing;
     const paymentConfig = config.payment;
+    const passengerConfig = config.passenger;
+    const ratingConfig = config.rating;
 
     // Refs
     const mapRef = useRef<google.maps.Map | null>(null);
@@ -342,6 +369,7 @@ export default function Book2Page() {
     const [showNoDriverModal, setShowNoDriverModal] = useState(false);
     const [showRatingModal, setShowRatingModal] = useState(false);
     const [showContactModal, setShowContactModal] = useState(false);
+    const [showAdminCancelledModal, setShowAdminCancelledModal] = useState(false);
 
     // Rating state
     const [ratingStars, setRatingStars] = useState(5);
@@ -356,6 +384,7 @@ export default function Book2Page() {
         cancellationFee: number;
         feeReason: string;
     } | null>(null);
+    const [cancelError, setCancelError] = useState<string | null>(null);
 
     // === Dispute Modal State ===
     const [showDisputeModal, setShowDisputeModal] = useState(false);
@@ -380,6 +409,26 @@ export default function Book2Page() {
         { code: 'unfair_fee', label: language === 'th' ? 'ถูกเก็บค่าธรรมเนียมไม่เป็นธรรม' : 'Unfair fee' },
         { code: 'other', label: language === 'th' ? 'อื่นๆ' : 'Other' },
     ];
+
+    // === Login Modal State ===
+    const [showLoginModal, setShowLoginModal] = useState(false);
+    const [loginTab, setLoginTab] = useState<'login' | 'register'>('login');
+    const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
+    const [loginEmail, setLoginEmail] = useState('');
+    const [loginPassword, setLoginPassword] = useState('');
+    const [loginName, setLoginName] = useState('');
+    const [loginPhone, setLoginPhone] = useState('');
+    const [loginUserPhone, setLoginUserPhone] = useState(''); // Phone for email registration
+    const [countryCode, setCountryCode] = useState('+66');
+    const [loginOtp, setLoginOtp] = useState('');
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
+    const [loginError, setLoginError] = useState<string | null>(null);
+    const [otpSent, setOtpSent] = useState(false);
+    const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+    // Capacitor specific state
+    const [isNative, setIsNative] = useState(false);
+    const [verificationId, setVerificationId] = useState<string | null>(null);
+    const capacitorInitialized = useRef(false);
 
     // Bottom sheet minimized state
     const [isBottomSheetMinimized, setIsBottomSheetMinimized] = useState(false);
@@ -431,6 +480,47 @@ export default function Book2Page() {
             setPaymentMethod('cash');
         }
     }, [paymentConfig.enableCash, paymentConfig.enableCard]);
+
+    // Initialize Capacitor Auth for native apps
+    useEffect(() => {
+        const setupAuth = async () => {
+            const native = await isCapacitor();
+            setIsNative(native);
+
+            if (native && !capacitorInitialized.current) {
+                capacitorInitialized.current = true;
+                await initCapacitorAuth();
+            }
+        };
+        setupAuth();
+    }, []);
+
+    // Initialize reCAPTCHA on mount (same as /login page)
+    useEffect(() => {
+        if (isNative) return; // Skip for native apps
+
+        const timer = setTimeout(() => {
+            const container = document.getElementById('recaptcha-container');
+            if (auth && container && !window.recaptchaVerifier) {
+                try {
+                    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                        'size': 'invisible',
+                        'callback': () => {
+                            console.log('[Book2] reCAPTCHA solved');
+                        },
+                        'expired-callback': () => {
+                            console.log('[Book2] reCAPTCHA expired');
+                        }
+                    });
+                    console.log('[Book2] RecaptchaVerifier initialized on mount');
+                } catch (err) {
+                    console.error('[Book2] RecaptchaVerifier init error:', err);
+                }
+            }
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [isNative]);
 
     // Check for existing active booking
     useEffect(() => {
@@ -599,6 +689,26 @@ export default function Book2Page() {
                 };
                 if (statusMap[bookingData.status]) {
                     setStatus(statusMap[bookingData.status]);
+                }
+
+                // Handle booking cancelled by admin/driver (real-time)
+                if (bookingData.status === 'cancelled') {
+                    // Check if cancelled by admin or driver (not by customer themselves)
+                    const cancelledBy = bookingData.cancelledBy;
+                    if (cancelledBy === 'admin' || cancelledBy === 'driver' || cancelledBy === 'system') {
+                        setShowAdminCancelledModal(true);
+                    }
+                    // Reset trip state
+                    setStatus('selecting');
+                    setActiveBooking(null);
+                    setBookingId(null);
+                    setAssignedDriver(null);
+                    setDriverLocation(null);
+                    setIsRematching(false);
+                    setRematchMessage(null);
+                    if (rematchTimeoutRef.current) clearTimeout(rematchTimeoutRef.current);
+                    if (driverResponseTimeoutRef.current) clearTimeout(driverResponseTimeoutRef.current);
+                    return;
                 }
 
                 // Show rating modal on completion
@@ -1037,17 +1147,304 @@ export default function Book2Page() {
     // Payment handlers
     const handleBookNowClick = () => {
         if (!user) {
-            router.push('/login?redirect=/book2');
+            // Show login modal instead of redirecting
+            setLoginError(null);
+            setLoginEmail('');
+            setLoginPassword('');
+            setLoginName('');
+            setLoginPhone('');
+            setLoginOtp('');
+            setOtpSent(false);
+            setShowLoginModal(true);
             return;
         }
         if (!pickup.name || !dropoff.name || !selectedVehicle) {
-            alert('กรุณาเลือกจุดรับและจุดส่ง');
+            alert(language === 'th' ? 'กรุณาเลือกจุดรับและจุดส่ง' : 'Please select pickup and dropoff locations');
             return;
         }
         setPaymentMethod('cash');
         setClientSecret(null);
         setPaymentError(null);
         setShowPaymentModal(true);
+    };
+
+    // === Login Functions ===
+    const resetLoginForm = () => {
+        setLoginEmail('');
+        setLoginPassword('');
+        setLoginName('');
+        setLoginPhone('');
+        setLoginUserPhone('');
+        setLoginOtp('');
+        setLoginError(null);
+        setOtpSent(false);
+        setConfirmationResult(null);
+        setVerificationId(null);
+    };
+
+    const handleLoginSuccess = () => {
+        setShowLoginModal(false);
+        resetLoginForm();
+        // Proceed to payment after successful login
+        setTimeout(() => {
+            if (pickup.name && dropoff.name && selectedVehicle) {
+                setPaymentMethod('cash');
+                setClientSecret(null);
+                setPaymentError(null);
+                setShowPaymentModal(true);
+            }
+        }, 500);
+    };
+
+    // Helper function to wait for auth sync between Capacitor and web Firebase SDK
+    const waitForAuthSync = async (maxAttempts = 20): Promise<boolean> => {
+        return new Promise((resolve) => {
+            let attempts = 0;
+            const checkAuth = () => {
+                attempts++;
+                if (auth?.currentUser) {
+                    resolve(true);
+                } else if (attempts >= maxAttempts) {
+                    resolve(false);
+                } else {
+                    setTimeout(checkAuth, 200);
+                }
+            };
+            checkAuth();
+        });
+    };
+
+    const handleEmailLogin = async () => {
+        if (!auth) return;
+        if (!loginEmail || !loginPassword) {
+            setLoginError(language === 'th' ? 'กรุณากรอกอีเมลและรหัสผ่าน' : 'Please enter email and password');
+            return;
+        }
+        setIsLoggingIn(true);
+        setLoginError(null);
+        try {
+            await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
+            handleLoginSuccess();
+        } catch (error: any) {
+            console.error('Email login error:', error);
+            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                setLoginError(language === 'th' ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' : 'Invalid email or password');
+            } else if (error.code === 'auth/invalid-email') {
+                setLoginError(language === 'th' ? 'รูปแบบอีเมลไม่ถูกต้อง' : 'Invalid email format');
+            } else {
+                setLoginError(language === 'th' ? 'เกิดข้อผิดพลาด กรุณาลองใหม่' : 'An error occurred. Please try again');
+            }
+        } finally {
+            setIsLoggingIn(false);
+        }
+    };
+
+    const handleEmailRegister = async () => {
+        if (!auth) return;
+        if (!loginEmail || !loginPassword || !loginName) {
+            setLoginError(language === 'th' ? 'กรุณากรอกข้อมูลให้ครบ' : 'Please fill in all fields');
+            return;
+        }
+        if (loginPassword.length < 6) {
+            setLoginError(language === 'th' ? 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' : 'Password must be at least 6 characters');
+            return;
+        }
+        setIsLoggingIn(true);
+        setLoginError(null);
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, loginEmail, loginPassword);
+            // Update display name
+            await updateProfile(userCredential.user, { displayName: loginName });
+            // Save user to Firestore using FirestoreService
+            await FirestoreService.createUser(userCredential.user.uid, {
+                email: loginEmail,
+                displayName: loginName,
+                phone: loginUserPhone || undefined,
+                provider: 'email'
+            });
+            handleLoginSuccess();
+        } catch (error: any) {
+            console.error('Email register error:', error);
+            if (error.code === 'auth/email-already-in-use') {
+                setLoginError(language === 'th' ? 'อีเมลนี้ถูกใช้งานแล้ว' : 'This email is already in use');
+            } else if (error.code === 'auth/invalid-email') {
+                setLoginError(language === 'th' ? 'รูปแบบอีเมลไม่ถูกต้อง' : 'Invalid email format');
+            } else if (error.code === 'auth/weak-password') {
+                setLoginError(language === 'th' ? 'รหัสผ่านไม่ปลอดภัย' : 'Password is too weak');
+            } else {
+                setLoginError(language === 'th' ? 'เกิดข้อผิดพลาด กรุณาลองใหม่' : 'An error occurred. Please try again');
+            }
+        } finally {
+            setIsLoggingIn(false);
+        }
+    };
+
+    const handleGoogleLogin = async () => {
+        if (!auth) return;
+        setIsLoggingIn(true);
+        setLoginError(null);
+        try {
+            // Use native Google Sign-in for Capacitor
+            if (isNative) {
+                const result = await capacitorSignInWithGoogle();
+                if (result.success) {
+                    await waitForAuthSync();
+                    handleLoginSuccess();
+                } else {
+                    setLoginError(result.error || (language === 'th' ? 'เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย Google' : 'Google sign-in failed'));
+                }
+            } else {
+                // Use web popup for browser
+                const provider = new GoogleAuthProvider();
+                const result = await signInWithPopup(auth, provider);
+                // Save user to Firestore using FirestoreService
+                await FirestoreService.createUser(result.user.uid, {
+                    email: result.user.email || undefined,
+                    displayName: result.user.displayName || undefined,
+                    photoURL: result.user.photoURL || undefined,
+                    provider: 'google'
+                });
+                handleLoginSuccess();
+            }
+        } catch (error: any) {
+            console.error('Google login error:', error);
+            if (error.code === 'auth/popup-closed-by-user') {
+                // User closed popup, don't show error
+            } else {
+                setLoginError(language === 'th' ? 'เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย Google' : 'Google sign-in failed');
+            }
+        } finally {
+            setIsLoggingIn(false);
+        }
+    };
+
+    const handleSendOtp = async () => {
+        if (!auth) return;
+        if (!loginPhone) {
+            setLoginError(language === 'th' ? 'กรุณากรอกเบอร์โทรศัพท์' : 'Please enter phone number');
+            return;
+        }
+        // Format phone number with country code
+        let formattedPhone = loginPhone.replace(/\D/g, '');
+        if (formattedPhone.startsWith('0')) {
+            formattedPhone = countryCode + formattedPhone.substring(1);
+        } else if (!formattedPhone.startsWith('+')) {
+            formattedPhone = countryCode + formattedPhone;
+        }
+
+        setIsLoggingIn(true);
+        setLoginError(null);
+        try {
+            if (isNative) {
+                // Use Capacitor native phone auth
+                const result = await capacitorSendPhoneVerification(formattedPhone);
+                if (result.success && result.verificationId) {
+                    setVerificationId(result.verificationId);
+                    setOtpSent(true);
+                } else {
+                    setLoginError(result.error || (language === 'th' ? 'เกิดข้อผิดพลาดในการส่ง OTP' : 'Failed to send OTP'));
+                }
+            } else {
+                // Use web Firebase SDK with reCAPTCHA (same as /login page)
+                const appVerifier = window.recaptchaVerifier;
+                if (!appVerifier) {
+                    setLoginError(language === 'th' ? 'reCAPTCHA ไม่พร้อม กรุณา refresh หน้าแล้วลองใหม่' : 'reCAPTCHA not ready. Please refresh and try again.');
+                    setIsLoggingIn(false);
+                    return;
+                }
+
+                console.log('[Book2] Using existing RecaptchaVerifier');
+                const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
+                setConfirmationResult(confirmation);
+                setOtpSent(true);
+            }
+        } catch (error: any) {
+            console.error('Send OTP error:', error);
+            if (error.code === 'auth/invalid-phone-number') {
+                setLoginError(language === 'th' ? 'เบอร์โทรศัพท์ไม่ถูกต้อง' : 'Invalid phone number');
+            } else if (error.code === 'auth/too-many-requests') {
+                setLoginError(language === 'th' ? 'ส่ง OTP มากเกินไป กรุณารอสักครู่' : 'Too many requests. Please wait.');
+            } else if (error.code === 'auth/invalid-app-credential') {
+                setLoginError(language === 'th' ? 'ระบบ OTP ไม่พร้อมใช้งานชั่วคราว กรุณาใช้ Email หรือ Google แทน' : 'Phone login unavailable. Please use Email or Google login.');
+            } else if (error.code === 'auth/quota-exceeded' || error.code === 'auth/billing-not-enabled') {
+                setLoginError(language === 'th' ? 'ระบบ OTP ถึงขีดจำกัด กรุณาใช้ Email หรือ Google แทน' : 'SMS quota exceeded. Please use Email or Google login.');
+            } else {
+                setLoginError(language === 'th' ? 'เกิดข้อผิดพลาดในการส่ง OTP' : 'Failed to send OTP');
+            }
+            // Clear and recreate recaptcha on error (web only) - same as /login page
+            if (!isNative && window.recaptchaVerifier) {
+                try {
+                    window.recaptchaVerifier.clear();
+                    window.recaptchaVerifier = undefined;
+                } catch (e) { }
+            }
+        } finally {
+            setIsLoggingIn(false);
+        }
+    };
+
+    const handleVerifyOtp = async () => {
+        // For native: need verificationId, for web: need confirmationResult
+        if (isNative && !verificationId) return;
+        if (!isNative && !confirmationResult) return;
+
+        if (!loginOtp || loginOtp.length !== 6) {
+            setLoginError(language === 'th' ? 'กรุณากรอกรหัส OTP 6 หลัก' : 'Please enter 6-digit OTP');
+            return;
+        }
+        setIsLoggingIn(true);
+        setLoginError(null);
+        try {
+            let userCredential;
+
+            if (isNative && verificationId) {
+                // Use Capacitor native confirmation
+                const result = await capacitorConfirmPhoneVerification(verificationId, loginOtp);
+                if (!result.success) {
+                    throw { code: 'auth/invalid-verification-code', message: result.error };
+                }
+                // Wait for auth state to sync
+                await new Promise<void>((resolve) => {
+                    const unsubscribe = auth?.onAuthStateChanged((u) => {
+                        if (u) {
+                            unsubscribe?.();
+                            resolve();
+                        }
+                    });
+                    setTimeout(() => {
+                        unsubscribe?.();
+                        resolve();
+                    }, 3000);
+                });
+                userCredential = auth?.currentUser;
+            } else if (confirmationResult) {
+                // Use web confirmation
+                const result = await confirmationResult.confirm(loginOtp);
+                userCredential = result.user;
+            }
+
+            if (!userCredential) {
+                throw new Error('No user credential after verification');
+            }
+
+            // Use FirestoreService.createUser() for proper user creation/update
+            await FirestoreService.createUser(userCredential.uid, {
+                phone: userCredential.phoneNumber || undefined,
+                displayName: loginName || userCredential.phoneNumber || undefined,
+                provider: 'phone'
+            });
+
+            handleLoginSuccess();
+        } catch (error: any) {
+            console.error('Verify OTP error:', error);
+            if (error.code === 'auth/invalid-verification-code') {
+                setLoginError(language === 'th' ? 'รหัส OTP ไม่ถูกต้อง' : 'Invalid OTP code');
+            } else {
+                setLoginError(language === 'th' ? 'เกิดข้อผิดพลาดในการยืนยัน OTP' : 'Failed to verify OTP');
+            }
+        } finally {
+            setIsLoggingIn(false);
+        }
     };
 
     const handlePaymentProceed = async () => {
@@ -1122,12 +1519,19 @@ export default function Book2Page() {
     const confirmCancelBooking = async () => {
         if (!activeBooking?.id) return;
 
-        // Bug 5.3 fix: Validate booking status before cancelling
-        const cancellableStatuses = ['pending', 'confirmed', 'driver_assigned', 'driver_en_route'];
+        // ใช้ cancellableStatuses จาก config (ตรงกับ backend)
+        const cancellableStatuses = bookingConfig.cancellableStatuses || ['pending', 'confirmed', 'driver_assigned'];
         if (!cancellableStatuses.includes(activeBooking.status)) {
             alert(language === 'th'
-                ? 'ไม่สามารถยกเลิกได้ในขั้นตอนนี้ (กำลังเดินทางอยู่)'
-                : 'Cannot cancel at this stage (trip in progress)');
+                ? 'ไม่สามารถยกเลิกได้ คนขับกำลังเดินทางมาแล้ว'
+                : 'Cannot cancel - driver is already on the way');
+            setShowCancelModal(false);
+            return;
+        }
+
+        // ต้อง login ก่อนถึงจะยกเลิกได้
+        if (!user) {
+            alert(language === 'th' ? 'กรุณาเข้าสู่ระบบก่อนยกเลิกการจอง' : 'Please login before cancelling');
             setShowCancelModal(false);
             return;
         }
@@ -1136,7 +1540,9 @@ export default function Book2Page() {
         try {
             const token = await getAuthToken();
             if (!token) {
-                throw new Error(language === 'th' ? 'กรุณาเข้าสู่ระบบใหม่' : 'Please login again');
+                alert(language === 'th' ? 'Session หมดอายุ กรุณาเข้าสู่ระบบใหม่' : 'Session expired. Please login again');
+                setShowCancelModal(false);
+                return;
             }
 
             const response = await fetch('/api/booking/cancel', {
@@ -1151,10 +1557,17 @@ export default function Book2Page() {
                 }),
             });
 
-            const result = await response.json();
+            // Handle non-JSON responses
+            let result;
+            try {
+                result = await response.json();
+            } catch {
+                throw new Error(language === 'th' ? 'เซิร์ฟเวอร์มีปัญหา กรุณาลองใหม่' : 'Server error. Please try again.');
+            }
 
             if (!result.success) {
-                throw new Error(result.error || 'Cancel failed');
+                // แสดง error message จริงจาก API
+                throw new Error(result.error || (language === 'th' ? 'ยกเลิกไม่สำเร็จ' : 'Cancel failed'));
             }
 
             // Show Cancel Result Modal
@@ -1172,10 +1585,12 @@ export default function Book2Page() {
             }, 500);
 
         } catch (error: any) {
-            console.error('Error cancelling booking:', error);
-            alert(error.message || (language === 'th' ? 'เกิดข้อผิดพลาดในการยกเลิก กรุณาลองใหม่' : 'Error cancelling. Please try again.'));
+            // ไม่ใช้ console.error เพราะ business logic errors (เช่น limit exceeded) ไม่ใช่ bug
+            // แสดง error ใน modal สวยๆ แทน
+            setCancelError(error.message || (language === 'th' ? 'เกิดข้อผิดพลาด กรุณาลองใหม่' : 'Error. Please try again.'));
         } finally {
             setIsCancellingBooking(false);
+            setShowCancelModal(false);
         }
     };
 
@@ -1966,6 +2381,278 @@ export default function Book2Page() {
                 </div>
             )}
 
+            {/* Login Modal */}
+            {showLoginModal && (
+                <div className="fixed inset-0 z-[60] bg-black/50 flex items-end sm:items-center sm:justify-center">
+                    <div className="w-full sm:max-w-md bg-white dark:bg-[#162e21] rounded-t-3xl sm:rounded-2xl max-h-[90vh] overflow-hidden animate-slide-up">
+                        {/* Header */}
+                        <div className="sticky top-0 bg-white dark:bg-[#162e21] p-4 border-b border-[#dae7e0] dark:border-[#2a4a38]">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-bold text-[#101814] dark:text-white">
+                                    {language === 'th' ? 'เข้าสู่ระบบเพื่อจองรถ' : 'Sign in to book'}
+                                </h3>
+                                <button onClick={() => { setShowLoginModal(false); resetLoginForm(); }}>
+                                    <span className="material-symbols-outlined text-[#5e8d73]">close</span>
+                                </button>
+                            </div>
+                            {/* Tab Switcher */}
+                            <div className="flex gap-2 mt-4">
+                                <button
+                                    onClick={() => { setLoginTab('login'); setLoginError(null); }}
+                                    className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
+                                        loginTab === 'login'
+                                            ? 'bg-[#00b250] text-white'
+                                            : 'bg-[#f5f8f7] dark:bg-[#0f2318] text-[#5e8d73]'
+                                    }`}
+                                >
+                                    {language === 'th' ? 'เข้าสู่ระบบ' : 'Sign In'}
+                                </button>
+                                <button
+                                    onClick={() => { setLoginTab('register'); setLoginError(null); }}
+                                    className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
+                                        loginTab === 'register'
+                                            ? 'bg-[#00b250] text-white'
+                                            : 'bg-[#f5f8f7] dark:bg-[#0f2318] text-[#5e8d73]'
+                                    }`}
+                                >
+                                    {language === 'th' ? 'สมัครใหม่' : 'Register'}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-4 space-y-4 overflow-y-auto max-h-[60vh]">
+                            {/* Error Message */}
+                            {loginError && (
+                                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 rounded-xl p-3 text-sm flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-lg">error</span>
+                                    {loginError}
+                                </div>
+                            )}
+
+                            {/* Method Switcher (Email / Phone) */}
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => { setLoginMethod('email'); setLoginError(null); setOtpSent(false); }}
+                                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2 ${
+                                        loginMethod === 'email'
+                                            ? 'bg-[#00b250]/10 text-[#00b250] border-2 border-[#00b250]'
+                                            : 'bg-[#f5f8f7] dark:bg-[#0f2318] text-[#5e8d73] border-2 border-transparent'
+                                    }`}
+                                >
+                                    <span className="material-symbols-outlined text-lg">mail</span>
+                                    {language === 'th' ? 'อีเมล' : 'Email'}
+                                </button>
+                                <button
+                                    onClick={() => { setLoginMethod('phone'); setLoginError(null); setOtpSent(false); }}
+                                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2 ${
+                                        loginMethod === 'phone'
+                                            ? 'bg-[#00b250]/10 text-[#00b250] border-2 border-[#00b250]'
+                                            : 'bg-[#f5f8f7] dark:bg-[#0f2318] text-[#5e8d73] border-2 border-transparent'
+                                    }`}
+                                >
+                                    <span className="material-symbols-outlined text-lg">phone</span>
+                                    {language === 'th' ? 'เบอร์โทร' : 'Phone'}
+                                </button>
+                            </div>
+
+                            {/* Email Login/Register Form */}
+                            {loginMethod === 'email' && (
+                                <div className="space-y-3">
+                                    {loginTab === 'register' && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-[#5e8d73] mb-1">
+                                                {language === 'th' ? 'ชื่อ' : 'Name'}
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={loginName}
+                                                onChange={(e) => setLoginName(e.target.value)}
+                                                placeholder={language === 'th' ? 'ชื่อของคุณ' : 'Your name'}
+                                                className="w-full px-4 py-3 rounded-xl border-2 border-[#dae7e0] dark:border-[#2a4a38] bg-white dark:bg-[#0f2318] text-[#101814] dark:text-white focus:border-[#00b250] outline-none"
+                                            />
+                                        </div>
+                                    )}
+                                    <div>
+                                        <label className="block text-sm font-medium text-[#5e8d73] mb-1">
+                                            {language === 'th' ? 'อีเมล' : 'Email'}
+                                        </label>
+                                        <input
+                                            type="email"
+                                            value={loginEmail}
+                                            onChange={(e) => setLoginEmail(e.target.value)}
+                                            placeholder="email@example.com"
+                                            className="w-full px-4 py-3 rounded-xl border-2 border-[#dae7e0] dark:border-[#2a4a38] bg-white dark:bg-[#0f2318] text-[#101814] dark:text-white focus:border-[#00b250] outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-[#5e8d73] mb-1">
+                                            {language === 'th' ? 'รหัสผ่าน' : 'Password'}
+                                        </label>
+                                        <input
+                                            type="password"
+                                            value={loginPassword}
+                                            onChange={(e) => setLoginPassword(e.target.value)}
+                                            placeholder={language === 'th' ? 'รหัสผ่าน' : 'Password'}
+                                            className="w-full px-4 py-3 rounded-xl border-2 border-[#dae7e0] dark:border-[#2a4a38] bg-white dark:bg-[#0f2318] text-[#101814] dark:text-white focus:border-[#00b250] outline-none"
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={loginTab === 'login' ? handleEmailLogin : handleEmailRegister}
+                                        disabled={isLoggingIn}
+                                        className="w-full py-3 bg-[#00b250] text-white rounded-xl font-bold hover:bg-[#00a347] disabled:opacity-50 flex items-center justify-center gap-2"
+                                    >
+                                        {isLoggingIn ? (
+                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        ) : (
+                                            <>
+                                                <span className="material-symbols-outlined">login</span>
+                                                {loginTab === 'login'
+                                                    ? (language === 'th' ? 'เข้าสู่ระบบ' : 'Sign In')
+                                                    : (language === 'th' ? 'สมัครสมาชิก' : 'Register')
+                                                }
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Phone Login/Register Form */}
+                            {loginMethod === 'phone' && (
+                                <div className="space-y-3">
+                                    {!otpSent ? (
+                                        <>
+                                            {loginTab === 'register' && (
+                                                <div>
+                                                    <label className="block text-sm font-medium text-[#5e8d73] mb-1">
+                                                        {language === 'th' ? 'ชื่อ' : 'Name'}
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={loginName}
+                                                        onChange={(e) => setLoginName(e.target.value)}
+                                                        placeholder={language === 'th' ? 'ชื่อของคุณ' : 'Your name'}
+                                                        className="w-full px-4 py-3 rounded-xl border-2 border-[#dae7e0] dark:border-[#2a4a38] bg-white dark:bg-[#0f2318] text-[#101814] dark:text-white focus:border-[#00b250] outline-none"
+                                                    />
+                                                </div>
+                                            )}
+                                            <div>
+                                                <label className="block text-sm font-medium text-[#5e8d73] mb-1">
+                                                    {language === 'th' ? 'เบอร์โทรศัพท์' : 'Phone Number'}
+                                                </label>
+                                                <div className="flex gap-2">
+                                                    <select
+                                                        value={countryCode}
+                                                        onChange={(e) => setCountryCode(e.target.value)}
+                                                        className="w-24 px-2 py-3 rounded-xl border-2 border-[#dae7e0] dark:border-[#2a4a38] bg-[#f5f8f7] dark:bg-[#0f2318] text-[#101814] dark:text-white focus:border-[#00b250] outline-none text-sm"
+                                                    >
+                                                        {countryCodes.map((cc) => (
+                                                            <option key={cc.code} value={cc.dial_code}>
+                                                                {cc.dial_code}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    <input
+                                                        type="tel"
+                                                        value={loginPhone}
+                                                        onChange={(e) => setLoginPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                                        placeholder="812345678"
+                                                        className="flex-1 px-4 py-3 rounded-xl border-2 border-[#dae7e0] dark:border-[#2a4a38] bg-white dark:bg-[#0f2318] text-[#101814] dark:text-white focus:border-[#00b250] outline-none"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={handleSendOtp}
+                                                disabled={isLoggingIn}
+                                                className="w-full py-3 bg-[#00b250] text-white rounded-xl font-bold hover:bg-[#00a347] disabled:opacity-50 flex items-center justify-center gap-2"
+                                            >
+                                                {isLoggingIn ? (
+                                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                ) : (
+                                                    <>
+                                                        <span className="material-symbols-outlined">sms</span>
+                                                        {language === 'th' ? 'รับรหัส OTP' : 'Get OTP'}
+                                                    </>
+                                                )}
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="text-center py-2">
+                                                <p className="text-sm text-[#5e8d73]">
+                                                    {language === 'th' ? 'กรอกรหัส OTP ที่ส่งไปยัง' : 'Enter OTP sent to'}
+                                                </p>
+                                                <p className="font-bold text-[#101814] dark:text-white">{countryCode}{loginPhone}</p>
+                                            </div>
+                                            <div>
+                                                <input
+                                                    type="text"
+                                                    value={loginOtp}
+                                                    onChange={(e) => setLoginOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                                    placeholder="000000"
+                                                    maxLength={6}
+                                                    className="w-full px-4 py-3 rounded-xl border-2 border-[#dae7e0] dark:border-[#2a4a38] bg-white dark:bg-[#0f2318] text-[#101814] dark:text-white focus:border-[#00b250] outline-none text-center text-2xl tracking-widest font-mono"
+                                                />
+                                            </div>
+                                            <button
+                                                onClick={handleVerifyOtp}
+                                                disabled={isLoggingIn || loginOtp.length !== 6}
+                                                className="w-full py-3 bg-[#00b250] text-white rounded-xl font-bold hover:bg-[#00a347] disabled:opacity-50 flex items-center justify-center gap-2"
+                                            >
+                                                {isLoggingIn ? (
+                                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                ) : (
+                                                    <>
+                                                        <span className="material-symbols-outlined">verified</span>
+                                                        {language === 'th' ? 'ยืนยัน OTP' : 'Verify OTP'}
+                                                    </>
+                                                )}
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setOtpSent(false);
+                                                    setLoginOtp('');
+                                                    setVerificationId(null);
+                                                    // Clear recaptcha for web
+                                                    if (window.recaptchaVerifier) {
+                                                        try { window.recaptchaVerifier.clear(); } catch (e) { }
+                                                        window.recaptchaVerifier = undefined;
+                                                    }
+                                                }}
+                                                className="w-full py-2 text-[#5e8d73] text-sm"
+                                            >
+                                                {language === 'th' ? 'เปลี่ยนเบอร์โทร' : 'Change phone number'}
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Divider */}
+                            <div className="flex items-center gap-3 my-4">
+                                <div className="flex-1 h-px bg-[#dae7e0] dark:bg-[#2a4a38]" />
+                                <span className="text-sm text-[#5e8d73]">{language === 'th' ? 'หรือ' : 'or'}</span>
+                                <div className="flex-1 h-px bg-[#dae7e0] dark:bg-[#2a4a38]" />
+                            </div>
+
+                            {/* Google Sign In */}
+                            <button
+                                onClick={handleGoogleLogin}
+                                disabled={isLoggingIn}
+                                className="w-full py-3 bg-white dark:bg-[#0f2318] border-2 border-[#dae7e0] dark:border-[#2a4a38] rounded-xl font-medium text-[#101814] dark:text-white hover:bg-[#f5f8f7] dark:hover:bg-[#1a3d2a] disabled:opacity-50 flex items-center justify-center gap-3"
+                            >
+                                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                </svg>
+                                {language === 'th' ? 'ดำเนินการต่อด้วย Google' : 'Continue with Google'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Payment Modal */}
             {showPaymentModal && (
                 <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center sm:justify-center">
@@ -2090,7 +2777,26 @@ export default function Book2Page() {
                                 <span className="material-symbols-outlined text-red-500 text-3xl">warning</span>
                             </div>
                             <h3 className="text-lg font-bold text-[#101814] dark:text-white mb-2">{t.book2.cancelBookingQuestion}</h3>
-                            <p className="text-sm text-[#5e8d73] mb-6">{t.book2.cancelBookingConfirm}</p>
+                            <p className="text-sm text-[#5e8d73] mb-4">{t.book2.cancelBookingConfirm}</p>
+
+                            {/* แสดงข้อมูลค่าธรรมเนียมจาก Passenger Config */}
+                            {activeBooking?.status === 'driver_assigned' && passengerConfig.enableCancellationFee && (
+                                <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-3 mb-4 text-left">
+                                    <p className="text-xs text-yellow-700 dark:text-yellow-300 font-medium mb-1">
+                                        {language === 'th' ? 'ข้อมูลค่าธรรมเนียม' : 'Fee Information'}
+                                    </p>
+                                    <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                                        {language === 'th'
+                                            ? `• ยกเลิกฟรีภายใน ${passengerConfig.freeCancellationWindowMs / 60000} นาที หลังได้คนขับ`
+                                            : `• Free cancellation within ${passengerConfig.freeCancellationWindowMs / 60000} min after driver assigned`}
+                                    </p>
+                                    <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                                        {language === 'th'
+                                            ? `• หลังจากนั้นมีค่าธรรมเนียม ฿${passengerConfig.lateCancellationFee}`
+                                            : `• After that, fee is ฿${passengerConfig.lateCancellationFee}`}
+                                    </p>
+                                </div>
+                            )}
                         </div>
                         <div className="flex gap-3">
                             <button
@@ -2161,6 +2867,46 @@ export default function Book2Page() {
                             className="w-full h-14 rounded-xl bg-[#00b250] text-white font-bold"
                         >
                             {language === 'th' ? 'ตกลง' : 'OK'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Cancel Error Modal - แสดง error เมื่อยกเลิกไม่สำเร็จ */}
+            {cancelError && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-end">
+                    <div className="w-full bg-white dark:bg-[#162e21] rounded-t-3xl p-6">
+                        <div className="text-center mb-6">
+                            <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto mb-4">
+                                <span className="material-symbols-outlined text-red-500 text-3xl">
+                                    error
+                                </span>
+                            </div>
+                            <h3 className="text-lg font-bold text-[#101814] dark:text-white mb-2">
+                                {language === 'th' ? 'ไม่สามารถยกเลิกได้' : 'Cannot Cancel'}
+                            </h3>
+                            <p className="text-sm text-[#5e8d73]">
+                                {cancelError}
+                            </p>
+                        </div>
+
+                        {/* Info Box */}
+                        <div className="rounded-xl p-4 mb-6 bg-blue-50 dark:bg-blue-900/20">
+                            <div className="flex items-start gap-3">
+                                <span className="material-symbols-outlined text-blue-500 mt-0.5">info</span>
+                                <div className="text-sm text-[#5e8d73]">
+                                    {language === 'th'
+                                        ? 'หากต้องการความช่วยเหลือ กรุณาติดต่อฝ่ายบริการลูกค้า'
+                                        : 'If you need assistance, please contact customer service'}
+                                </div>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => setCancelError(null)}
+                            className="w-full h-14 rounded-xl bg-[#00b250] text-white font-bold"
+                        >
+                            {language === 'th' ? 'เข้าใจแล้ว' : 'Got it'}
                         </button>
                     </div>
                 </div>
@@ -2318,6 +3064,40 @@ export default function Book2Page() {
                             className="w-full h-14 rounded-xl bg-[#00b250] text-white font-bold"
                         >
                             {t.book2.understood}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Admin/Driver Cancelled Modal */}
+            {showAdminCancelledModal && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-end">
+                    <div className="w-full bg-white dark:bg-[#162e21] rounded-t-3xl p-6">
+                        <div className="text-center mb-6">
+                            <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                                <span className="material-symbols-outlined text-red-500 text-3xl">cancel</span>
+                            </div>
+                            <h3 className="text-lg font-bold text-[#101814] dark:text-white mb-2">
+                                {language === 'th' ? 'การจองถูกยกเลิก' : 'Booking Cancelled'}
+                            </h3>
+                            <p className="text-sm text-[#5e8d73]">
+                                {language === 'th'
+                                    ? 'การจองของคุณถูกยกเลิกโดยระบบหรือผู้ดูแล'
+                                    : 'Your booking has been cancelled by admin or system'}
+                            </p>
+                        </div>
+                        <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-4 mb-6">
+                            <p className="text-sm text-red-600 dark:text-red-400">
+                                {language === 'th'
+                                    ? 'หากคุณไม่ได้ร้องขอการยกเลิก กรุณาติดต่อฝ่ายสนับสนุน'
+                                    : 'If you did not request this cancellation, please contact support'}
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setShowAdminCancelledModal(false)}
+                            className="w-full h-14 rounded-xl bg-[#00b250] text-white font-bold"
+                        >
+                            {language === 'th' ? 'เข้าใจแล้ว' : 'I Understand'}
                         </button>
                     </div>
                 </div>
@@ -2517,11 +3297,12 @@ export default function Book2Page() {
                             </div>
                         </div>
 
-                        {/* Tipping Section */}
+                        {/* Tipping Section - ตั้งค่าได้ที่ Admin > System Settings > คะแนน */}
+                        {ratingConfig.enableTipping && (
                         <div className="bg-white dark:bg-[#162e22] rounded-xl p-5 mb-6 border border-[#dae7e0] dark:border-[#2a4a38]">
                             <h3 className="font-bold text-base mb-4 text-[#101814] dark:text-white">{t.book2.tipDriver}</h3>
                             <div className="grid grid-cols-4 gap-3 mb-4">
-                                {[0, 20, 50, 100].map(tip => (
+                                {ratingConfig.tipOptions.map(tip => (
                                     <button
                                         key={tip}
                                         onClick={() => setSelectedTip(tip)}
@@ -2543,6 +3324,7 @@ export default function Book2Page() {
                                 onChange={(e) => setRatingComment(e.target.value)}
                             />
                         </div>
+                        )}
                     </main>
 
                     {/* Fixed Bottom Actions */}
@@ -2572,6 +3354,9 @@ export default function Book2Page() {
                     </div>
                 </div>
             )}
+
+            {/* reCAPTCHA container - must be outside modals (same as /login page) */}
+            {!isNative && <div id="recaptcha-container"></div>}
         </div>
     );
 }

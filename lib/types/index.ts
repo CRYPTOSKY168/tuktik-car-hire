@@ -508,6 +508,8 @@ export interface RatingConfig {
     bayesianPriorMean: number;            // ค่าเริ่มต้น rating (default: 4.0)
     bayesianMinReviews: number;           // จำนวน review ขั้นต่ำ (default: 5)
     lowRatingThreshold: number;           // ต้องให้เหตุผลถ้าต่ำกว่านี้ (default: 3)
+    tipOptions: number[];                 // ตัวเลือกทิป (default: [0, 20, 50, 100])
+    enableTipping: boolean;               // เปิด/ปิดระบบทิป (default: true)
 }
 
 export interface RateLimitConfig {
@@ -600,6 +602,8 @@ export const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
         bayesianPriorMean: 4.0,
         bayesianMinReviews: 5,
         lowRatingThreshold: 3,
+        tipOptions: [0, 20, 50, 100],
+        enableTipping: true,
     },
     rateLimit: {
         standardApiLimit: 10,
@@ -636,8 +640,8 @@ export const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
         enableDriverLateWaiver: true,
         // Booking Limits
         maxActiveBookings: 1,                 // จองได้ 1 รายการ
-        maxCancellationsPerDay: 3,            // ยกเลิกได้ 3 ครั้ง/วัน
-        enableCancellationLimit: true,
+        maxCancellationsPerDay: 10,           // ยกเลิกได้ 10 ครั้ง/วัน (เพิ่มสำหรับ testing)
+        enableCancellationLimit: false,       // ปิด limit ไว้ก่อน (เปิดใน admin settings ได้)
         // Dispute Rules
         disputeWindowHours: 48,               // 48 ชม. หลังเสร็จ trip
         enableDispute: true,
