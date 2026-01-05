@@ -22,6 +22,22 @@
           }
         },
         {
+          "client_id": "270018999972-k3qf83h0g3dla3l7hatso0l8cj1lhq0l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tuktik.app",
+            "certificate_hash": "5d948c4333ba28629bea832d2bca491f5db0c967"
+          }
+        },
+        {
+          "client_id": "270018999972-m24sp20u7storsad8mpumdu39e5ol0bs.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tuktik.app",
+            "certificate_hash": "cb87ab14abed5ecf144322d70557975232de307f"
+          }
+        },
+        {
           "client_id": "270018999972-16q8ustg23v15jj61coet4adgcpolq1u.apps.googleusercontent.com",
           "client_type": 3
         }
